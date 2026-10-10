@@ -19,6 +19,9 @@ import (
 //	← {"type":"patch","updates":[…]}                       (a broadcast: Info)
 //	← {"type":"error","ref":3,"error":"live: no handler \"c9:0\""}
 //
+// render and patch messages may carry the JS commands components pushed,
+// {"js":[{"id":"c2","ops":[…]}]}, run after the message is applied.
+//
 // A client joining with {"type":"join","v":2} gets version 2: render and
 // patch carry each instance's render tree, or its change, as Trees
 // (components.md, "Protocol v2"):
@@ -53,6 +56,7 @@ type ServerMessage struct {
 	HTML    string       `json:"html,omitempty"`
 	Updates []Update     `json:"updates,omitempty"`
 	Trees   []TreeUpdate `json:"trees,omitempty"`
+	JS      []JSPush     `json:"js,omitempty"`
 	Error   string       `json:"error,omitempty"`
 	URL     string       `json:"url,omitempty"`
 }
@@ -66,13 +70,13 @@ func (s *Session) Handle(m ClientMessage) ServerMessage {
 			if err != nil {
 				return ServerMessage{Type: Error, Ref: m.Ref, Error: err.Error()}
 			}
-			return ServerMessage{Type: Render, Ref: m.Ref, V: 2, Trees: trees}
+			return ServerMessage{Type: Render, Ref: m.Ref, V: 2, Trees: trees, JS: s.JS()}
 		}
 		html, err := s.Render()
 		if err != nil {
 			return ServerMessage{Type: Error, Ref: m.Ref, Error: err.Error()}
 		}
-		return ServerMessage{Type: Render, Ref: m.Ref, HTML: html}
+		return ServerMessage{Type: Render, Ref: m.Ref, HTML: html, JS: s.JS()}
 	case EventMsg:
 		p, err := s.Event(m.Event)
 		if err != nil {
@@ -104,5 +108,5 @@ func Marshal(m ServerMessage) []byte {
 
 // PatchMessage is the message carrying p, the reply to Ref (0 for a broadcast).
 func PatchMessage(ref int, p Patch) ServerMessage {
-	return ServerMessage{Type: PatchMsg, Ref: ref, Updates: p.Updates, Trees: p.Trees, Error: p.Error}
+	return ServerMessage{Type: PatchMsg, Ref: ref, Updates: p.Updates, Trees: p.Trees, JS: p.JS, Error: p.Error}
 }

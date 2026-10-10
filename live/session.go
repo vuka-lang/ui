@@ -35,6 +35,7 @@ type Session struct {
 	trees  bool // a v2 connection: instances render to trees
 	c      conn
 	verify bool
+	js     []JSPush // pushed by the last Render or RenderTrees, for the join
 }
 
 // Patch is what an event or message changed: the HTML of each component whose
@@ -43,7 +44,16 @@ type Session struct {
 type Patch struct {
 	Updates []Update     `json:"updates,omitempty"`
 	Trees   []TreeUpdate `json:"trees,omitempty"`
+	JS      []JSPush     `json:"js,omitempty"`
 	Error   string       `json:"error,omitempty"`
+}
+
+// JSPush is JS commands a component pushed (ui.Live.PushJS), for the
+// browser to run once the message carrying it is applied: Ops, the
+// commands' JSON, run with the element whose data-vk-id is ID as This.
+type JSPush struct {
+	ID  string          `json:"id"`
+	Ops json.RawMessage `json:"ops"`
 }
 
 // TreeUpdate is an instance's change on a v2 connection (see RenderTrees):
@@ -88,6 +98,11 @@ func (s *Session) Render() (string, error) {
 	if err := s.renderAll(); err != nil {
 		return "", err
 	}
+	js, err := s.pushed()
+	if err != nil {
+		return "", err
+	}
+	s.js = js
 	s.settle()
 	return s.root.html(), nil
 }
@@ -105,9 +120,25 @@ func (s *Session) RenderTrees() ([]TreeUpdate, error) {
 	if err := s.renderAll(); err != nil {
 		return nil, err
 	}
+	js, err := s.pushed()
+	if err != nil {
+		return nil, err
+	}
+	s.js = js
 	ups := s.treeUpdates()
 	s.settle()
 	return ups, nil
+}
+
+// JS is the commands components pushed while the last Render or
+// RenderTrees mounted them (from a connected Mount), for the join's reply;
+// it returns them once.
+func (s *Session) JS() []JSPush {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	js := s.js
+	s.js = nil
+	return js
 }
 
 // refresh makes every instance render again, its output sent whole.
@@ -214,6 +245,7 @@ type instance struct {
 	occ      map[string]int
 	handlers []any
 	topics   []string
+	js       []ui.Commands // pushed since the last reply
 	seen     int
 	own      string // its HTML, each child as a marker
 	changed  bool
@@ -233,6 +265,26 @@ func (in *instance) Subscribe(topics ...string) {
 			in.topics = append(in.topics, t)
 		}
 	}
+}
+
+func (in *instance) PushJS(c ui.Commands) { in.js = append(in.js, c) }
+
+// pushed encodes the commands instances pushed, in render order, each Push
+// step's handler registered with its instance after its render's own.
+func (s *Session) pushed() ([]JSPush, error) {
+	var out []JSPush
+	for _, in := range s.order() {
+		for _, c := range in.js {
+			ops, err := ui.EncodeJS(ui.WithLiveHost(s.ctx, &scope{in: in}), c)
+			if err != nil {
+				in.js = nil
+				return nil, err
+			}
+			out = append(out, JSPush{in.id, ops})
+		}
+		in.js = nil
+	}
+	return out, nil
 }
 
 // scope is where a render is: the instance whose output it is, and the keys
@@ -471,7 +523,11 @@ func (s *Session) patch() (Patch, error) {
 	if err := s.renderAll(); err != nil {
 		return Patch{}, err
 	}
-	var p Patch
+	js, err := s.pushed()
+	if err != nil {
+		return Patch{}, err
+	}
+	p := Patch{JS: js}
 	if s.trees {
 		p.Trees = s.treeUpdates()
 		s.settle()

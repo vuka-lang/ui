@@ -29,6 +29,7 @@ type Live struct{ inst LiveInstance }
 type LiveInstance interface {
 	ID() string
 	Subscribe(topics ...string)
+	PushJS(c Commands)
 }
 
 // ID is the instance's id in its session, the value of its root element's
@@ -45,6 +46,16 @@ func (l *Live) ID() string {
 func (l *Live) Subscribe(topics ...string) {
 	if l.inst != nil {
 		l.inst.Subscribe(topics...)
+	}
+}
+
+// PushJS runs commands in the browser once the reply to the current event
+// (or message, or the join, from Mount) is applied, This being the
+// component's root element and refs its own. Without a session it does
+// nothing.
+func (l *Live) PushJS(ch JSChain) {
+	if l.inst != nil {
+		l.inst.PushJS(ch.jsChain())
 	}
 }
 
@@ -142,7 +153,9 @@ func MountLive(ctx context.Context, c Stateful) error {
 // EventHandler is an on… attribute's expression on an element: onClick={c.Inc}.
 // Under a live session it renders as data-vk-on-<event>="<handler id>" and the
 // session calls Fn when the browser reports the event; without one it renders
-// nothing. A templ.ComponentScript renders as templ renders it.
+// nothing. A chain of JS commands (Commands, CommandsOn) renders as
+// data-vk-js-<event>, with or without a session; a templ.ComponentScript as
+// templ renders it.
 type EventHandler struct{ Fn any }
 
 // On is an on… attribute's expression.

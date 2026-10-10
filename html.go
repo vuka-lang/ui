@@ -155,6 +155,9 @@ func (h *HTMLRenderer) attrs(e *Element) error {
 func (h *HTMLRenderer) attr(e *Element, a Attr) error {
 	name := a.Name
 	if eh, ok := a.Value.(EventHandler); ok {
+		if ch, ok := eh.Fn.(JSChain); ok {
+			return h.jsAttr(name, ch)
+		}
 		if _, script := eh.Fn.(templ.ComponentScript); !script {
 			return h.handlerAttr(name, eh)
 		}
@@ -166,6 +169,8 @@ func (h *HTMLRenderer) attr(e *Element, a Attr) error {
 			h.write(` data-vk-key="` + templ.EscapeString(fmt.Sprint(a.Value)) + `"`)
 		}
 		return nil
+	case "ref":
+		name = "data-vk-ref"
 	case "className":
 		name = "class"
 	case "htmlFor":

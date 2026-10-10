@@ -4,6 +4,10 @@
 // a runtime must, so tests can check that what a client ends up with is what
 // the server rendered. It is also the executable form of components.md's
 // "Protocol v2" section, for runtimes to port.
+//
+// It runs JS commands too (commands.go) — Click, Fire, and the commands
+// server messages carry — on a model of the page, so component tests check
+// what a user's clicks do without a browser: Attr, HasClass, Visible, Text.
 package livetest
 
 import (
@@ -30,6 +34,16 @@ type Client struct {
 	strs    map[int]string   // v2: kept markup by id
 	trees   map[string]any   // v2: each instance's *frame, or its HTML (a string)
 	ref     int
+
+	// Clipboard is what copy commands copied last.
+	Clipboard string
+	// Confirm answers confirm commands; nil confirms every one.
+	Confirm func(msg string) bool
+
+	dom   *node                           // the page parsed, for commands
+	domOf string                          // the HTML dom is of
+	over  map[string]map[string]*override // what commands changed, by element and attribute
+	queue []ui.Event                      // events commands pushed, to send
 }
 
 type frame struct {
@@ -68,7 +82,10 @@ func (c *Client) Send(m live.ClientMessage) (live.ServerMessage, error) {
 	if reply.Ref != c.ref {
 		return reply, fmt.Errorf("reply to %d, want %d", reply.Ref, c.ref)
 	}
-	return reply, c.Apply(out)
+	if err := c.Apply(out); err != nil {
+		return reply, err
+	}
+	return reply, c.flush()
 }
 
 // Event sends an event.
@@ -102,8 +119,27 @@ func (c *Client) RandomEvent(r *rand.Rand, words []string) (ui.Event, bool) {
 	return ui.Event{Target: h[1], Type: h[0], Value: w, Form: url.Values{"name": {w}}}, true
 }
 
-// Apply applies a server message's JSON.
+// Apply applies a server message's JSON: its markup, keeping what commands
+// changed where the server renders it as before, then the commands it
+// carries. Their pushes are sent by Send, or by the next Fire.
 func (c *Client) Apply(data []byte) error {
+	if err := c.applyMarkup(data); err != nil {
+		return err
+	}
+	c.reconcile()
+	var m struct {
+		JS []struct {
+			ID  string          `json:"id"`
+			Ops json.RawMessage `json:"ops"`
+		} `json:"js"`
+	}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	return c.runPushed(m.JS)
+}
+
+func (c *Client) applyMarkup(data []byte) error {
 	var m struct {
 		Type    string        `json:"type"`
 		V       int           `json:"v"`

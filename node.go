@@ -46,7 +46,8 @@ type NodeFunc = templ.ComponentFunc
 //     anything else goes through fmt.Sprint and is escaped
 //     (templ.ResolveAttributeValue).
 //
-// className and htmlFor name class and for. Names must be letters, digits,
+// className and htmlFor name class and for; ref names the element for JS
+// commands (Ref) and renders as data-vk-ref. Names must be letters, digits,
 // - _ : and . (templ only ever sees literal names; here a dynamic one could
 // smuggle in another attribute), else Render fails.
 type Attr struct {
