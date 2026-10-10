@@ -7,7 +7,8 @@ declares `const VukaJSX = 1`, Vuka's JSX target contract).
 
 - `ui` — `Node` (= `templ.Component`), elements and text, `Safe`, `Style`,
   `ErrorBoundary`, HTML rendering (`String`, `Write`, `Handler`), `Walk` and
-  `Renderer`; stateful components (`Live`, `On`, `Event`).
+  `Renderer`; stateful components (`Live`, `On`, `Event`); JS commands the
+  browser runs on an event (`JS`, `Ref`, `Live.PushJS`).
 - `ui/live` — sessions that keep stateful components alive for a connected
   browser, and the wire protocol transports speak.
 - `ui/term` — renders a node tree as terminal text.

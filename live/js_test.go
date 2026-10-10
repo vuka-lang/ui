@@ -214,3 +214,49 @@ func TestJSStaticPush(t *testing.T) {
 		t.Fatal(out)
 	}
 }
+
+// Panel exercises the rest of the commands the reference client runs.
+type Panel struct {
+	ui.Live
+	got []string
+}
+
+func (p *Panel) Got(v string) { p.got = append(p.got, v) }
+func (p *Panel) Render() ui.Node {
+	on := func(event string, ch ui.JSChain) ui.Attr { return a(event, ui.On(ch)) }
+	return ui.El("section", []ui.Attr{on("onPicked", ui.JS.Push(p.Got, ui.Value("picked")))},
+		ui.El("div", []ui.Attr{a("class", "card"), a("data-close", `[["add_class",{"names":["closed"]}]]`)},
+			ui.El("button", []ui.Attr{a("id", "tog"), on("onClick", ui.JS.ToggleAttr(ui.Closest(".card"), "aria-expanded", "true", "false").AddClass(ui.Inner("i"), "x"))}, ui.El("i", nil)),
+			ui.El("button", []ui.Attr{a("id", "exec"), on("onClick", ui.JS.Exec(ui.Closest(".card"), "data-close"))}),
+			ui.El("button", []ui.Attr{a("id", "fire"), on("onClick", ui.JS.Dispatch(ui.This, "picked"))}),
+			ui.El("button", []ui.Attr{a("id", "ask"), on("onClick", ui.JS.Confirm("sure?").CopyText("yes"))}),
+			ui.El("input", []ui.Attr{a("ref", "q"), a("value", "hello"), a("onInput", ui.On(p.Got))}),
+			ui.El("button", []ui.Attr{a("id", "set"), on("onClick", ui.JS.SetValue(ui.Ref("q"), "typed").Copy(ui.Ref("q")))}),
+			ui.El("button", []ui.Attr{a("id", "if"), on("onClick", ui.JS.If(ui.Ref("q").Value().Eq("typed")).If(ui.Ref("q").Attr("value")).Hide(ui.Sel("i")).End().ElseIf(ui.Ref("q").Exists()).Push(p.Got, ui.Value(1)).End())}),
+		),
+		ui.El("p", nil, ui.Text(strings.Join(p.got, ","))))
+}
+
+func TestLivetestOps(t *testing.T) {
+	c, err := livetest.Join(live.NewSession(context.Background(), func(context.Context) ui.Node { return ui.Component("p#1", nil, &Panel{}) }), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	step := func(sel string, check func() bool) {
+		t.Helper()
+		if err := c.Click(sel); err != nil || !check() {
+			t.Fatalf("%s: %v\n%s", sel, err, c.HTML())
+		}
+	}
+	step("#tog", func() bool { v, _ := c.Attr(".card", "aria-expanded"); return v == "true" && c.HasClass("i", "x") })
+	step("#tog", func() bool { v, _ := c.Attr(".card", "aria-expanded"); return v == "false" })
+	step("#exec", func() bool { return c.HasClass(".card", "closed") })
+	step("#fire", func() bool { return c.Text("p") == "picked" })
+	c.Confirm = func(string) bool { return false }
+	step("#ask", func() bool { return c.Clipboard == "" })
+	c.Confirm = nil
+	step("#ask", func() bool { return c.Clipboard == "yes" })
+	step("#if", func() bool { return c.Visible("i") && c.Text("p") == "picked,1" })
+	step("#set", func() bool { return c.Clipboard == "typed" && c.Text("p") == "picked,1,typed" })
+	step("#if", func() bool { return !c.Visible("i") && c.Text("p") == "picked,1,typed" })
+}
