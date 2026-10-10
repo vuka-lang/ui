@@ -3,6 +3,7 @@ package ui_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/vuka-lang/ui"
@@ -87,5 +88,42 @@ func TestJSXCommands(t *testing.T) {
 		`<ul data-vk-ref="menu" class="hidden" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;add_class&#34;,{&#34;names&#34;:[&#34;hidden&#34;]}]]"><li>0</li></ul></div>`
 	if err != nil || got != want {
 		t.Errorf("got  %s (%v)\nwant %s", got, err, want)
+	}
+}
+
+type Modal struct {
+	ui.Live
+	saved int
+	items []string
+}
+
+func (m *Modal) Save()          { m.saved++ }
+func (m *Modal) Pick(i int)     { m.saved = i }
+func (m *Modal) Delete(s string) {}
+
+func (m *Modal) Render() ui.Node {
+	open := ui.JS.PushFocus().Show(ui.Ref("dialog"), ui.Display("flex")).FocusFirst(ui.Ref("dialog"))
+	close := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
+	return <div>
+		<button onClick={open}>Edit</button>
+		<input type="checkbox" ref="all" onChange={ui.JS.
+			If(ui.Ref("all").Checked()).RemoveClass(ui.Ref("dialog"), "hidden").
+			Else().AddClass(ui.Ref("dialog"), "hidden").
+			End()} />
+		<div ref="dialog" style="display: none" onKeyDown={ui.JS.Key("Escape").Hide(ui.Ref("dialog")).PopFocus()}>
+			<button onClick={close}>Cancel</button>
+			<button onClick={close.Push(m.Save)}>Save</button>
+			<button onClick={ui.JS.Push(m.Pick, ui.Value(7))}>Seven</button>
+			{for _, it := range m.items {
+				<button onClick={ui.JS.Confirm("Delete " + it + "?").Push(func() { m.Delete(it) })}>{it}</button>
+			}}
+		</div>
+	</div>
+}
+
+func TestJSXModal(t *testing.T) {
+	got, err := ui.String(context.Background(), <Modal />)
+	if err != nil || !strings.Contains(got, `data-vk-ref="dialog"`) || !strings.Contains(got, `data-vk-js-change="[[&#34;if&#34;`) {
+		t.Errorf("%s (%v)", got, err)
 	}
 }
