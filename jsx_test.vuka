@@ -58,6 +58,8 @@ func TestJSX(t *testing.T) {
 		{<Pets />, `<table class="pets"><tr><td>none</td></tr></table>`},
 		{<p><Avatar url="/a.png" /></p>, `<p><img src="/a.png"></p>`},
 		{<Clicks Start={4} />, `<button>4</button>`},
+		{<ui.Link href="/pets?page=2" patch class="next">Next <b>page</b></ui.Link>, `<a href="/pets?page=2" data-vk-link="patch" class="next">Next <b>page</b></a>`},
+		{<ui.Link href="/pets/7">Rex</ui.Link>, `<a href="/pets/7" data-vk-link>Rex</a>`},
 	}
 	for _, c := range cases {
 		if got, err := ui.String(ctx, c.n); err != nil || got != c.want {

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -36,6 +37,10 @@ type Session struct {
 	c      conn
 	verify bool
 	js     []JSPush // pushed by the last Render or RenderTrees, for the join
+	router Router
+
+	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
+	uerr    error               // what their Update methods returned
 }
 
 // Patch is what an event or message changed: the HTML of each component whose
@@ -224,6 +229,67 @@ func (s *Session) Topics() []string {
 	return ts
 }
 
+// Route is the page a URL renders, what a Router gives Navigate: Render,
+// the page's render function, with Ctx (when set) the context of what runs
+// from then on, or, with Render nil, Redirect, a URL for the browser to load
+// (the URL itself when empty). Updates holds messages for a patch: an
+// instance kept for a tag whose props are a key takes the value in its
+// Update method before it renders.
+type Route struct {
+	Ctx      context.Context
+	Render   func(ctx context.Context) ui.Node
+	Redirect string
+	Updates  map[ui.Stateful]any
+}
+
+// Router resolves the URLs a connected page navigates to.
+type Router func(url string) Route
+
+// SetRouter sets what the navigate message renders. Without a router every
+// navigation is a full page load: the reply is a redirect.
+func (s *Session) SetRouter(r Router) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.router = r
+}
+
+// Navigate makes rt's page the session's, renders it, and returns what
+// changed, as an event's patch. As a patch (patch true), the instances the
+// new page renders where the old one rendered them stay mounted, their props
+// set from its tags, and those rt.Updates names take their message first; an
+// Update's error is the patch's Error. Otherwise every instance is unmounted
+// and the new page's mount afresh. The page itself (c0) is the same
+// instance either way, so a client gets only what changed of its markup — on
+// a v2 connection, against the statics it already holds.
+func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return Patch{}, errors.New("live: the session is closed")
+	}
+	if rt.Render == nil {
+		return Patch{}, errors.New("live: Navigate to a route without a page")
+	}
+	s.render = rt.Render
+	if rt.Ctx != nil {
+		s.ctx = rt.Ctx
+	}
+	if !patch {
+		for _, in := range s.order()[1:] {
+			unmount(in)
+		}
+		s.byID = map[string]*instance{RootID: s.root}
+		s.root.children, s.root.kids = map[string]*instance{}, nil
+	}
+	s.updates, s.uerr = maps.Clone(rt.Updates), nil
+	defer func() { s.updates, s.uerr = nil, nil }()
+	p, err := s.patch()
+	if s.uerr != nil && err == nil {
+		p.Error = s.uerr.Error()
+	}
+	return p, err
+}
+
 // Close unmounts every instance. The session renders nothing after it.
 func (s *Session) Close() {
 	s.mu.Lock()
@@ -253,8 +319,8 @@ type instance struct {
 	key      any // its tag's key, written on its root as data-vk-key
 
 	tree     *ui.Tree // its last render, on a v2 connection
-	shadow   *sframe    // what the client holds of it; nil: nothing yet
-	rendered bool       // rendered this pass (not skipped)
+	shadow   *sframe  // what the client holds of it; nil: nothing yet
+	rendered bool     // rendered this pass (not skipped)
 }
 
 func (in *instance) ID() string { return in.id }
@@ -362,6 +428,12 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 	default:
 		same = sameProps(in.comp, n.Props)
 		copyProps(in.comp, n.Props)
+		if msg, ok := s.updates[n.Props]; ok {
+			delete(s.updates, n.Props)
+			_, err := callUpdate(s.ctx, in.comp, msg)
+			s.uerr = errors.Join(s.uerr, err)
+			same = false
+		}
 	}
 	in.key = n.Key
 	parent.kids = append(parent.kids, in)

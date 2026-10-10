@@ -8,6 +8,8 @@
 // It runs JS commands too (commands.go) — Click, Fire, and the commands
 // server messages carry — on a model of the page, so component tests check
 // what a user's clicks do without a browser: Attr, HasClass, Visible, Text.
+// Clicking a ui.Link, or Navigate and Patch, moves the page over the
+// connection (navigate.go), through the session's router.
 package livetest
 
 import (
@@ -53,6 +55,7 @@ type Client struct {
 	pending []*pending                      // optimistic pushes sent or waiting, not yet replied to
 	now     time.Duration                   // the virtual clock timeouts run on
 	held    bool                            // events wait for Deliver
+	url     string                          // the page's URL, once it moved
 	funcs   map[string]Func
 }
 

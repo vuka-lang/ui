@@ -43,8 +43,9 @@ type pending struct {
 
 // sending is an event waiting to be sent, and the push it is the event of.
 type sending struct {
-	ev ui.Event
-	p  *pending
+	ev  ui.Event
+	p   *pending
+	nav *navigation // a navigate message instead of the event
 }
 
 // DefaultTimeout is how long a push waits for its reply unless it says.

@@ -45,6 +45,7 @@ func TestJSEncoding(t *testing.T) {
 		{ui.JS.Dispatch(ui.This, "x", ui.Detail(map[string]int{"n": 1}), ui.NoBubble()), `[["dispatch",{"event":"x","bubbles":false,"detail":{"n":1}}]]`},
 		{ui.JS.Exec(menu, "data-cancel"), `[["exec",{"to":{"ref":"menu"},"attr":"data-cancel"}]]`},
 		{ui.JS.Push(noop), `[["push",{}]]`}, // no session: no handler id
+		{ui.JS.Patch("/books?page=2").On(ui.This).Navigate("/books/7"), `[["patch",{"href":"/books?page=2"}],["navigate",{"href":"/books/7"}]]`},
 		{ui.JS.Debounce(300 * time.Millisecond).Throttle(time.Second), `[["debounce",{"ms":300}],["throttle",{"ms":1000}]]`},
 		{ui.JS.Key("Escape", "Enter").Confirm(`Delete "x" <now>?`), `[["key",{"keys":["Escape","Enter"]}],["confirm",{"msg":"Delete \"x\" <now>?"}]]`},
 		{ui.JS.If(menu.Checked()).Hide(menu).ElseIf(menu.Value().Eq("a")).Show(menu).Else().Toggle(menu).End(),

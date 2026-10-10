@@ -228,10 +228,21 @@ func (c *Client) Fire(sel string, ev ui.Event) error {
 	return c.flush()
 }
 
+// A click on a ui.Link (or inside one) also follows it, unless the link
+// itself takes the click.
 func (c *Client) fire(e *node, ev ui.Event, bubbles bool) error {
+	var link *node
+	if ev.Type == "click" && bubbles {
+		link = c.linkOf(e)
+	}
 	for ; e != nil; e = e.parent {
 		if js, ok := c.get(e, "data-vk-js-"+ev.Type); ok {
-			return c.run(e, []byte(js), ev, nil)
+			if e == link {
+				link = nil
+			}
+			err := c.run(e, []byte(js), ev, nil)
+			c.follow(link)
+			return err
 		}
 		if h, ok := c.get(e, "data-vk-on-"+ev.Type); ok {
 			ev.Target = h
@@ -239,12 +250,16 @@ func (c *Client) fire(e *node, ev ui.Event, bubbles bool) error {
 				ev.Value = c.value(e)
 			}
 			c.queue = append(c.queue, sending{ev: ev})
+			if e != link {
+				c.follow(link)
+			}
 			return nil
 		}
 		if !bubbles {
 			return nil
 		}
 	}
+	c.follow(link)
 	return nil
 }
 
@@ -254,6 +269,12 @@ func (c *Client) flush() error {
 	for len(c.queue) > 0 && !c.held {
 		q := c.queue[0]
 		c.queue = c.queue[1:]
+		if q.nav != nil {
+			if _, err := c.navigate(*q.nav); err != nil {
+				return err
+			}
+			continue
+		}
 		m, err := c.send(live.ClientMessage{Type: live.EventMsg, Event: q.ev}, q.p)
 		if err != nil {
 			return err
@@ -311,6 +332,7 @@ type opArgs struct {
 	Timeout    int64             `json:"timeout"`
 	Keep       bool              `json:"keep"`
 	Fn         string            `json:"fn"`
+	Href       string            `json:"href"`
 	Args       []json.RawMessage `json:"args"`
 }
 
@@ -503,7 +525,7 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 			} else if p.Value == "" {
 				p.Value = c.value(this)
 			}
-			c.queue = append(c.queue, sending{p, c.predict(this, a, seg)})
+			c.queue = append(c.queue, sending{ev: p, p: c.predict(this, a, seg)})
 			continue
 		case "call":
 			ok, err := c.call(this, a, ev)
@@ -519,6 +541,9 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 			}
 			continue
 		case "pop_focus", "debounce", "throttle":
+			continue
+		case "patch", "navigate":
+			c.queue = append(c.queue, sending{nav: &navigation{a.Href, o.name == "patch"}})
 			continue
 		}
 		ts, err := c.targets(this, a.To)

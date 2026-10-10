@@ -59,6 +59,15 @@ func (l *Live) PushJS(ch JSChain) {
 	}
 }
 
+// PushPatch moves the page to href once the reply to the current event (or
+// message) is applied, as JS.Patch does: the same live route with other
+// parameters, this component staying mounted.
+func (l *Live) PushPatch(href string) { l.PushJS(JS.Patch(href)) }
+
+// PushNavigate moves the page to href once the reply to the current event
+// (or message) is applied, as JS.Navigate does.
+func (l *Live) PushNavigate(href string) { l.PushJS(JS.Navigate(href)) }
+
 func (l *Live) vukaLive() *Live { return l }
 
 // Stateful is a stateful component: a pointer to a struct embedding Live, with

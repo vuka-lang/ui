@@ -479,6 +479,18 @@ func (c Commands) SetText(target Target, text string) Commands {
 	return c.add("set_text", to(target), jsArg{"text", text})
 }
 
+// Patch moves a live page to href, a URL of the same live route with other
+// path parameters or query: the component stays mounted, its props are bound
+// again from the URL, and the browser's address changes. On a page that
+// isn't connected, or with an href of another origin, it loads href.
+func (c Commands) Patch(href string) Commands { return c.add("patch", jsArg{"href", href}) }
+
+// Navigate moves a live page to href, another page, over its connection: the
+// new page's components mount, and the browser's address changes. A page
+// that isn't connected, an href of another origin, or one whose route isn't
+// a page loads href.
+func (c Commands) Navigate(href string) Commands { return c.add("navigate", jsArg{"href", href}) }
+
 // On is the chain with target as the target of the commands added to it.
 func (c Commands) On(target Target) CommandsOn { return CommandsOn{c, target} }
 
@@ -549,6 +561,8 @@ func (o CommandsOn) SetText(text string) CommandsOn      { return o.with(o.c.Set
 func (o CommandsOn) OnError(chain JSChain) CommandsOn    { return o.with(o.c.OnError(chain)) }
 func (o CommandsOn) OnSuccess(chain JSChain) CommandsOn  { return o.with(o.c.OnSuccess(chain)) }
 func (o CommandsOn) Timeout(d time.Duration) CommandsOn  { return o.with(o.c.Timeout(d)) }
+func (o CommandsOn) Patch(href string) CommandsOn        { return o.with(o.c.Patch(href)) }
+func (o CommandsOn) Navigate(href string) CommandsOn     { return o.with(o.c.Navigate(href)) }
 
 // Call calls a JavaScript function (see Commands.Call) with the target as
 // its context's element.
