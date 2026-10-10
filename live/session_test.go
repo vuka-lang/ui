@@ -154,6 +154,14 @@ func TestClick(t *testing.T) {
 	if m := c.send(live.ClientMessage{Type: live.EventMsg, Event: ui.Event{Target: "c9:0"}}); m.Type != live.Error {
 		t.Fatalf("unknown handler: %+v", m)
 	}
+	if h, ok := c.s.Handler(c.handler("click", 1)).(func()); !ok || h == nil {
+		t.Errorf("Handler(%s) = %T", c.handler("click", 1), c.s.Handler(c.handler("click", 1)))
+	}
+	for _, bad := range []string{"c9:0", "c1:7", "c1", "x"} {
+		if h := c.s.Handler(bad); h != nil {
+			t.Errorf("Handler(%q) = %T", bad, h)
+		}
+	}
 }
 
 func TestStatic(t *testing.T) {
