@@ -116,7 +116,7 @@ type Condition struct {
 }
 
 // ValueCondition holds when the target's value isn't empty; Eq compares it.
-type ValueCondition struct{ Condition }
+type ValueCondition struct{ c Condition }
 
 // Checked holds when the target is a checked checkbox or radio.
 func (t Target) Checked() Condition { return Condition{t, "checked", true} }
@@ -124,8 +124,10 @@ func (t Target) Checked() Condition { return Condition{t, "checked", true} }
 // Value holds when the target's value isn't empty.
 func (t Target) Value() ValueCondition { return ValueCondition{Condition{t, "value", true}} }
 
+func (c ValueCondition) MarshalJSON() ([]byte, error) { return c.c.MarshalJSON() }
+
 // Eq holds when the target's value is v.
-func (c ValueCondition) Eq(v string) Condition { return Condition{c.to, "value_eq", v} }
+func (c ValueCondition) Eq(v string) Condition { return Condition{c.c.to, "value_eq", v} }
 
 // Attr holds when the target has the attribute name.
 func (t Target) Attr(name string) Condition { return Condition{t, "attr", name} }
@@ -140,7 +142,7 @@ func (t Target) Exists() Condition { return Condition{t, "exists", true} }
 type Conditional interface{ cond() Condition }
 
 func (c Condition) cond() Condition      { return c }
-func (c ValueCondition) cond() Condition { return c.Condition }
+func (c ValueCondition) cond() Condition { return c.c }
 
 func (c Condition) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
