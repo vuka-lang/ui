@@ -1,0 +1,66 @@
+package ui_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/vuka-lang/ui"
+)
+
+type Pet struct {
+	Name string
+	Age  int
+}
+
+func PetRow(pet Pet) ui.Node {
+	return <tr><td>{pet.Name}</td><td>{pet.Age}</td></tr>
+}
+
+func Pets(pets []Pet, children ui.Node) ui.Node {
+	return <table className="pets">
+		{for _, p := range pets { <PetRow pet={p} /> }}
+		{if len(pets) == 0 { <tr><td>none</td></tr> }}
+		{children}
+	</table>
+}
+
+func Avatar(url string) (ui.Node, error) {
+	if url == "" {
+		return nil, errors.New("no avatar")
+	}
+	return <img src={url} />, nil
+}
+
+type Clicks struct {
+	ui.Live
+	Start int
+	n     int
+}
+
+func (c *Clicks) Mount()          { c.n = c.Start }
+func (c *Clicks) Inc()            { c.n++ }
+func (c *Clicks) Render() ui.Node { return <button onClick={c.Inc}>{c.n}</button> }
+
+// TestJSX: ui is a JSX target — the compiler lowers a file importing it to
+// ui's nodes, components bind by name, stateful tags render statically.
+func TestJSX(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		n    ui.Node
+		want string
+	}{
+		{<Pets pets={[]Pet{{"Rex", 3}}}><caption>pets</caption></Pets>, `<table class="pets"><tr><td>Rex</td><td>3</td></tr><caption>pets</caption></table>`},
+		{<Pets />, `<table class="pets"><tr><td>none</td></tr></table>`},
+		{<p><Avatar url="/a.png" /></p>, `<p><img src="/a.png"></p>`},
+		{<Clicks Start={4} />, `<button>4</button>`},
+	}
+	for _, c := range cases {
+		if got, err := ui.String(ctx, c.n); err != nil || got != c.want {
+			t.Errorf("got %q (%v), want %q", got, err, c.want)
+		}
+	}
+	if _, err := ui.String(ctx, <p><Avatar /></p>); err == nil || err.Error() != "no avatar" {
+		t.Errorf("a component's error fails the render: %v", err)
+	}
+}
