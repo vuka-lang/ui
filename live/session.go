@@ -186,6 +186,21 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 	return p, err
 }
 
+// Handler is the function an event's target names ("c1:0"): a method
+// value such as c.Inc, for a transport to say which handler an event ran
+// (a development toolbar's "Counter.Inc"); nil when it names none.
+func (s *Session) Handler(target string) any {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id, n, ok := strings.Cut(target, ":")
+	in := s.byID[id]
+	h, err := strconv.Atoi(n)
+	if !ok || in == nil || err != nil || h < 0 || h >= len(in.handlers) {
+		return nil
+	}
+	return in.handlers[h]
+}
+
 // Info delivers msg to the Update method fitting its type of every instance
 // subscribed to topic (of every instance, for ""), renders the page again if
 // any took it, and returns what changed. An Update's error is the patch's Error.
