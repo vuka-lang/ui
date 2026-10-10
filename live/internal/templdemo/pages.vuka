@@ -1,0 +1,42 @@
+// Package templdemo is templ components, compiled by the vuka command to
+// record live render trees, and pages using them, for the live package's
+// tests. The *_templ.go and *_vuka.go files are generated:
+// vuka gen -inplace ./live/internal/templdemo
+package templdemo
+
+import "github.com/vuka-lang/ui"
+
+// Inbox is a stateful component rendering a templ Panel: reading a message
+// changes the Panel's badge alone.
+type Inbox struct {
+	ui.Live
+	Unread int
+	Opaque bool // the Panel as one piece of markup (Opaque)
+	read   ui.Assign[int]
+}
+
+func (b *Inbox) Read() { b.read.Update(func(n int) int { return n + 1 }) }
+
+func (b *Inbox) Render() ui.Node {
+	panel := <Panel heading="Inbox" badge={b.Unread - b.read.Get()}>
+		<p>Messages arrive here.</p>
+		<button onClick={b.Read}>Read one</button>
+	</Panel>
+	if b.Opaque {
+		panel = Opaque(panel)
+	}
+	return <div class="inbox">{panel}</div>
+}
+
+// InboxPage and BooksPage are pages sharing the templ Layout.
+func InboxPage() ui.Node {
+	return <Layout title="Inbox" current="/inbox">
+		<Inbox Unread={3} />
+	</Layout>
+}
+
+func BooksPage(books []string) ui.Node {
+	return <Layout title="Books" current="/books">
+		<Panel heading="Books" badge={len(books)}><Shelf books={books} /></Panel>
+	</Layout>
+}

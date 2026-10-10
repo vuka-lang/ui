@@ -1,0 +1,69 @@
+package templdemo
+
+import (
+	"fmt"
+
+	"github.com/vuka-lang/ui"
+)
+
+var links = []struct{ Href, Label string }{
+	{"/inbox", "Inbox"},
+	{"/books", "Books"},
+	{"/about", "About"},
+}
+
+// Layout is the pages' document: a head, a nav marking the current page and
+// a footer, around the page's content.
+templ Layout(title string, current string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title } · Templ demo</title>
+			<link rel="stylesheet" href="/static/app.css"/>
+		</head>
+		<body class="min-h-full bg-slate-50 font-sans text-slate-800 antialiased">
+			<header class="border-b border-slate-200 bg-white">
+				<nav class="mx-auto flex max-w-2xl items-center gap-1 px-4 py-3">
+					for _, l := range links {
+						@ui.Link(ui.LinkProps{Href: l.Href, Class: navClass(l.Href == current), Children: ui.Text(l.Label)})
+					}
+				</nav>
+			</header>
+			<main class="mx-auto max-w-2xl space-y-6 px-4 py-10">
+				{ children... }
+			</main>
+			<footer class="mx-auto max-w-2xl px-4 py-6 text-sm text-slate-500">Rendered by templ, diffed like JSX.</footer>
+		</body>
+	</html>
+}
+
+func navClass(active bool) string {
+	if active {
+		return "rounded-md bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700"
+	}
+	return "rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+}
+
+// Panel is a box with a heading and a badge around its content.
+templ Panel(heading string, badge int) {
+	<section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+		<div class="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
+			<h2 class="text-lg font-semibold tracking-tight text-slate-900">{ heading }</h2>
+			if badge > 0 {
+				<span class="rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-medium text-white">{ fmt.Sprint(badge) }</span>
+			}
+		</div>
+		{ children... }
+	</section>
+}
+
+// Shelf lists books, each in a Panel.
+templ Shelf(books []string) {
+	<ul class="divide-y divide-slate-100">
+		for i, b := range books {
+			<li class="px-4 py-3"><span class="tabular-nums text-slate-400">{ fmt.Sprint(i + 1) }.</span> { b }</li>
+		}
+	</ul>
+}
