@@ -57,6 +57,9 @@ func BuildTree(ctx context.Context, n Node, verify bool) (*Tree, error) {
 	if err != nil {
 		return nil, err
 	}
+	if t, ok := v.(*Tree); ok {
+		return t, nil
+	}
 	return OpaqueTree(v), nil
 }
 
@@ -184,7 +187,25 @@ func (b *treeBuilder) frame(ctx context.Context, f *Frame) (*Tree, error) {
 			return nil, fmt.Errorf("ui: frame %#x rendered statics %q, but %q before: two pieces of JSX share a fingerprint", f.FP, fb.statics, t.Statics)
 		}
 	}
-	return t, nil
+	return passThrough(t), nil
+}
+
+// passThrough is t, or — when its statics are all empty, so it is nothing
+// but its dynamics — the frame it holds alone, or a frame of its dynamics
+// keyed by their number. Frames that only pass something through (a page
+// returning its layout, a layout's component) then key alike wherever they
+// are, and what they hold diffs across them.
+func passThrough(t *Tree) *Tree {
+	if !allEmpty(t.Statics) {
+		return t
+	}
+	if len(t.Dyn) == 1 {
+		if in, ok := t.Dyn[0].(*Tree); ok {
+			return in
+		}
+	}
+	t.Key, t.Statics = opaqueKey(len(t.Dyn)), emptyStatics(len(t.Dyn)+1)
+	return t
 }
 
 func (b *treeBuilder) items(ctx context.Context, fb *frameBuild, sh *shape, kids []Node, extra int) error {
@@ -338,6 +359,9 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 			return nil, n.Err
 		}
 		return b.value(ctx, n.Node)
+	}
+	if opaque(n) {
+		return b.record(ctx, n)
 	}
 	return b.html(ctx, n)
 }

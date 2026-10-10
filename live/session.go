@@ -560,8 +560,20 @@ func rooted(n ui.Node, id string, key any) ui.Node {
 	if r, ok := ui.RootAttrs(n, attrs...); ok {
 		return r
 	}
-	return ui.El("vk-c", append(attrs, ui.Attr{Name: "style", Value: "display:contents"}), n)
+	fp, shape := vkcFP, "Eds(h)"
+	if key != nil {
+		fp, shape = vkcKeyedFP, "Edds(h)"
+	}
+	return ui.F(fp, shape, ui.El("vk-c", append(attrs, ui.Attr{Name: "style", Value: "display:contents"}), n))
 }
+
+// The fingerprints of the <vk-c> frames rooted puts around a component's
+// output: a frame like JSX's, so what it holds (a templ component, a
+// fragment) is a frame of the tree too.
+const (
+	vkcFP      uint64 = 0x766b2d6300000001
+	vkcKeyedFP uint64 = 0x766b2d6300000002
+)
 
 // html is an instance's HTML with its children's in place of their markers.
 func (in *instance) html() string {
