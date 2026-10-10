@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/live"
 )
 
 // The client runs JS commands (the live protocol's "JS commands") on a
@@ -14,8 +15,10 @@ import (
 // on its elements — classes, attributes, the style's display, values —
 // kept across patches while the server renders those attributes as it did,
 // as a browser runtime keeps them. An element is known by its place in the
-// page. Pushes send events; debounce and throttle run at once; focus,
-// scrolling and transitions do nothing.
+// page. Pushes send events, settling the changes before them as their
+// predictions (optimistic.go); calls run the Funcs a test registers;
+// debounce and throttle run at once; focus, scrolling and transitions do
+// nothing.
 
 // override is an attribute a command set: its value (or removal), and the
 // server's value when it did.
@@ -36,6 +39,9 @@ func (c *Client) get(e *node, name string) (string, bool) {
 	if o, ok := c.over[e.path][name]; ok {
 		return o.val, o.valHas
 	}
+	if name == textAttr {
+		return c.text(e), true
+	}
 	return e.attr(name)
 }
 
@@ -52,13 +58,50 @@ func (c *Client) set(e *node, name, val string, has bool) {
 		m = map[string]*override{}
 		c.over[e.path] = m
 	}
+	if c.acc != nil {
+		ch := change{path: e.path, name: name, after: value{val, has}, server: serverValue(e, name)}
+		ch.before.s, ch.before.has = c.get(e, name)
+		*c.acc = append(*c.acc, ch)
+	}
 	o := m[name]
 	if o == nil {
 		o = &override{}
-		o.server, o.serverHas = e.attr(name)
+		o.server, o.serverHas = serverAttr(e, name)
 		m[name] = o
 	}
 	o.val, o.valHas = val, has
+}
+
+// textAttr is the name commands' text changes are recorded under, as if
+// the text were an attribute.
+const textAttr = "#text"
+
+// serverAttr is an element's attribute, or its text, as the server rendered it.
+func serverAttr(e *node, name string) (string, bool) {
+	if name == textAttr {
+		return e.textContent(), true
+	}
+	return e.attr(name)
+}
+
+func serverValue(e *node, name string) value {
+	v, has := serverAttr(e, name)
+	return value{v, has}
+}
+
+// text is an element's text as the page shows it after commands.
+func (c *Client) text(e *node) string {
+	if e.tag == "" {
+		return e.text
+	}
+	if o, ok := c.over[e.path][textAttr]; ok {
+		return o.val
+	}
+	var b strings.Builder
+	for _, k := range e.kids {
+		b.WriteString(c.text(k))
+	}
+	return b.String()
 }
 
 // reconcile drops what commands changed where the server now renders the
@@ -73,7 +116,7 @@ func (c *Client) reconcile() {
 		e := at[path]
 		for name, o := range m {
 			if v, has := "", false; e != nil {
-				v, has = e.attr(name)
+				v, has = serverAttr(e, name)
 				if v == o.server && has == o.serverHas {
 					continue
 				}
@@ -136,7 +179,7 @@ func (c *Client) Visible(sel string) bool {
 // Text is the text of the first element matching sel.
 func (c *Client) Text(sel string) string {
 	if e := c.find(sel); e != nil {
-		return e.textContent()
+		return c.text(e)
 	}
 	return ""
 }
@@ -188,14 +231,14 @@ func (c *Client) Fire(sel string, ev ui.Event) error {
 func (c *Client) fire(e *node, ev ui.Event, bubbles bool) error {
 	for ; e != nil; e = e.parent {
 		if js, ok := c.get(e, "data-vk-js-"+ev.Type); ok {
-			return c.run(e, []byte(js), ev)
+			return c.run(e, []byte(js), ev, nil)
 		}
 		if h, ok := c.get(e, "data-vk-on-"+ev.Type); ok {
 			ev.Target = h
 			if ev.Value == "" {
 				ev.Value = c.value(e)
 			}
-			c.queue = append(c.queue, ev)
+			c.queue = append(c.queue, sending{ev: ev})
 			return nil
 		}
 		if !bubbles {
@@ -205,16 +248,17 @@ func (c *Client) fire(e *node, ev ui.Event, bubbles bool) error {
 	return nil
 }
 
-// flush sends the events commands pushed, applying each reply.
+// flush sends the events commands pushed, applying each reply, unless
+// the client holds them.
 func (c *Client) flush() error {
-	for len(c.queue) > 0 {
-		ev := c.queue[0]
+	for len(c.queue) > 0 && !c.held {
+		q := c.queue[0]
 		c.queue = c.queue[1:]
-		m, err := c.Event(ev)
+		m, err := c.send(live.ClientMessage{Type: live.EventMsg, Event: q.ev}, q.p)
 		if err != nil {
 			return err
 		}
-		if m.Type == "error" {
+		if m.Type == live.Error {
 			return fmt.Errorf("livetest: %s", m.Error)
 		}
 	}
@@ -235,7 +279,7 @@ func (c *Client) value(e *node) string {
 		if v, ok := c.get(e, "value"); ok {
 			return v
 		}
-		return e.textContent()
+		return c.text(e)
 	}
 	v, _ := c.get(e, "value")
 	return v
@@ -243,23 +287,31 @@ func (c *Client) value(e *node) string {
 
 type op struct {
 	name string
-	args struct {
-		To         json.RawMessage `json:"to"`
-		Names      []string        `json:"names"`
-		Name       string          `json:"name"`
-		Value      json.RawMessage `json:"value"`
-		Values     []string        `json:"values"`
-		Display    string          `json:"display"`
-		Event      string          `json:"event"`
-		Bubbles    bool            `json:"bubbles"`
-		Attr       string          `json:"attr"`
-		H          string          `json:"h"`
-		Keys       []string        `json:"keys"`
-		Msg        string          `json:"msg"`
-		Cond       *cond           `json:"cond"`
-		Text       string          `json:"text"`
-		Transition []string        `json:"transition"`
-	}
+	args opArgs
+}
+
+type opArgs struct {
+	To         json.RawMessage   `json:"to"`
+	Names      []string          `json:"names"`
+	Name       string            `json:"name"`
+	Value      json.RawMessage   `json:"value"`
+	Values     []string          `json:"values"`
+	Display    string            `json:"display"`
+	Event      string            `json:"event"`
+	Bubbles    bool              `json:"bubbles"`
+	Attr       string            `json:"attr"`
+	H          string            `json:"h"`
+	Keys       []string          `json:"keys"`
+	Msg        string            `json:"msg"`
+	Cond       *cond             `json:"cond"`
+	Text       string            `json:"text"`
+	Transition []string          `json:"transition"`
+	OnOK       json.RawMessage   `json:"on_ok"`
+	OnError    json.RawMessage   `json:"on_error"`
+	Timeout    int64             `json:"timeout"`
+	Keep       bool              `json:"keep"`
+	Fn         string            `json:"fn"`
+	Args       []json.RawMessage `json:"args"`
 }
 
 type cond struct {
@@ -363,16 +415,22 @@ func (c *Client) holds(this *node, k *cond) (bool, error) {
 	return false, fmt.Errorf("livetest: bad condition")
 }
 
-// run runs commands with this as This, for the event ev.
-func (c *Client) run(this *node, data []byte, ev ui.Event) error {
+// run runs commands with this as This, for the event ev, recording their
+// changes in acc, the segment an exec runs in, or in a segment of their own.
+func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error {
 	ops, err := parseOps(data)
 	if err != nil {
 		return err
 	}
+	if acc == nil {
+		acc = new([]change)
+	}
+	defer func(outer *[]change) { c.acc = outer }(c.acc)
+	c.acc = acc
 	type level struct{ taken, active, outer bool }
 	var levels []level
 	running := func() bool { return len(levels) == 0 || levels[len(levels)-1].active }
-	for _, o := range ops {
+	for i, o := range ops {
 		a := &o.args
 		switch o.name {
 		case "if":
@@ -409,6 +467,9 @@ func (c *Client) run(this *node, data []byte, ev ui.Event) error {
 			continue
 		}
 		if !running() {
+			if o.name == "push" {
+				*acc = nil // a push that doesn't run predicts nothing
+			}
 			continue
 		}
 		switch o.name {
@@ -426,6 +487,8 @@ func (c *Client) run(this *node, data []byte, ev ui.Event) error {
 			c.Clipboard = a.Text
 			continue
 		case "push":
+			seg := *acc
+			*acc = nil
 			if a.H == "" {
 				continue
 			}
@@ -440,7 +503,20 @@ func (c *Client) run(this *node, data []byte, ev ui.Event) error {
 			} else if p.Value == "" {
 				p.Value = c.value(this)
 			}
-			c.queue = append(c.queue, p)
+			c.queue = append(c.queue, sending{p, c.predict(this, a, seg)})
+			continue
+		case "call":
+			ok, err := c.call(this, a, ev)
+			if err != nil {
+				c.Errors = append(c.Errors, err.Error())
+				if err := c.fire(this, ui.Event{Type: "vk:error"}, true); err != nil {
+					return err
+				}
+				return c.failLocally(this, ops[i+1:], acc)
+			}
+			if !ok {
+				return nil
+			}
 			continue
 		case "pop_focus", "debounce", "throttle":
 			continue
@@ -538,23 +614,22 @@ func (c *Client) apply(e *node, o op, ev ui.Event) error {
 		if e.tag == "input" || e.tag == "textarea" || e.tag == "select" {
 			c.Clipboard = c.value(e)
 		} else {
-			c.Clipboard = e.textContent()
+			c.Clipboard = c.text(e)
 		}
 	case "dispatch":
 		return c.fire(e, ui.Event{Type: a.Event}, a.Bubbles)
 	case "exec":
 		if js, ok := c.get(e, a.Attr); ok {
-			return c.run(e, []byte(js), ev)
+			return c.run(e, []byte(js), ev, c.acc)
 		}
+	case "set_text":
+		c.set(e, textAttr, a.Text, true)
 	}
 	return nil
 }
 
 // runPushed runs the commands a server message carries.
-func (c *Client) runPushed(js []struct {
-	ID  string          `json:"id"`
-	Ops json.RawMessage `json:"ops"`
-}) error {
+func (c *Client) runPushed(js []live.JSPush) error {
 	for _, p := range js {
 		var root *node
 		if p.ID == "c0" {
@@ -570,7 +645,7 @@ func (c *Client) runPushed(js []struct {
 		if root == nil {
 			continue
 		}
-		if err := c.run(root, p.Ops, ui.Event{}); err != nil {
+		if err := c.run(root, p.Ops, ui.Event{}, nil); err != nil {
 			return err
 		}
 	}

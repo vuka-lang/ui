@@ -3,10 +3,13 @@ package ui_test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/live/livetest"
 )
 
 type Pet struct {
@@ -125,5 +128,62 @@ func TestJSXModal(t *testing.T) {
 	got, err := ui.String(context.Background(), <Modal />)
 	if err != nil || !strings.Contains(got, `data-vk-ref="dialog"`) || !strings.Contains(got, `data-vk-js-change="[[&#34;if&#34;`) {
 		t.Errorf("%s (%v)", got, err)
+	}
+}
+
+// Post counts a like before the server confirms it: the click shows the
+// new count, and a failed Like takes it back and shows the error.
+type Post struct {
+	ui.Live
+	Fail  *bool // the next Like fails
+	likes ui.Assign[int]
+}
+
+func (c *Post) Like() error {
+	if *c.Fail {
+		*c.Fail = false
+		return errors.New("try again")
+	}
+	c.likes.Set(c.likes.Get() + 1)
+	return nil
+}
+
+func (c *Post) Render() ui.Node {
+	return <article>
+		<button onClick={ui.JS.
+			AddClass(ui.This, "liked").
+			SetText(ui.Ref("likes"), strconv.Itoa(c.likes.Get()+1)).
+			Push(c.Like).
+			OnError(ui.JS.Show(ui.Ref("like-error"))).
+			OnSuccess(ui.JS.Dispatch(ui.This, "liked"))}>
+			♥ <span ref="likes">{c.likes.Get()}</span>
+		</button>
+		<p ref="like-error" style="display: none">Couldn't like</p>
+	</article>
+}
+
+func TestJSXOptimistic(t *testing.T) {
+	fail := false
+	c, err := livetest.Join(live.NewSession(context.Background(), func(context.Context) ui.Node { return <Post Fail={&fail} /> }), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Hold()
+	c.Click("button")
+	if c.Text("span") != "1" || !c.HasClass("button", "liked") {
+		t.Fatalf("predicted: %s", c.HTML())
+	}
+	c.Deliver()
+	if c.Text("span") != "1" || c.Visible("p") {
+		t.Fatalf("confirmed: %s", c.HTML())
+	}
+	fail = true
+	c.Click("button")
+	if c.Text("span") != "2" {
+		t.Fatalf("predicted: %s", c.HTML())
+	}
+	c.Deliver()
+	if c.Text("span") != "1" || !c.Visible("p") || !c.HasClass("button", "liked") {
+		t.Fatalf("reverted to the server's count and class, error shown: %s", c.HTML())
 	}
 }

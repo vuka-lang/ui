@@ -16,8 +16,10 @@ import (
 	"math/rand/v2"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
@@ -40,10 +42,18 @@ type Client struct {
 	// Confirm answers confirm commands; nil confirms every one.
 	Confirm func(msg string) bool
 
-	dom   *node                           // the page parsed, for commands
-	domOf string                          // the HTML dom is of
-	over  map[string]map[string]*override // what commands changed, by element and attribute
-	queue []ui.Event                      // events commands pushed, to send
+	// Errors is what failed calls reported, in order (see RegisterFunc).
+	Errors []string
+
+	dom     *node                           // the page parsed, for commands
+	domOf   string                          // the HTML dom is of
+	over    map[string]map[string]*override // what commands changed, by element and attribute
+	queue   []sending                       // events to send
+	acc     *[]change                       // the running segment's changes, nil outside one
+	pending []*pending                      // optimistic pushes sent or waiting, not yet replied to
+	now     time.Duration                   // the virtual clock timeouts run on
+	held    bool                            // events wait for Deliver
+	funcs   map[string]Func
 }
 
 type frame struct {
@@ -70,6 +80,17 @@ func Join(s *live.Session, v int) (*Client, error) {
 
 // Send sends m through the session's JSON interface and applies the reply.
 func (c *Client) Send(m live.ClientMessage) (live.ServerMessage, error) {
+	reply, err := c.send(m, nil)
+	if err != nil {
+		return reply, err
+	}
+	return reply, c.flush()
+}
+
+// send sends m and applies the reply, settling p, the optimistic push m
+// is the event of: the reply's markup, p's reverts when it failed, the
+// commands the reply carries, then p's hook.
+func (c *Client) send(m live.ClientMessage, p *pending) (live.ServerMessage, error) {
 	c.ref++
 	m.Ref = c.ref
 	data, _ := json.Marshal(m)
@@ -82,10 +103,26 @@ func (c *Client) Send(m live.ClientMessage) (live.ServerMessage, error) {
 	if reply.Ref != c.ref {
 		return reply, fmt.Errorf("reply to %d, want %d", reply.Ref, c.ref)
 	}
-	if err := c.Apply(out); err != nil {
+	if err := c.applyMarkup(out); err != nil {
 		return reply, err
 	}
-	return reply, c.flush()
+	c.reconcile()
+	failed := reply.Type == live.Error || reply.Error != ""
+	if p != nil {
+		c.pending = slices.DeleteFunc(c.pending, func(x *pending) bool { return x == p })
+		if p.settled {
+			p = nil // timed out: settled already
+		} else if failed && !p.keep {
+			c.revert(p.changes)
+		}
+	}
+	if err := c.runPushed(reply.JS); err != nil {
+		return reply, err
+	}
+	if p != nil {
+		return reply, c.settle(p, !failed)
+	}
+	return reply, nil
 }
 
 // Event sends an event.
@@ -128,15 +165,25 @@ func (c *Client) Apply(data []byte) error {
 	}
 	c.reconcile()
 	var m struct {
-		JS []struct {
-			ID  string          `json:"id"`
-			Ops json.RawMessage `json:"ops"`
-		} `json:"js"`
+		JS []live.JSPush `json:"js"`
 	}
 	if err := json.Unmarshal(data, &m); err != nil {
 		return err
 	}
 	return c.runPushed(m.JS)
+}
+
+// Info delivers a broadcast to the session (Session.Info) and applies what
+// it changed, as a transport would send it.
+func (c *Client) Info(topic string, msg any) error {
+	p, err := c.S.Info(topic, msg)
+	if err != nil {
+		return err
+	}
+	if err := c.Apply(live.Marshal(live.PatchMessage(0, p))); err != nil {
+		return err
+	}
+	return c.flush()
 }
 
 func (c *Client) applyMarkup(data []byte) error {

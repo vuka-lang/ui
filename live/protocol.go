@@ -19,6 +19,10 @@ import (
 //	← {"type":"patch","updates":[…]}                       (a broadcast: Info)
 //	← {"type":"error","ref":3,"error":"live: no handler \"c9:0\""}
 //
+// Every event gets exactly one reply carrying its ref — a patch, empty
+// when nothing changed ({"type":"patch","ref":4}), or an error — which is
+// what settles an optimistic push in the browser.
+//
 // render and patch messages may carry the JS commands components pushed,
 // {"js":[{"id":"c2","ops":[…]}]}, run after the message is applied.
 //

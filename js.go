@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -49,9 +50,27 @@ type jsArg struct {
 
 // push is a Push step's handler and options, resolved when the chain renders.
 type push struct {
-	fn    any
-	value any
-	has   bool
+	fn      any
+	value   any
+	has     bool
+	onOK    *Commands
+	onErr   *Commands
+	timeout time.Duration
+	keep    bool
+}
+
+// callArgs is a Call step's arguments, element reads among them.
+type callArgs []any
+
+func (a callArgs) MarshalJSON() ([]byte, error) {
+	out := make([]any, len(a))
+	for i, v := range a {
+		out[i] = v
+		if r, ok := v.(Conditional); ok {
+			out[i] = map[string]Condition{"$read": r.cond()}
+		}
+	}
+	return marshal(out)
 }
 
 func (c Commands) add(name string, args ...jsArg) Commands {
@@ -195,6 +214,14 @@ type PushOption func(*push)
 // as an element's value would be.
 func Value(v any) PushOption { return func(p *push) { p.value, p.has = v, true } }
 
+// Timeout is how long the push waits for the server's reply before it
+// counts as failed (see OnError); 10s unless set.
+func Timeout(d time.Duration) PushOption { return func(p *push) { p.timeout = d } }
+
+// KeepOnError makes a failed push revert nothing its predictions changed;
+// its OnError chain still runs.
+func KeepOnError() PushOption { return func(p *push) { p.keep = true } }
+
 func showArgs(t Target, opts []ShowOption) []jsArg {
 	args := []jsArg{to(t)}
 	for _, o := range opts {
@@ -294,7 +321,9 @@ func (c Commands) Exec(target Target, attr string) Commands {
 
 // Push calls handler on the server, as an on… attribute with handler would:
 // handler is any event handler (see CheckHandler), and gets the event's value
-// unless Value says otherwise.
+// unless Value says otherwise. The steps before it, since the chain's start
+// or the Push before it, are its predictions: shown at once, and reverted
+// if it fails (see OnError).
 func (c Commands) Push(handler any, opts ...PushOption) Commands {
 	p := &push{fn: handler}
 	for _, o := range opts {
@@ -302,6 +331,70 @@ func (c Commands) Push(handler any, opts ...PushOption) Commands {
 	}
 	return c.add("push", jsArg{"h", p})
 }
+
+// OnError runs chain when the chain's last Push fails: its handler returns
+// an error, the server refuses the event, or no reply comes within its
+// Timeout. The steps before that Push, since the chain's start or the Push
+// before it, are its predictions: what they changed is reverted first,
+// unless KeepOnError, wherever the server hasn't rendered a new value since.
+func (c Commands) OnError(chain JSChain) Commands {
+	ch := chain.jsChain()
+	return c.withPush("OnError", func(p *push) { p.onErr = &ch })
+}
+
+// OnSuccess runs chain when the chain's last Push succeeds: the server's
+// reply carries no error. Its predictions stay, where the server's render
+// doesn't replace them.
+func (c Commands) OnSuccess(chain JSChain) Commands {
+	ch := chain.jsChain()
+	return c.withPush("OnSuccess", func(p *push) { p.onOK = &ch })
+}
+
+// Timeout is how long the chain's last Push waits for its reply before it
+// fails; 10s unless set.
+func (c Commands) Timeout(d time.Duration) Commands {
+	return c.withPush("Timeout", func(p *push) { p.timeout = d })
+}
+
+// withPush is the chain with its last Push changed by f, a copy of it.
+func (c Commands) withPush(step string, f func(*push)) Commands {
+	for i := len(c.ops) - 1; i >= 0; i-- {
+		if c.ops[i].name != "push" {
+			continue
+		}
+		p := *c.ops[i].args[0].val.(*push)
+		f(&p)
+		ops := slices.Clone(c.ops)
+		ops[i] = jsOp{"push", []jsArg{{"h", &p}}}
+		return Commands{ops}
+	}
+	panic("ui: JS " + step + " without a Push before it")
+}
+
+// Call calls a JavaScript function of the page: one registered with
+// vuka.register(name, fn), else name as a dotted path on window
+// ("Picker.refresh"). It gets a context (the element, the event, the
+// instance root) and args: JSON values, or reads of an element made when
+// the step is reached — ui.Ref("q").Value(), .Checked(), .Attr("name").
+// The chain waits for a returned promise, stops when the function returns
+// false, and stops on a throw, which fails the Push it predicts for. Call
+// panics unless name is an identifier or a dotted path of them.
+func (c Commands) Call(name string, args ...any) Commands {
+	return c.callOn(This, name, args)
+}
+
+func (c Commands) callOn(t Target, name string, args []any) Commands {
+	if !fnName.MatchString(name) {
+		panic(fmt.Sprintf("ui: JS Call %q: not a function name or a dotted path of them", name))
+	}
+	op := []jsArg{{"fn", name}, to(t)}
+	if len(args) > 0 {
+		op = append(op, jsArg{"args", callArgs(slices.Clone(args))})
+	}
+	return c.add("call", op...)
+}
+
+var fnName = regexp.MustCompile(`^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$`)
 
 // Debounce runs the steps after it once events have stopped for d.
 func (c Commands) Debounce(d time.Duration) Commands {
@@ -381,6 +474,11 @@ func (c Commands) SetValue(target Target, v string) Commands {
 	return c.add("set_value", to(target), jsArg{"value", v})
 }
 
+// SetText sets target's text, replacing its content.
+func (c Commands) SetText(target Target, text string) Commands {
+	return c.add("set_text", to(target), jsArg{"text", text})
+}
+
 // On is the chain with target as the target of the commands added to it.
 func (c Commands) On(target Target) CommandsOn { return CommandsOn{c, target} }
 
@@ -447,6 +545,16 @@ func (o CommandsOn) Copy() CommandsOn                    { return o.with(o.c.Cop
 func (o CommandsOn) CopyText(text string) CommandsOn     { return o.with(o.c.CopyText(text)) }
 func (o CommandsOn) ScrollTo() CommandsOn                { return o.with(o.c.ScrollTo(o.to)) }
 func (o CommandsOn) SetValue(v string) CommandsOn        { return o.with(o.c.SetValue(o.to, v)) }
+func (o CommandsOn) SetText(text string) CommandsOn      { return o.with(o.c.SetText(o.to, text)) }
+func (o CommandsOn) OnError(chain JSChain) CommandsOn    { return o.with(o.c.OnError(chain)) }
+func (o CommandsOn) OnSuccess(chain JSChain) CommandsOn  { return o.with(o.c.OnSuccess(chain)) }
+func (o CommandsOn) Timeout(d time.Duration) CommandsOn  { return o.with(o.c.Timeout(d)) }
+
+// Call calls a JavaScript function (see Commands.Call) with the target as
+// its context's element.
+func (o CommandsOn) Call(name string, args ...any) CommandsOn {
+	return o.with(o.c.callOn(o.to, name, args))
+}
 
 // EncodeJS is a chain's JSON, the value of its data-vk-js-<event> attribute:
 // each Push's handler registered with ctx's live host, which gives its id,
@@ -478,6 +586,24 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 				kvs[0].val = host.Handler(ctx, x.fn)
 				if x.has {
 					kvs = append(kvs, jsArg{"value", x.value})
+				}
+				for _, h := range [...]struct {
+					key string
+					ch  *Commands
+				}{{"on_ok", x.onOK}, {"on_error", x.onErr}} {
+					if h.ch != nil {
+						j, err := EncodeJS(ctx, *h.ch)
+						if err != nil {
+							return nil, err
+						}
+						kvs = append(kvs, jsArg{h.key, json.RawMessage(j)})
+					}
+				}
+				if x.timeout > 0 {
+					kvs = append(kvs, jsArg{"timeout", x.timeout.Milliseconds()})
+				}
+				if x.keep {
+					kvs = append(kvs, jsArg{"keep", true})
 				}
 			}
 			for _, kv := range kvs {

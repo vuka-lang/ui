@@ -57,6 +57,15 @@ func TestJSEncoding(t *testing.T) {
 			`[["remove_class",{"to":{"ref":"menu"},"names":["hidden"]}],["add_class",{"to":{"ref":"menu"},"names":["opacity-100"]}],["focus",{"to":{"ref":"menu"}}],["hide",{"to":{"sel":"#x"}}]]`},
 		{ui.JS.On(menu).SetValue("v").Copy().ScrollTo().PushFocus().Show(ui.Display("grid")).Commands().PopFocus(),
 			`[["set_value",{"to":{"ref":"menu"},"value":"v"}],["copy",{"to":{"ref":"menu"}}],["scroll_to",{"to":{"ref":"menu"}}],["push_focus",{"to":{"ref":"menu"}}],["show",{"to":{"ref":"menu"},"display":"grid"}],["pop_focus",{}]]`},
+		{ui.JS.SetText(ui.Ref("likes"), "8").On(menu).SetText(`<b>"x"</b>`),
+			`[["set_text",{"to":{"ref":"likes"},"text":"8"}],["set_text",{"to":{"ref":"menu"},"text":"<b>\"x\"</b>"}]]`},
+		{ui.JS.Call("confetti"), `[["call",{"fn":"confetti"}]]`},
+		{ui.JS.Call("Picker.refresh", 3, "a", map[string]bool{"x": true}, nil, menu.Value(), menu.Checked(), menu.Attr("data-id"), menu.Value().Eq("b")),
+			`[["call",{"fn":"Picker.refresh","args":[3,"a",{"x":true},null,{"$read":{"to":{"ref":"menu"},"value":true}},{"$read":{"to":{"ref":"menu"},"checked":true}},{"$read":{"to":{"ref":"menu"},"attr":"data-id"}},{"$read":{"to":{"ref":"menu"},"value_eq":"b"}}]}]]`},
+		{ui.JS.On(menu).Call("$.fx_1", ui.This.Value()), `[["call",{"fn":"$.fx_1","to":{"ref":"menu"},"args":[{"$read":{"value":true}}]}]]`},
+		// Without a session a push has no handler id, nor hooks to settle.
+		{ui.JS.Hide(menu).Push(noop, ui.Timeout(time.Second), ui.KeepOnError()).OnError(ui.JS.Show(menu)).OnSuccess(ui.JS.Focus(menu)),
+			`[["hide",{"to":{"ref":"menu"}}],["push",{}]]`},
 	}
 	for _, tt := range tests {
 		if got := encode(t, tt.ch); got != tt.want {
@@ -99,6 +108,28 @@ func TestJSBranchErrors(t *testing.T) {
 		}()
 	}
 	ui.JS.If(ui.This.Checked()).Else().If(ui.This.Checked()).Else().End().End() // nested: fine
+}
+
+func TestJSMisplaced(t *testing.T) {
+	for name, f := range map[string]func(){
+		"OnError without push":   func() { ui.JS.Hide("#x").OnError(ui.JS) },
+		"OnSuccess without push": func() { ui.JS.OnSuccess(ui.JS) },
+		"Timeout without push":   func() { ui.JS.On("#x").Hide().Timeout(time.Second) },
+		"call of code":           func() { ui.JS.Call("alert(1)") },
+		"call of nothing":        func() { ui.JS.Call("") },
+		"call, trailing dot":     func() { ui.JS.On("#x").Call("a.") },
+		"call, leading digit":    func() { ui.JS.Call("a.1b") },
+	} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("%s: no panic", name)
+				}
+			}()
+			f()
+		}()
+	}
+	ui.JS.Push(func() {}).Hide("#x").OnError(ui.JS).Timeout(time.Second) // the last push, steps after it or not
 }
 
 func TestJSRender(t *testing.T) {
