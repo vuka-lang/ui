@@ -6,5 +6,3 @@ require (
 	github.com/a-h/templ v0.3.1020
 	github.com/vuka-lang/vuka v0.10.0
 )
-
-replace github.com/vuka-lang/vuka => ../vuka-wt-ui-split
