@@ -3,6 +3,7 @@ package ui_test
 import (
 	"context"
 	"html"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -148,5 +149,32 @@ func TestJSRender(t *testing.T) {
 	bad := ui.El("b", []ui.Attr{a("onClick", ui.On(ui.JS.Push(42)))})
 	if _, err := ui.String(context.Background(), bad); err == nil || !strings.Contains(err.Error(), "onClick: ui: JS Push takes a func()") {
 		t.Fatalf("a bad Push handler: %v", err)
+	}
+}
+
+// TestJSDocExamples: every example line in js.go's doc comments is in
+// jsx_test.vuka, whose TestJSXDocExamples compiles and renders them.
+func TestJSDocExamples(t *testing.T) {
+	src, err := os.ReadFile("js.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests, err := os.ReadFile("jsx_test.vuka")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, line := range strings.Split(string(src), "\n") {
+		ex, ok := strings.CutPrefix(line, "//\t")
+		if ex = strings.TrimLeft(ex, "\t"); !ok || !strings.HasPrefix(ex, "<") {
+			continue
+		}
+		n++
+		if !strings.Contains(string(tests), ex) {
+			t.Errorf("js.go's example isn't in jsx_test.vuka:\n\t%s", ex)
+		}
+	}
+	if n < 80 {
+		t.Errorf("%d examples found in js.go", n)
 	}
 }

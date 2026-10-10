@@ -3,9 +3,11 @@ package ui_test
 import (
 	"context"
 	"errors"
+	"html"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
@@ -187,5 +189,200 @@ func TestJSXOptimistic(t *testing.T) {
 	c.Deliver()
 	if c.Text("span") != "1" || !c.Visible("p") || !c.HasClass("button", "liked") {
 		t.Fatalf("reverted to the server's count and class, error shown: %s", c.HTML())
+	}
+}
+
+// Docs holds every example of js.go's doc comments, as written there, so
+// the examples hovers show compile and render.
+type Docs struct {
+	ui.Live
+	pet   DocPet
+	post  DocPost
+	key   struct{ Token string }
+	todo  struct{ Title string }
+	likes int
+}
+
+type DocPet struct {
+	ID   int
+	Name string
+}
+
+type DocPost struct{ Title, URL string }
+
+func (c *Docs) MenuOpened()     {}
+func (c *Docs) Search(q string) {}
+func (c *Docs) Like() error     { return nil }
+func (c *Docs) Save()           {}
+func (c *Docs) Send() error     { return nil }
+func (c *Docs) Pick(id int)     {}
+func (c *Docs) Follow()         {}
+func (c *Docs) Unfollow()       {}
+func (c *Docs) SetVolume(v int) {}
+func (c *Docs) Delete(id int)   {}
+func (c *Docs) ToggleDone()     {}
+func (c *Docs) SelectAll()      {}
+func (c *Docs) DeleteTodo()     {}
+
+func (c *Docs) Render() ui.Node {
+	return <div>{c.menu()}{c.targets()}{c.dialog()}{c.conditions()}{c.pushes()}{c.misc()}</div>
+}
+
+func (c *Docs) menu() ui.Node {
+	return <div>
+		<button onClick={ui.JS.RemoveClass(ui.Ref("menu"), "hidden").Push(c.MenuOpened)}>Open</button>
+		<ul ref="menu" class="hidden">…</ul>
+		<button onClick={ui.JS.Toggle(ui.Ref("menu"))}>Menu</button>
+		<ul ref="menu" style="display: none">…</ul>
+		<button onClick={ui.JS.AddClass(ui.Ref("menu"), "open", "shadow")}>Menu</button>
+		<button onClick={ui.JS.RemoveClass(ui.Ref("menu"), "hidden")}>Menu</button>
+		<button onClick={ui.JS.ToggleClass(ui.Ref("menu"), "hidden")}>Menu</button>
+		<button onClick={ui.JS.ToggleAttr(ui.This, "aria-expanded", "true", "false").Toggle(ui.Ref("menu"))}>Menu</button>
+		<button onClick={ui.JS.Show(ui.Ref("menu"), ui.Transition("transition duration-200", "opacity-0", "opacity-100"))}>Menu</button>
+		<button onClick={ui.JS.If(ui.Ref("menu").Attr("hidden")).Show(ui.Ref("menu")).Else().Hide(ui.Ref("menu")).End()}>Menu</button>
+		<button onClick={ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").AddClass("opacity-100").Push(c.MenuOpened)}>Open</button>
+		<button onClick={ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").Focus()}>Menu</button>
+		<button onClick={ui.JS.On(ui.Ref("menu")).AddClass("open", "shadow")}>Menu</button>
+		<button onClick={ui.JS.On(ui.Ref("menu")).RemoveClass("hidden")}>Menu</button>
+		<button onClick={ui.JS.On(ui.Ref("menu")).ToggleClass("hidden")}>Menu</button>
+		<button onClick={ui.JS.On(ui.Ref("menu")).Toggle()}>Menu</button>
+		<button onClick={ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").Push(c.MenuOpened)}>Open</button>
+	</div>
+}
+
+func (c *Docs) targets() ui.Node {
+	todo, post := c.todo, c.post
+	return <ul>
+		<button onClick={ui.JS.Hide(ui.Closest("li"))}>Dismiss</button>
+		<li class="todo">{todo.Title} <button onClick={ui.JS.Hide(ui.Closest("li"))}>Dismiss</button></li>
+		<li onClick={ui.JS.Show(ui.Inner(".actions"))}>{post.Title} <span class="actions" style="display: none">Edit</span></li>
+		<button onClick={ui.JS.Show(ui.Sel("#cart"))}>Cart</button>
+		<button onClick={ui.JS.ToggleClass(ui.This, "active")}>Bold</button>
+		<button onClick={ui.JS.If(ui.This.Is(".active")).Push(c.Unfollow).Else().Push(c.Follow).End()}>Follow</button>
+		<button onClick={ui.JS.If(ui.Sel("#cart").Exists()).Show("#cart").Else().Navigate("/cart").End()}>Cart</button>
+		<button onClick={ui.JS.SetAttr(ui.This, "aria-pressed", "true")}>Bold</button>
+		<button onClick={ui.JS.On(ui.This).SetAttr("aria-pressed", "true")}>Bold</button>
+		<button onClick={ui.JS.On(ui.This).ToggleAttr("aria-expanded", "true", "false")}>Menu</button>
+	</ul>
+}
+
+func (c *Docs) dialog() ui.Node {
+	return <div>
+		<button onClick={ui.JS.Show(ui.Ref("dialog"), ui.Display("flex"))}>Edit</button>
+		<button onClick={ui.JS.Show(ui.Ref("dialog"))}>Edit</button>
+		<button onClick={ui.JS.Hide(ui.Ref("dialog"))}>Close</button>
+		<button onClick={ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog"))}>Edit</button>
+		<button onClick={ui.JS.PushFocus().Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog"))}>Edit</button>
+		<button onClick={ui.JS.Hide(ui.Ref("dialog")).PopFocus()}>Cancel</button>
+		<div ref="dialog" onKeyDown={ui.JS.Key("Escape").Exec(ui.Ref("cancel"), "data-vk-js-click")}>
+			<button ref="cancel" onClick={ui.JS.Hide(ui.Ref("dialog")).PopFocus()}>Cancel</button>
+		</div>
+		<div ref="dialog" onKeyDown={ui.JS.Key("Escape").Hide(ui.Ref("dialog"))}>…</div>
+		<button onClick={ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved")))}>Save</button>
+		<button onClick={ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show()}>Done</button>
+		<button onClick={ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst()}>Edit</button>
+		<button onClick={ui.JS.On(ui.Ref("dialog")).Hide()}>Close</button>
+		<button onClick={ui.JS.On(ui.Ref("dialog")).Show().FocusFirst()}>Edit</button>
+		<button onClick={ui.JS.On(ui.This).PushFocus().On(ui.Ref("dialog")).Show().FocusFirst()}>Edit</button>
+		<button onClick={ui.JS.On(ui.Ref("dialog")).Hide().PopFocus()}>Cancel</button>
+		<div onKeyDown={ui.JS.Key("Escape").On(ui.Ref("cancel")).Exec("data-vk-js-click")}>…</div>
+		<div onKeyDown={ui.JS.Key("Escape").On(ui.Ref("dialog")).Hide()}>…</div>
+		<button onClick={ui.JS.On(ui.Ref("saved")).Hide().Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved")))}>Save</button>
+		<p ref="saved" style="display: none">Saved</p>
+	</div>
+}
+
+func (c *Docs) conditions() ui.Node {
+	return <div>
+		<input type="checkbox" ref="all" onChange={ui.JS.If(ui.Ref("all").Checked()).Show(ui.Ref("bulk")).Else().Hide(ui.Ref("bulk")).End()} />
+		<input ref="title" onInput={ui.JS.If(ui.Ref("title").Value()).RemoveAttr(ui.Ref("save"), "disabled").Else().SetAttr(ui.Ref("save"), "disabled", "").End()} />
+		<select ref="kind" onChange={ui.JS.If(ui.Ref("kind").Value().Eq("other")).Show(ui.Ref("other")).Else().Hide(ui.Ref("other")).End()}>…</select>
+		<select ref="plan" onChange={ui.JS.If(ui.Ref("plan").Value().Eq("team")).Show(ui.Ref("seats")).ElseIf(ui.Ref("plan").Value().Eq("free")).Hide(ui.Ref("seats")).End()}>…</select>
+		<input type="checkbox" ref="done" onChange={ui.JS.If(ui.Ref("done").Checked()).AddClass(ui.Closest("li"), "line-through").Else().RemoveClass(ui.Closest("li"), "line-through").End().Push(c.ToggleDone)} />
+		<button onClick={ui.JS.RemoveAttr(ui.Ref("save"), "disabled")}>Edit</button>
+		<button onClick={ui.JS.On(ui.Ref("save")).RemoveAttr("disabled")}>Edit</button>
+		<input type="checkbox" ref="all" onChange={ui.JS.On(ui.Ref("bulk")).If(ui.Ref("all").Checked()).Show().Else().Hide().End()} />
+		<select ref="plan" onChange={ui.JS.On(ui.Ref("seats")).If(ui.Ref("plan").Value().Eq("team")).Show().ElseIf(ui.Ref("plan").Value().Eq("free")).Hide().End()}>…</select>
+		<input type="checkbox" ref="all" onChange={ui.JS.On(ui.Ref("bulk")).If(ui.Ref("all").Checked()).Show().Else().Hide().End().Push(c.SelectAll)} />
+		<div ref="bulk" /><input ref="other" /><input ref="seats" /><button ref="save" disabled>Save</button>
+	</div>
+}
+
+func (c *Docs) pushes() ui.Node {
+	pet := c.pet
+	return <div>
+		<input name="q" onInput={ui.JS.Debounce(150*time.Millisecond).Push(c.Search)} />
+		<button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like).OnError(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
+		<p ref="like-error" style="display: none">Couldn't like</p>
+		<button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like, ui.Timeout(3*time.Second))}>Like</button>
+		<button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like).Timeout(3*time.Second)}>Like</button>
+		<button onClick={ui.JS.SetText(ui.Ref("status"), "Sending…").Push(c.Send, ui.KeepOnError()).OnError(ui.JS.SetText(ui.Ref("status"), "Not sent"))}>Send</button>
+		<button onClick={ui.JS.Push(c.Pick, ui.Value(pet.ID))}>Pick</button>
+		<input type="range" name="volume" onInput={ui.JS.Throttle(100*time.Millisecond).Push(c.SetVolume)} />
+		<button onClick={ui.JS.Confirm("Delete " + pet.Name + "?").Push(func() { c.Delete(pet.ID) })}>Delete</button>
+		<button onClick={ui.JS.SetText(ui.Ref("likes"), strconv.Itoa(c.likes+1)).Push(c.Like)}>♥ <span ref="likes">{c.likes}</span></button>
+		<input name="q" onInput={ui.JS.On(ui.Ref("spinner")).Show().Debounce(150*time.Millisecond).Push(c.Search)} />
+		<input type="range" ref="volume" onInput={ui.JS.On(ui.Ref("volume")).Throttle(100*time.Millisecond).AddClass("busy").Push(c.SetVolume)} />
+		<li><button onClick={ui.JS.On(ui.Closest("li")).Confirm("Delete this todo?").Hide().Push(c.DeleteTodo)}>Delete</button></li>
+		<button onClick={ui.JS.On(ui.Ref("status")).SetText("Saving…").Push(c.Save)}>Save</button>
+		<button onClick={ui.JS.On(ui.This).AddClass("liked").Push(c.Like).OnError(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
+		<button onClick={ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Timeout(3*time.Second)}>Like</button>
+		<span ref="status" /><span ref="spinner" />
+	</div>
+}
+
+func (c *Docs) misc() ui.Node {
+	pet, post, key := c.pet, c.post, c.key
+	return <div>
+		<button onClick={ui.JS.Hide(ui.Ref("toast"), ui.Transition("transition-opacity", "opacity-100", "opacity-0"), ui.Time(300*time.Millisecond))}>Dismiss</button>
+		<button onClick={ui.JS.Transition(ui.Ref("cart"), "transition duration-300", "scale-110", "scale-100")}>Add to cart</button>
+		<button onClick={ui.JS.On(ui.Ref("cart")).Transition("transition duration-300", "scale-110", "scale-100")}>Add to cart</button>
+		<button onClick={ui.JS.Dispatch(ui.This, "pet-picked", ui.Detail(pet.ID))}>Pick</button>
+		<button onClick={ui.JS.Dispatch(ui.Ref("chart"), "refresh", ui.NoBubble())}>Refresh</button>
+		<button onClick={ui.JS.On(ui.Ref("chart")).Dispatch("refresh", ui.NoBubble())}>Refresh</button>
+		<button onClick={ui.JS.Show(ui.Ref("search")).Focus(ui.Ref("search"))}>Search</button>
+		<button onClick={ui.JS.On(ui.Ref("search")).Show().Focus()}>Search</button>
+		<button onClick={ui.JS.On(ui.Ref("search")).Show().Commands().AddClass(ui.This, "active")}>Search</button>
+		<input ref="token" value={key.Token} readonly />
+		<button onClick={ui.JS.Copy(ui.Ref("token")).AddClass(ui.This, "copied")}>Copy</button>
+		<button onClick={ui.JS.On(ui.Ref("token")).Copy()}>Copy</button>
+		<button onClick={ui.JS.CopyText(post.URL)}>Copy link</button>
+		<button onClick={ui.JS.On(ui.This).CopyText(post.URL).AddClass("copied")}>Copy link</button>
+		<button onClick={ui.JS.ScrollTo(ui.Ref("comments"))}>Comments</button>
+		<button onClick={ui.JS.On(ui.Ref("comments")).Show().ScrollTo()}>Comments</button>
+		<button onClick={ui.JS.SetValue(ui.Ref("q"), "").Focus(ui.Ref("q"))}>Clear</button>
+		<button onClick={ui.JS.On(ui.Ref("q")).SetValue("").Focus()}>Clear</button>
+		<button onClick={ui.JS.Patch("/pets?page=2")}>Next</button>
+		<button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Patch("/pets?page=2")}>Next</button>
+		<button onClick={ui.JS.Navigate("/pets/" + strconv.Itoa(pet.ID))}>Open</button>
+		<button onClick={ui.JS.On(ui.This).AddClass("opacity-50").Navigate("/pets/new")}>New pet</button>
+		<button onClick={ui.JS.Call("confetti", 120)}>Celebrate</button>
+		<input ref="q" onInput={ui.JS.Debounce(200*time.Millisecond).Call("Search.preview", ui.Ref("q").Value())} />
+		<button onClick={ui.JS.On(ui.Ref("chart")).Call("Chart.refresh")}>Refresh</button>
+		<div ref="toast" /><div ref="cart" /><canvas ref="chart" /><input ref="search" /><section ref="comments" /><ul ref="list" />
+	</div>
+}
+
+// TestJSXDocExamples renders the doc examples, statically and in a live
+// session: each chain encodes, its handlers are ones an on… attribute
+// takes, and its branches are well formed.
+func TestJSXDocExamples(t *testing.T) {
+	got, err := ui.String(context.Background(), <Docs />)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"else_if"`, `"exec"`, `"call"`, `"throttle"`, `"debounce"`, `"set_value"`} {
+		if !strings.Contains(got, html.EscapeString(want)) {
+			t.Errorf("no %s rendered", want)
+		}
+	}
+	c, err := livetest.Join(live.NewSession(context.Background(), func(context.Context) ui.Node { return <Docs /> }), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"keep":true`, `"timeout":3000`, `"on_ok"`, `"on_error"`, `"value":0`} {
+		if !strings.Contains(c.HTML(), want) && !strings.Contains(c.HTML(), html.EscapeString(want)) {
+			t.Errorf("no %s in the live page", want)
+		}
 	}
 }
