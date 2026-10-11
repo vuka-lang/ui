@@ -19,6 +19,11 @@ import (
 //	← {"type":"patch","ref":2,"updates":[…],"error":"title is taken"}
 //	← {"type":"patch","updates":[…]}                       (a broadcast: Info)
 //	← {"type":"error","ref":3,"error":"live: no handler \"c9:0\""}
+//	→ {"type":"event","ref":4,"target":"c2:Inc","event":"push","value":"5"}
+//
+// A target names a handler the instance rendered by its number, or a method
+// of its component by name (what the component's scripts push): one the
+// component declares, not Render, Mount, an Update or a promoted one.
 //
 // Every event gets exactly one reply carrying its ref — a patch, empty
 // when nothing changed ({"type":"patch","ref":4}), or an error — which is

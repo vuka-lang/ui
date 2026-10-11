@@ -68,6 +68,15 @@ func (l *Live) PushPatch(href string) { l.PushJS(JS.Patch(href)) }
 // (or message) is applied, as JS.Navigate does.
 func (l *Live) PushNavigate(href string) { l.PushJS(JS.Navigate(href)) }
 
+// PushEvent hands payload to the component's scripts once the reply to the
+// current event (or message, or the join) is applied: a hook's
+// ctx.on(name, fn) gets fn(payload), payload as JSON. In the browser it is a
+// "vk:event" CustomEvent fired on the component's root, not bubbling, its
+// detail {name, payload}.
+func (l *Live) PushEvent(name string, payload any) {
+	l.PushJS(JS.Dispatch(This, "vk:event", Detail(map[string]any{"name": name, "payload": payload}), NoBubble()))
+}
+
 func (l *Live) vukaLive() *Live { return l }
 
 // Stateful is a stateful component: a pointer to a struct embedding Live, with

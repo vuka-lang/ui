@@ -172,13 +172,11 @@ func (s *Session) HTML() string {
 func (s *Session) Event(ev ui.Event) (Patch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	id, n, ok := strings.Cut(ev.Target, ":")
-	in := s.byID[id]
-	h, err := strconv.Atoi(n)
-	if !ok || in == nil || err != nil || h < 0 || h >= len(in.handlers) {
+	fn := s.handler(ev.Target)
+	if fn == nil {
 		return Patch{}, fmt.Errorf("live: no handler %q", ev.Target)
 	}
-	herr := callHandler(s.ctx, in.handlers[h], ev)
+	herr := callHandler(s.ctx, fn, ev)
 	p, err := s.patch()
 	if herr != nil {
 		p.Error = herr.Error()
@@ -192,13 +190,50 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 func (s *Session) Handler(target string) any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.handler(target)
+}
+
+// handler is the function target names: an instance's handler by number
+// ("c1:0"), or a method of its component by name ("c1:Inc", what a
+// component's script pushes) — one the component declares itself, not
+// Render, Mount, an Update or one promoted from what it embeds.
+func (s *Session) handler(target string) any {
 	id, n, ok := strings.Cut(target, ":")
 	in := s.byID[id]
+	if !ok || in == nil {
+		return nil
+	}
 	h, err := strconv.Atoi(n)
-	if !ok || in == nil || err != nil || h < 0 || h >= len(in.handlers) {
+	if err != nil {
+		return pushable(in.comp, n)
+	}
+	if h < 0 || h >= len(in.handlers) {
 		return nil
 	}
 	return in.handlers[h]
+}
+
+func pushable(c ui.Stateful, name string) any {
+	if c == nil || name == "Render" || name == "Mount" || name == "Update" || strings.HasPrefix(name, "Update__") {
+		return nil
+	}
+	v := reflect.ValueOf(c)
+	m := v.MethodByName(name)
+	if !m.IsValid() {
+		return nil
+	}
+	t := v.Type().Elem()
+	for i := 0; i < t.NumField(); i++ {
+		if f := t.Field(i); f.Anonymous {
+			if _, ok := reflect.PointerTo(f.Type).MethodByName(name); ok {
+				return nil
+			}
+			if _, ok := f.Type.MethodByName(name); ok {
+				return nil
+			}
+		}
+	}
+	return m.Interface()
 }
 
 // Info delivers msg to the Update method fitting its type of every instance
