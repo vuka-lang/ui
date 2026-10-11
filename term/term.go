@@ -8,7 +8,10 @@
 // tables and lists lay out as if written in JSX.
 //
 // The package is pure: whether to use color (NO_COLOR, a tty) is the
-// caller's decision.
+// caller's decision. The page's text never carries terminal commands: its
+// control characters, but newlines and tabs, are dropped (ANSI escapes,
+// OSC sequences, carriage returns, C1 controls), so text a visitor wrote
+// can't restyle, retitle or clear the terminal.
 package term
 
 import (
@@ -16,6 +19,7 @@ import (
 	"html"
 	"io"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/vuka-lang/ui"
 )
@@ -79,10 +83,10 @@ func (n *node) attr(name string) (string, bool) {
 		case bool:
 			return "", v
 		case string:
-			return v, true
+			return clean(v), true
 		}
 		s, _ := ui.String(context.Background(), ui.Text(a.Value))
-		return html.UnescapeString(s), true
+		return clean(html.UnescapeString(s)), true
 	}
 	return "", false
 }
@@ -116,8 +120,30 @@ func (b *builder) Close(*ui.Element) error {
 
 func (b *builder) Text(s string) error {
 	t := b.top()
-	t.kids = append(t.kids, &node{text: s})
+	t.kids = append(t.kids, &node{text: clean(s)})
 	return nil
+}
+
+// clean drops the control characters of text the page holds, but newlines
+// and tabs: C0 (ESC among them), DEL and C1 — what a terminal reads as
+// commands (colors, the cursor, the window's title, a cleared screen)
+// rather than as text; invalid UTF-8 becomes U+FFFD. The styles the
+// output carries are its own.
+func clean(s string) string {
+	if utf8.ValidString(s) && !strings.ContainsFunc(s, control) {
+		return s
+	}
+	// an invalid byte (a raw 0x9b, 8-bit CSI) arrives as U+FFFD
+	return strings.Map(func(r rune) rune {
+		if control(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
+func control(r rune) bool {
+	return r < 0x20 && r != '\n' && r != '\t' || r == 0x7f || r >= 0x80 && r <= 0x9f
 }
 
 func (b *builder) Opaque(ctx context.Context, n ui.Node) error {
