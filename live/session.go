@@ -194,9 +194,8 @@ func (s *Session) Handler(target string) any {
 }
 
 // handler is the function target names: an instance's handler by number
-// ("c1:0"), or a method of its component by name ("c1:Inc", what a
-// component's script pushes) — one the component declares itself, not
-// Render, Mount, an Update or one promoted from what it embeds.
+// ("c1:0"), or a method of its component by name ("c1:Inc", what the
+// component's scripts push) when AllowPush allows it.
 func (s *Session) handler(target string) any {
 	id, n, ok := strings.Cut(target, ":")
 	in := s.byID[id]
@@ -213,16 +212,48 @@ func (s *Session) handler(target string) any {
 	return in.handlers[h]
 }
 
+// AllowPush lets a component's scripts push its methods by name: typ is
+// the component's struct type as reflect spells it ("main.Counter",
+// "example.com/app/views.Chart"), methods the names its scripts push,
+// replacing any allowed before (none: no pushes by name). The vuka command
+// lists them (each ctx.push("Name") of the scripts) and web registers them
+// from its manifest. A component nothing allows accepts no pushes by name;
+// the handlers its page renders work regardless. Render, Mount, an Update
+// and methods promoted from what it embeds are never pushed.
+func AllowPush(typ string, methods ...string) {
+	pushMu.Lock()
+	defer pushMu.Unlock()
+	if len(methods) == 0 {
+		delete(pushAllowed, typ)
+		return
+	}
+	pushAllowed[typ] = slices.Clone(methods)
+}
+
+var (
+	pushMu      sync.RWMutex
+	pushAllowed = map[string][]string{}
+)
+
 func pushable(c ui.Stateful, name string) any {
 	if c == nil || name == "Render" || name == "Mount" || name == "Update" || strings.HasPrefix(name, "Update__") {
 		return nil
 	}
 	v := reflect.ValueOf(c)
+	if v.Kind() != reflect.Pointer || v.Type().Elem().Kind() != reflect.Struct {
+		return nil
+	}
+	t := v.Type().Elem()
+	pushMu.RLock()
+	ok := slices.Contains(pushAllowed[t.PkgPath()+"."+t.Name()], name)
+	pushMu.RUnlock()
+	if !ok {
+		return nil
+	}
 	m := v.MethodByName(name)
 	if !m.IsValid() {
 		return nil
 	}
-	t := v.Type().Elem()
 	for i := 0; i < t.NumField(); i++ {
 		if f := t.Field(i); f.Anonymous {
 			if _, ok := reflect.PointerTo(f.Type).MethodByName(name); ok {

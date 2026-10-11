@@ -2,6 +2,7 @@ package live_test
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -26,28 +27,62 @@ func (p *Pushed) Add(n int)         { p.n += n }
 func (p *Pushed) Bumped()           { p.PushEvent("bumped", map[string]int{"n": p.n}) }
 func (p *Pushed) Update(n int) bool { p.n = n; return true }
 
-// A component's script pushes its methods by name (ctx.push): one it
-// declares, but not Render, Mount, Update or one it embeds; PushEvent hands
-// a payload to the script as a vk:event dispatched on its root.
+// A component's scripts push the methods AllowPush lists by name, under
+// either protocol; an unlisted one, a component with none listed, and
+// Render, Mount, Update or a promoted method are refused like an unknown
+// handler. PushEvent hands a payload to the scripts as a vk:event
+// dispatched on its root.
 func TestPushByName(t *testing.T) {
-	c := join(t, func(context.Context) ui.Node { return ui.Component("p", nil, &Pushed{}) })
-	m := c.send(live.ClientMessage{Type: live.EventMsg, Event: ui.Event{Target: "c1:Add", Type: "push", Value: "5"}})
-	if m.Type != live.PatchMsg || len(m.Updates) == 0 || !strings.Contains(m.Updates[0].HTML, "n5") {
-		t.Fatalf("Add: %+v", m)
+	typ := "github.com/vuka-lang/ui/live_test.Pushed"
+	page := func(context.Context) ui.Node { return ui.Component("p", nil, &Pushed{}) }
+	for _, v := range []int{1, 2} {
+		t.Run("v"+strconv.Itoa(v), func(t *testing.T) {
+			s := live.NewSession(context.Background(), page)
+			ref := 0
+			send := func(m live.ClientMessage) live.ServerMessage {
+				ref++
+				m.Ref = ref
+				return s.Handle(m)
+			}
+			push := func(name string, value string) live.ServerMessage {
+				return send(live.ClientMessage{Type: live.EventMsg, Event: ui.Event{Target: "c1:" + name, Type: "push", Value: value}})
+			}
+			if m := send(live.ClientMessage{Type: live.Join, V: v}); m.Type != live.Render {
+				t.Fatalf("join: %+v", m)
+			}
+			live.AllowPush(typ)
+			if m := push("Add", "1"); m.Type != live.Error || m.Error != `live: no handler "c1:Add"` {
+				t.Errorf("a component with no pushes allowed took one: %+v", m)
+			}
+			live.AllowPush(typ, "Add", "Bumped", "Render", "Help")
+			defer live.AllowPush(typ)
+			m := push("Add", "5")
+			if m.Type != live.PatchMsg || !strings.Contains(fmt.Sprint(m.Updates, string(treeJSON(m.Trees))), "5") {
+				t.Fatalf("Add: %+v", m)
+			}
+			m = push("Bumped", "")
+			if len(m.JS) != 1 || m.JS[0].ID != "c1" || !strings.Contains(string(m.JS[0].Ops), `"vk:event"`) ||
+				!strings.Contains(string(m.JS[0].Ops), `{"name":"bumped","payload":{"n":5}}`) || !strings.Contains(string(m.JS[0].Ops), `"bubbles":false`) {
+				t.Fatalf("PushEvent: %+v", m.JS)
+			}
+			for _, name := range []string{"Update", "Render", "Mount", "Help", "ID", "Subscribe", "PushJS", "add", "Missing"} {
+				if m := push(name, ""); m.Type != live.Error || m.Error != `live: no handler "c1:`+name+`"` {
+					t.Errorf("%s was pushed: %+v", name, m)
+				}
+			}
+			if s.Handler("c1:Add") == nil || s.Handler("c1:Update") != nil {
+				t.Error("Handler: by name")
+			}
+		})
 	}
-	m = c.send(live.ClientMessage{Type: live.EventMsg, Event: ui.Event{Target: "c1:Bumped", Type: "push"}})
-	if len(m.JS) != 1 || m.JS[0].ID != "c1" || !strings.Contains(string(m.JS[0].Ops), `"vk:event"`) ||
-		!strings.Contains(string(m.JS[0].Ops), `{"name":"bumped","payload":{"n":5}}`) || !strings.Contains(string(m.JS[0].Ops), `"bubbles":false`) {
-		t.Fatalf("PushEvent: %+v", m.JS)
+}
+
+func treeJSON(ts []live.TreeUpdate) []byte {
+	var b []byte
+	for _, t := range ts {
+		b = append(b, t.Tree...)
 	}
-	for _, name := range []string{"Render", "Mount", "Update", "Help", "ID", "Subscribe", "PushJS", "add", "Missing"} {
-		if m := c.send(live.ClientMessage{Type: live.EventMsg, Event: ui.Event{Target: "c1:" + name, Type: "push"}}); m.Type != live.Error {
-			t.Errorf("%s was pushed: %+v", name, m)
-		}
-	}
-	if c.s.Handler("c1:Add") == nil || c.s.Handler("c1:Render") != nil {
-		t.Error("Handler: by name")
-	}
+	return b
 }
 
 // Scoped is a component as the transpiler lowers it for a scoped

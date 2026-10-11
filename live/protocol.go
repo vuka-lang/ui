@@ -22,8 +22,8 @@ import (
 //	→ {"type":"event","ref":4,"target":"c2:Inc","event":"push","value":"5"}
 //
 // A target names a handler the instance rendered by its number, or a method
-// of its component by name (what the component's scripts push): one the
-// component declares, not Render, Mount, an Update or a promoted one.
+// of its component by name (what the component's scripts push), when
+// AllowPush allows it; any other target is an error.
 //
 // Every event gets exactly one reply carrying its ref — a patch, empty
 // when nothing changed ({"type":"patch","ref":4}), or an error — which is
