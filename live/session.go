@@ -37,7 +37,7 @@ type Session struct {
 	trees  bool // a v2 connection: instances render to trees
 	c      conn
 	verify bool
-	js     []JSPush // pushed by the last Render or RenderTrees, for the join
+	js     []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
 	router Router
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
@@ -110,7 +110,7 @@ func (s *Session) Render() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s.js = js
+	s.js = append(s.js, js...)
 	s.settle()
 	return s.root.html(), nil
 }
@@ -132,7 +132,7 @@ func (s *Session) RenderTrees() ([]TreeUpdate, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.js = js
+	s.js = append(s.js, js...)
 	ups := s.treeUpdates()
 	s.settle()
 	return ups, nil
@@ -147,6 +147,27 @@ func (s *Session) JS() []JSPush {
 	js := s.js
 	s.js = nil
 	return js
+}
+
+// Adopt hands the session to a new connection: ctx is the context of its
+// handlers, Update methods and renders from now on, and render (when not
+// nil) the page's render function. The instances stay mounted with their
+// state, so a session kept from a page's HTTP render can serve its live
+// connection without mounting again: the next Render or RenderTrees renders
+// the kept instances, and commands they pushed while mounting are still in
+// JS. The old context must not be needed again — it is usually a finished
+// request's.
+func (s *Session) Adopt(ctx context.Context, render func(ctx context.Context) ui.Node) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return errors.New("live: the session is closed")
+	}
+	s.ctx = ctx
+	if render != nil {
+		s.render = render
+	}
+	return nil
 }
 
 // refresh makes every instance render again, its output sent whole.
