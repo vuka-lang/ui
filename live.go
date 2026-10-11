@@ -61,7 +61,8 @@ func (l *Live) PushJS(ch JSChain) {
 
 // PushPatch moves the page to href once the reply to the current event (or
 // message) is applied, as JS.Patch does: the same live route with other
-// parameters, this component staying mounted.
+// parameters, the page staying mounted when an Update of its takes the URL
+// (see live.Session.Navigate).
 func (l *Live) PushPatch(href string) { l.PushJS(JS.Patch(href)) }
 
 // PushNavigate moves the page to href once the reply to the current event

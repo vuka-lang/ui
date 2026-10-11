@@ -2,8 +2,11 @@ package ui
 
 // LinkProps is a Link's attributes; the children are its content.
 type LinkProps struct {
-	Href  string
-	Patch bool // the same live route with other parameters: the component stays mounted
+	Href string
+	// Patch asks for the same live route with other parameters: the page
+	// stays mounted when the server says so (an Update taking the URL),
+	// else mounts again.
+	Patch bool
 	ID    string
 	Class string
 	Title string
@@ -23,7 +26,9 @@ type LinkProps struct {
 // It renders an a element with href, marked data-vk-link (data-vk-link="patch"
 // with Patch), so it is an ordinary link wherever the runtime doesn't take
 // it: without JavaScript, on a page that isn't connected, opened in a new
-// tab or with a modifier key, or to another origin.
+// tab or with a modifier key, or to another origin. Href is sanitized as an
+// a element's (templ.URL), and the runtime follows only paths and http and
+// https URLs.
 func Link(p LinkProps) Node {
 	mark := any(true)
 	if p.Patch {

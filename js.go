@@ -652,32 +652,42 @@ func (c Commands) ToggleClass(target Target, names ...string) Commands {
 	return c.add("toggle_class", to(target), jsArg{"names", names})
 }
 
-// SetAttr sets target's attribute name to value.
+// SetAttr sets target's attribute name to value. A URL attribute's value
+// (href, src, action, formaction, xlink:href, poster, data, …) is sanitized
+// as an href written in markup is: a javascript: URL, say, becomes
+// about:invalid#TemplFailedSanitizationURL. Name may not be an event
+// handler attribute (on…) or srcdoc: SetAttr panics on one, and the
+// runtime refuses one in commands from elsewhere.
 //
 // Example:
 //
 //	<button onClick={ui.JS.SetAttr(ui.This, "aria-pressed", "true")}>Bold</button>
 func (c Commands) SetAttr(target Target, name, value string) Commands {
-	return c.add("set_attr", to(target), jsArg{"name", name}, jsArg{"value", value})
+	jsAttrName("SetAttr", name)
+	return c.add("set_attr", to(target), jsArg{"name", name}, jsArg{"value", jsAttrValue(name, value)})
 }
 
-// RemoveAttr removes target's attribute name.
+// RemoveAttr removes target's attribute name, which, as SetAttr's, may not
+// be an event handler attribute or srcdoc.
 //
 // Example:
 //
 //	<button onClick={ui.JS.RemoveAttr(ui.Ref("save"), "disabled")}>Edit</button>
 func (c Commands) RemoveAttr(target Target, name string) Commands {
+	jsAttrName("RemoveAttr", name)
 	return c.add("remove_attr", to(target), jsArg{"name", name})
 }
 
 // ToggleAttr flips target's attribute name between two values: it sets v1,
-// or v2 when the attribute already is v1.
+// or v2 when the attribute already is v1. Name and values are checked and
+// sanitized as SetAttr's.
 //
 // Example:
 //
 //	<button onClick={ui.JS.ToggleAttr(ui.This, "aria-expanded", "true", "false").Toggle(ui.Ref("menu"))}>Menu</button>
 func (c Commands) ToggleAttr(target Target, name, v1, v2 string) Commands {
-	return c.add("toggle_attr", to(target), jsArg{"name", name}, jsArg{"values", [2]string{v1, v2}})
+	jsAttrName("ToggleAttr", name)
+	return c.add("toggle_attr", to(target), jsArg{"name", name}, jsArg{"values", [2]string{jsAttrValue(name, v1), jsAttrValue(name, v2)}})
 }
 
 // Show makes target visible: it removes its hidden attribute and sets its
@@ -1148,24 +1158,30 @@ func (c Commands) SetText(target Target, text string) Commands {
 }
 
 // Patch moves a live page to href on the same route, with other path
-// parameters or query: the components stay mounted and get the new props,
-// and the address bar changes. On a page with no connection, or for
-// another origin, it loads href.
+// parameters or query, and the address bar changes: a component whose
+// Update takes the new URL stays mounted and gets the new props. On a page with no connection, or for
+// another origin, it loads href. Href is a path, or an http or https URL
+// (LoadableURL): any other, such as a javascript: URL, becomes
+// about:invalid#TemplFailedSanitizationURL, which the runtime refuses to
+// load. The server decides what stays mounted (see live.Session.Navigate):
+// a component without such an Update mounts again.
 //
 // Example:
 //
 //	<button onClick={ui.JS.Patch("/pets?page=2")}>Next</button>
-func (c Commands) Patch(href string) Commands { return c.add("patch", jsArg{"href", href}) }
+func (c Commands) Patch(href string) Commands { return c.add("patch", jsArg{"href", navURL(href)}) }
 
 // Navigate moves a live page to another page, href, over its connection:
 // the new page's components mount, and the address bar changes. On a page
 // with no connection, for another origin, or when href's route isn't a
-// page, it loads href.
+// page, it loads href. Href is sanitized as Patch's.
 //
 // Example:
 //
 //	<button onClick={ui.JS.Navigate("/pets/" + strconv.Itoa(pet.ID))}>Open</button>
-func (c Commands) Navigate(href string) Commands { return c.add("navigate", jsArg{"href", href}) }
+func (c Commands) Navigate(href string) Commands {
+	return c.add("navigate", jsArg{"href", navURL(href)})
+}
 
 // On returns a chain whose next commands all act on target, so they don't
 // name it. On again switches the target; Commands() goes back to commands
