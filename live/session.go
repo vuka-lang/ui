@@ -193,6 +193,21 @@ func (s *Session) Handler(target string) any {
 	return s.handler(target)
 }
 
+// Component is the component an event's target belongs to ("c1:0",
+// "c1:Inc"): the instance's, for a transport to read what its type
+// declares (a gate on the type, refusing every event of it) before the
+// handler runs; nil when the target names no instance, or one that is no
+// component (the page's root).
+func (s *Session) Component(target string) ui.Stateful {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id, _, _ := strings.Cut(target, ":")
+	if in := s.byID[id]; in != nil {
+		return in.comp
+	}
+	return nil
+}
+
 // handler is the function target names: an instance's handler by number
 // ("c1:0"), or a method of its component by name ("c1:Inc", what the
 // component's scripts push) when AllowPush allows it.

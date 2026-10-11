@@ -157,7 +157,13 @@ func TestClick(t *testing.T) {
 	if h, ok := c.s.Handler(c.handler("click", 1)).(func()); !ok || h == nil {
 		t.Errorf("Handler(%s) = %T", c.handler("click", 1), c.s.Handler(c.handler("click", 1)))
 	}
+	if comp, ok := c.s.Component(c.handler("click", 1)).(*Counter); !ok || comp.Label != "b" {
+		t.Errorf("Component(%s) = %#v", c.handler("click", 1), c.s.Component(c.handler("click", 1)))
+	}
 	for _, bad := range []string{"c9:0", "c1:7", "c1", "x"} {
+		if bad != "c1:7" && bad != "c1" && c.s.Component(bad) != nil {
+			t.Errorf("Component(%q) = %T", bad, c.s.Component(bad))
+		}
 		if h := c.s.Handler(bad); h != nil {
 			t.Errorf("Handler(%q) = %T", bad, h)
 		}
