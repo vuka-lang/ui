@@ -6,6 +6,7 @@
 package live
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -41,6 +42,8 @@ type Session struct {
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
 	uerr    error               // what their Update methods returned
+
+	errText func(error) string // SetErrorText's
 }
 
 // Patch is what an event or message changed: the HTML of each component whose
@@ -174,12 +177,12 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 	defer s.mu.Unlock()
 	fn := s.handler(ev.Target)
 	if fn == nil {
-		return Patch{}, fmt.Errorf("live: no handler %q", ev.Target)
+		return Patch{}, publicErr{fmt.Errorf("live: no handler %q", ev.Target)}
 	}
 	herr := callHandler(s.ctx, fn, ev)
 	p, err := s.patch()
 	if herr != nil {
-		p.Error = herr.Error()
+		p.Error = s.errorText(herr)
 	}
 	return p, err
 }
@@ -303,7 +306,7 @@ func (s *Session) Info(topic string, msg any) (Patch, error) {
 	}
 	p, err := s.patch()
 	if herr != nil {
-		p.Error = herr.Error()
+		p.Error = s.errorText(herr)
 	}
 	return p, err
 }
@@ -352,11 +355,23 @@ func (s *Session) SetRouter(r Router) {
 // Navigate makes rt's page the session's, renders it, and returns what
 // changed, as an event's patch. As a patch (patch true), the instances the
 // new page renders where the old one rendered them stay mounted, their props
-// set from its tags, and those rt.Updates names take their message first; an
-// Update's error is the patch's Error. Otherwise every instance is unmounted
+// set from its tags, and those rt.Updates names take their message first.
+// Otherwise every instance is unmounted
 // and the new page's mount afresh. The page itself (c0) is the same
 // instance either way, so a client gets only what changed of its markup — on
 // a v2 connection, against the statics it already holds.
+//
+// The router decides what may be kept, not the client asking for a patch:
+// a patch with no rt.Updates is a navigation, every instance mounting
+// afresh, and an instance whose tag rt.Updates names is kept only when an
+// Update method of its takes the message — else it mounts afresh, so its
+// Mount sees the new URL. A component that checks in Mount whether the
+// visitor may see what its props name must check again in that Update.
+//
+// An error — a Mount's or an Update's, or the render's — fails the
+// navigation: Navigate returns it, every instance is unmounted, and the
+// page has no handlers until it navigates or joins again (a browser
+// loads the URL itself, getting the route's own answer).
 func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -370,7 +385,7 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 	if rt.Ctx != nil {
 		s.ctx = rt.Ctx
 	}
-	if !patch {
+	if !patch || len(rt.Updates) == 0 {
 		for _, in := range s.order()[1:] {
 			unmount(in)
 		}
@@ -380,10 +395,17 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 	s.updates, s.uerr = maps.Clone(rt.Updates), nil
 	defer func() { s.updates, s.uerr = nil, nil }()
 	p, err := s.patch()
-	if s.uerr != nil && err == nil {
-		p.Error = s.uerr.Error()
+	if err = cmp.Or(err, s.uerr); err != nil {
+		// nothing of a page that failed to render, or whose Update refused
+		// its URL, stays mounted to take events
+		for _, in := range s.order()[1:] {
+			unmount(in)
+		}
+		s.byID = map[string]*instance{RootID: s.root}
+		s.root.children, s.root.kids, s.root.handlers = map[string]*instance{}, nil, nil
+		return Patch{}, err
 	}
-	return p, err
+	return p, nil
 }
 
 // Close unmounts every instance. The session renders nothing after it.
@@ -505,6 +527,17 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 	}
 	typ := reflect.TypeOf(n.Props)
 	in := parent.children[place]
+	msg, upd := s.updates[n.Props]
+	if upd {
+		delete(s.updates, n.Props)
+		if in != nil && in.typ == typ && in.seen != s.pass && !takesUpdate(in.comp, msg) {
+			// a navigation keeps an instance only for an Update to take
+			// the new URL; this one mounts again, for Mount to see it
+			unmount(in)
+			delete(s.byID, in.id)
+			in = nil
+		}
+	}
 	same := false
 	switch {
 	case in != nil && in.seen == s.pass && in.typ == typ:
@@ -516,7 +549,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		}
 		in = &instance{s: s, id: "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true}
 		ui.AttachLive(in.comp, in)
-		if err := ui.MountLive(s.ctx, in.comp); err != nil {
+		if err := mount(s.ctx, in.comp); err != nil {
 			return nil, err
 		}
 		parent.children[place] = in
@@ -524,8 +557,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 	default:
 		same = sameProps(in.comp, n.Props)
 		copyProps(in.comp, n.Props)
-		if msg, ok := s.updates[n.Props]; ok {
-			delete(s.updates, n.Props)
+		if upd {
 			_, err := callUpdate(s.ctx, in.comp, msg)
 			s.uerr = errors.Join(s.uerr, err)
 			same = false
