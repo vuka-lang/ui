@@ -92,19 +92,19 @@ func (s *Session) Handle(m ClientMessage) ServerMessage {
 		if m.V >= 2 {
 			trees, err := s.RenderTrees()
 			if err != nil {
-				return ServerMessage{Type: Error, Ref: m.Ref, Error: err.Error()}
+				return ServerMessage{Type: Error, Ref: m.Ref, Error: s.ErrorText(err)}
 			}
 			return ServerMessage{Type: Render, Ref: m.Ref, V: 2, Trees: trees, JS: s.JS()}
 		}
 		html, err := s.Render()
 		if err != nil {
-			return ServerMessage{Type: Error, Ref: m.Ref, Error: err.Error()}
+			return ServerMessage{Type: Error, Ref: m.Ref, Error: s.ErrorText(err)}
 		}
 		return ServerMessage{Type: Render, Ref: m.Ref, HTML: html, JS: s.JS()}
 	case EventMsg:
 		p, err := s.Event(m.Event)
 		if err != nil {
-			return ServerMessage{Type: Error, Ref: m.Ref, Error: err.Error()}
+			return ServerMessage{Type: Error, Ref: m.Ref, Error: s.ErrorText(err)}
 		}
 		return PatchMessage(m.Ref, p)
 	case Navigate:
@@ -148,11 +148,15 @@ func (s *Session) navigate(m ClientMessage) ServerMessage {
 		rt = router(m.URL)
 	}
 	if rt.Render == nil {
-		return ServerMessage{Type: Redirect, Ref: m.Ref, URL: cmp.Or(rt.Redirect, m.URL)}
+		to := cmp.Or(rt.Redirect, m.URL)
+		if !ui.LoadableURL(to) {
+			return ServerMessage{Type: Error, Ref: m.Ref, Error: "live: refused to redirect to a URL that isn't http or https"}
+		}
+		return ServerMessage{Type: Redirect, Ref: m.Ref, URL: to}
 	}
 	p, err := s.Navigate(rt, m.Patch)
 	if err != nil {
-		return ServerMessage{Type: Error, Ref: m.Ref, Error: err.Error()}
+		return ServerMessage{Type: Error, Ref: m.Ref, Error: s.ErrorText(err)}
 	}
 	msg := PatchMessage(m.Ref, p)
 	msg.URL = m.URL

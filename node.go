@@ -37,11 +37,14 @@ type NodeFunc = templ.ComponentFunc
 //     map[string]bool, templ.KV, …);
 //   - style takes a Style or anything templ's style attributes do, sanitized
 //     by templ (an unsafe property or value becomes templ's placeholder);
-//   - href on a and link, action on form and data on object are URLs: templ.URL
-//     keeps relative URLs and http, https, mailto, tel, ftp and ftps, and turns
-//     anything else into about:invalid#TemplFailedSanitizationURL; a
-//     templ.SafeURL passes as is. Like templ, other attributes (img src, …)
-//     aren't URL-checked;
+//   - URL attributes are sanitized: href on any element (a, link, area,
+//     base, SVG's), xlink:href, action on form, data on object, src on
+//     iframe, frame, embed, source, track, video, audio, img, input and
+//     script, poster on video and formaction on button and input. templ.URL
+//     keeps relative URLs and http, https, mailto, tel, ftp and ftps, and
+//     turns anything else into about:invalid#TemplFailedSanitizationURL;
+//     a media source also keeps a data: URL of its kind (data:image/… on
+//     img src). A templ.SafeURL passes as is;
 //   - a templ.ComponentScript writes its Call; a Node is rendered and escaped;
 //     anything else goes through fmt.Sprint and is escaped
 //     (templ.ResolveAttributeValue).

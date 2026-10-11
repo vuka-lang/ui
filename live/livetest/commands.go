@@ -699,7 +699,9 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 		case "pop_focus", "debounce", "throttle":
 			continue
 		case "patch", "navigate":
-			c.queue = append(c.queue, sending{nav: &navigation{a.Href, o.name == "patch"}})
+			if ui.LoadableURL(a.Href) { // the runtime refuses any other
+				c.queue = append(c.queue, sending{nav: &navigation{a.Href, o.name == "patch"}})
+			}
 			continue
 		}
 		ts, err := c.targets(this, a.To)
@@ -756,11 +758,17 @@ func (c *Client) apply(e *node, o op, ev ui.Event) error {
 	case "set_attr":
 		var v string
 		json.Unmarshal(a.Value, &v)
+		if attrRefused(a.Name, v) {
+			return nil
+		}
 		c.set(e, a.Name, v, true)
 	case "remove_attr":
+		if attrRefused(a.Name, "") {
+			return nil
+		}
 		c.set(e, a.Name, "", false)
 	case "toggle_attr":
-		if len(a.Values) == 2 {
+		if len(a.Values) == 2 && !attrRefused(a.Name, a.Values[0]) && !attrRefused(a.Name, a.Values[1]) {
 			v, _ := c.get(e, a.Name)
 			if v == a.Values[0] {
 				c.set(e, a.Name, a.Values[1], true)
@@ -912,4 +920,25 @@ func (c *Client) PageShow() {
 	for _, b := range slices.Clone(c.busy) {
 		c.unbusy(b)
 	}
+}
+
+// attrRefused reports whether the runtime refuses a command changing
+// attribute name to value: an event handler attribute (on…) or srcdoc, or
+// a URL attribute set to a javascript:, data: or vbscript: URL.
+func attrRefused(name, value string) bool {
+	n := strings.ToLower(name)
+	if strings.HasPrefix(n, "on") || n == "srcdoc" {
+		return true
+	}
+	switch n {
+	case "href", "src", "action", "formaction", "xlink:href", "poster", "data":
+		v := strings.ToLower(strings.Map(func(r rune) rune {
+			if r <= ' ' {
+				return -1
+			}
+			return r
+		}, value))
+		return strings.HasPrefix(v, "javascript:") || strings.HasPrefix(v, "data:") || strings.HasPrefix(v, "vbscript:")
+	}
+	return false
 }

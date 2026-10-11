@@ -84,7 +84,7 @@ func payload(t reflect.Type, ev ui.Event) (reflect.Value, error) {
 	}
 	v := reflect.New(t).Elem()
 	if err := setScalar(v, s); err != nil {
-		return v, fmt.Errorf("live: %s event: %w", ev.Type, err)
+		return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err)}
 	}
 	return v, nil
 }
@@ -155,14 +155,14 @@ func bindForm(v reflect.Value, form url.Values) error {
 			s := reflect.MakeSlice(fv.Type(), len(vals), len(vals))
 			for j, x := range vals {
 				if err := setScalar(s.Index(j), x); err != nil {
-					return fmt.Errorf("live: field %s: %w", name, err)
+					return publicErr{fmt.Errorf("live: field %s: %w", name, err)}
 				}
 			}
 			fv.Set(s)
 			continue
 		}
 		if err := setScalar(fv, vals[0]); err != nil {
-			return fmt.Errorf("live: field %s: %w", name, err)
+			return publicErr{fmt.Errorf("live: field %s: %w", name, err)}
 		}
 	}
 	return nil
@@ -200,6 +200,30 @@ func callUpdate(ctx context.Context, c ui.Stateful, msg any) (called bool, err e
 			called, err = true, fmt.Errorf("live: %T's Update panicked: %v", c, r)
 		}
 	}()
+	m, err := updateMethod(c, msg)
+	if !m.IsValid() || err != nil {
+		return false, err
+	}
+	arg := reflect.New(m.Type().In(m.Type().NumIn() - 1)).Elem()
+	if msg != nil {
+		arg.Set(reflect.ValueOf(msg))
+	}
+	args := []reflect.Value{arg}
+	if m.Type().NumIn() == 2 {
+		args = []reflect.Value{reflect.ValueOf(ctx), arg}
+	}
+	return true, result(m.Call(args))
+}
+
+// takesUpdate reports whether c has one Update method msg reaches.
+func takesUpdate(c ui.Stateful, msg any) bool {
+	m, err := updateMethod(c, msg)
+	return m.IsValid() && err == nil
+}
+
+// updateMethod is the Update method of c that msg reaches (callUpdate);
+// invalid when there is none.
+func updateMethod(c ui.Stateful, msg any) (reflect.Value, error) {
 	v := reflect.ValueOf(c)
 	mt := reflect.TypeOf(msg)
 	var exact, assignable, catchAll []reflect.Value
@@ -235,19 +259,20 @@ func callUpdate(ctx context.Context, c ui.Stateful, msg any) (called bool, err e
 		case 0:
 			continue
 		case 1:
-			m := set[0]
-			arg := reflect.New(m.Type().In(m.Type().NumIn() - 1)).Elem()
-			if msg != nil {
-				arg.Set(reflect.ValueOf(msg))
-			}
-			args := []reflect.Value{arg}
-			if m.Type().NumIn() == 2 {
-				args = []reflect.Value{reflect.ValueOf(ctx), arg}
-			}
-			return true, result(m.Call(args))
+			return set[0], nil
 		default:
-			return false, fmt.Errorf("live: %s has %d Update methods taking %v", v.Type().Elem().Name(), len(set), mt)
+			return reflect.Value{}, fmt.Errorf("live: %s has %d Update methods taking %v", v.Type().Elem().Name(), len(set), mt)
 		}
 	}
-	return false, nil
+	return reflect.Value{}, nil
+}
+
+// mount calls c's Mount; a panic is its error.
+func mount(ctx context.Context, c ui.Stateful) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("live: %T's Mount panicked: %v", c, r)
+		}
+	}()
+	return ui.MountLive(ctx, c)
 }

@@ -233,7 +233,7 @@ func attrValue(ctx context.Context, tag, name string, v any) (string, uint8, err
 		switch {
 		case name == "style":
 		case isURLAttr(tag, name):
-			return string(templ.URL(v)), attrEscaped, nil
+			return sanitizeURL(tag, name, v), attrEscaped, nil
 		default:
 			return v, attrEscaped, nil
 		}
@@ -257,7 +257,7 @@ func attrValue(ctx context.Context, tag, name string, v any) (string, uint8, err
 		if u, ok := v.(templ.SafeURL); ok {
 			return string(u), attrEscaped, nil
 		}
-		return string(templ.URL(toString(v))), attrEscaped, nil
+		return sanitizeURL(tag, name, toString(v)), attrEscaped, nil
 	}
 	return toString(v), attrEscaped, nil // templ.ResolveAttributeValue: fmt.Sprint, escaped
 }
@@ -280,16 +280,69 @@ func validName(s string) bool {
 	return true
 }
 
-// isURLAttr is templ's set of URL attributes (generator's
-// isExpressionAttributeValueURL).
+// sanitizeURL is the value of a URL attribute (isURLAttr): templ.URL's,
+// which keeps relative URLs and http, https, mailto, tel, ftp and ftps, and
+// turns anything else into about:invalid#TemplFailedSanitizationURL. An
+// image, audio or video source (img, source, video, audio and input src,
+// video poster) and a track's text also keep a data: URL of that kind
+// (data:image/…, data:audio/…, data:video/…, data:text/vtt), which the
+// browser only decodes as media.
+func sanitizeURL(tag, name, v string) string {
+	if mediaAttr(tag, name) {
+		d := strings.ToLower(strings.TrimLeftFunc(v, func(r rune) bool { return r <= ' ' }))
+		for _, p := range [...]string{"data:image/", "data:audio/", "data:video/", "data:text/vtt"} {
+			if strings.HasPrefix(d, p) {
+				return v
+			}
+		}
+	}
+	return string(templ.URL(v))
+}
+
+func mediaAttr(tag, name string) bool {
+	tag, name = strings.ToLower(tag), strings.ToLower(name)
+	switch name {
+	case "src":
+		switch tag {
+		case "img", "source", "video", "audio", "input", "track":
+			return true
+		}
+	case "poster":
+		return tag == "video"
+	}
+	return false
+}
+
+// isURLAttr reports whether tag's attribute name holds a URL, which a
+// string value sanitizes with templ.URL: templ's set (href on a and link,
+// action on form, data on object) and HTML's and SVG's other attributes
+// a browser loads or follows — src on iframe, frame, embed, source,
+// track, video, audio, img, input and script, poster on video,
+// formaction on button and input, href on area, base and every SVG
+// element (use, image, …), and xlink:href anywhere. Names and tags match
+// ignoring case, as HTML's do.
 func isURLAttr(tag, name string) bool {
-	switch tag {
-	case "a", "link":
-		return name == "href"
-	case "form":
-		return name == "action"
-	case "object":
-		return name == "data"
+	tag, name = strings.ToLower(tag), strings.ToLower(name)
+	switch name {
+	case "href":
+		// every element with an href takes a URL: a, link, area, base, and
+		// SVG's (a, use, image, feImage, textPath, …)
+		return true
+	case "xlink:href":
+		return true
+	case "src":
+		switch tag {
+		case "iframe", "frame", "embed", "source", "track", "video", "audio", "img", "input", "script":
+			return true
+		}
+	case "poster":
+		return tag == "video"
+	case "formaction":
+		return tag == "button" || tag == "input"
+	case "action":
+		return tag == "form"
+	case "data":
+		return tag == "object"
 	}
 	return false
 }

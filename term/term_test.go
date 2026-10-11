@@ -268,3 +268,22 @@ func TestRender(t_ *testing.T) {
 		t_.Fatalf("%q %v", sb.String(), err)
 	}
 }
+
+// Text the page holds carries no terminal commands.
+func TestControlCharacters(t *testing.T) {
+	name := "Alice\x1b[2J\x1b]0;owned\x07\x1b[31mFAKE: approved\x1b[0m\r\u009b31m\x7f\xff"
+	n := el("div", el("p", v.Text("Applicant: "+name)), v.El("a", []v.Attr{a("href", "/x\x1b[2J")}, v.Text("go\x1b]8;;evil\x07")),
+		v.El("input", []v.Attr{a("value", "v\x1b[1m"), a("placeholder", "p")}), el("pre", v.Text("a\tb\nc")))
+	for _, color := range []bool{false, true} {
+		s, err := term.String(context.Background(), n, term.Options{Color: color})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !color && strings.ContainsAny(s, "\x1b\x07\r\x7f\u009b") || strings.Contains(s, "\x1b[2J") || strings.Contains(s, "\x1b]") || strings.Contains(s, "\x1b[31m") {
+			t.Errorf("color %v: %q", color, s)
+		}
+		if !strings.Contains(s, "Alice[2J]0;owned[31mFAKE: approved[0m") || !strings.Contains(s, "a    b\n  c") {
+			t.Errorf("color %v: text lost: %q", color, s)
+		}
+	}
+}
