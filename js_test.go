@@ -68,6 +68,37 @@ func TestJSEncoding(t *testing.T) {
 		// Without a session a push has no handler id, nor hooks to settle.
 		{ui.JS.Hide(menu).Push(noop, ui.Timeout(time.Second), ui.KeepOnError()).OnError(ui.JS.Show(menu)).OnSuccess(ui.JS.Focus(menu)),
 			`[["hide",{"to":{"ref":"menu"}}],["push",{}]]`},
+		// Several refs or selectors; one encodes as before.
+		{ui.JS.Hide(ui.Ref("a", "b")).Show(ui.Sel("#x", ".y")).Focus(ui.Sel(".z")),
+			`[["hide",{"to":{"ref":["a","b"]}}],["show",{"to":{"sel":["#x",".y"]}}],["focus",{"to":{"sel":".z"}}]]`},
+		{ui.JS.SetAttr(ui.GetAttr("name", "username", "password"), "readonly", ""),
+			`[["set_attr",{"to":{"attr":{"name":"name","is":["username","password"]}},"name":"readonly","value":""}]]`},
+		{ui.JS.Hide(ui.GetAttr("data-step")).Show(ui.GetAttr("role", "alert").Page()),
+			`[["hide",{"to":{"attr":{"name":"data-step"}}}],["show",{"to":{"attr":{"name":"role","is":["alert"],"page":true}}}]]`},
+		{ui.JS.Hide(ui.GetAttr("id", ui.Prefix("step-"), ui.Suffix("-x"), ui.Contains(`"]`), ui.Word("old"), "")),
+			`[["hide",{"to":{"attr":{"name":"id","is":[{"prefix":"step-"},{"suffix":"-x"},{"contains":"\"]"},{"word":"old"},""]}}}]]`},
+		// Joined conditions, and reads of every element or some.
+		{ui.JS.If(menu.Value().And(ui.Ref("t").Checked(), menu.Is(".x"))).End(),
+			`[["if",{"cond":{"and":[{"to":{"ref":"menu"},"value":true},{"to":{"ref":"t"},"checked":true},{"to":{"ref":"menu"},"is":".x"}]}}],["end",{}]]`},
+		{ui.JS.If(menu.Checked().And(menu.Value()).Or(menu.Attr("open").Not())).End(),
+			`[["if",{"cond":{"or":[{"and":[{"to":{"ref":"menu"},"checked":true},{"to":{"ref":"menu"},"value":true}]},{"not":{"to":{"ref":"menu"},"attr":"open"}}]}}],["end",{}]]`},
+		{ui.JS.If(ui.All(menu.Value().Some(), ui.Any(menu.Checked().Some(), menu.Value().Some().Eq("a")), ui.Any())).ElseIf(menu.Value().Not()).End(),
+			`[["if",{"cond":{"and":[{"to":{"ref":"menu"},"value":true,"some":true},{"or":[{"to":{"ref":"menu"},"checked":true,"some":true},{"to":{"ref":"menu"},"value_eq":"a","some":true}]},{"or":[]}]}}],["else_if",{"cond":{"not":{"to":{"ref":"menu"},"value":true}}}],["end",{}]]`},
+		{ui.JS.Call("f", menu.Value().And(menu.Checked())), `[["call",{"fn":"f","args":[{"$read":{"and":[{"to":{"ref":"menu"},"value":true},{"to":{"ref":"menu"},"checked":true}]}}]}]]`},
+		// When and its Else: an if block, its End written for it.
+		{ui.JS.When(menu.Checked(), ui.JS.Show(menu)).Hide("#x"),
+			`[["if",{"cond":{"to":{"ref":"menu"},"checked":true}}],["show",{"to":{"ref":"menu"}}],["end",{}],["hide",{"to":{"sel":"#x"}}]]`},
+		{ui.JS.When(menu.Checked(), ui.JS.Show(menu)).Else(ui.JS.Hide(menu)).Focus(menu),
+			`[["if",{"cond":{"to":{"ref":"menu"},"checked":true}}],["show",{"to":{"ref":"menu"}}],["else",{}],["hide",{"to":{"ref":"menu"}}],["end",{}],["focus",{"to":{"ref":"menu"}}]]`},
+		{ui.JS.When(menu.Checked(), ui.JS.If(menu.Value()).Show(menu)).Else(ui.JS.When(menu.Value(), ui.JS.Hide(menu))),
+			`[["if",{"cond":{"to":{"ref":"menu"},"checked":true}}],["if",{"cond":{"to":{"ref":"menu"},"value":true}}],["show",{"to":{"ref":"menu"}}],["end",{}],["else",{}],["if",{"cond":{"to":{"ref":"menu"},"value":true}}],["hide",{"to":{"ref":"menu"}}],["end",{}],["end",{}]]`},
+		{ui.JS.On(menu).When(menu.Checked(), ui.JS.Show(menu)).Else(ui.JS.Hide(menu)).AddClass("x"),
+			`[["if",{"cond":{"to":{"ref":"menu"},"checked":true}}],["show",{"to":{"ref":"menu"}}],["else",{}],["hide",{"to":{"ref":"menu"}}],["end",{}],["add_class",{"to":{"ref":"menu"},"names":["x"]}]]`},
+		// Busy: This by default, a timeout, one op per target.
+		{ui.JS.Busy(), `[["busy",{}]]`},
+		{ui.JS.Busy(menu, ui.Timeout(5*time.Second)).Busy(ui.Sel("#a"), ui.GetAttr("name", "q")),
+			`[["busy",{"to":{"ref":"menu"},"timeout":5000}],["busy",{"to":{"sel":"#a"}}],["busy",{"to":{"attr":{"name":"name","is":["q"]}}}]]`},
+		{ui.JS.On(menu).Busy(ui.Timeout(time.Second)).Busy(), `[["busy",{"to":{"ref":"menu"},"timeout":1000}],["busy",{"to":{"ref":"menu"}}]]`},
 	}
 	for _, tt := range tests {
 		if got := encode(t, tt.ch); got != tt.want {
@@ -98,7 +129,14 @@ func TestJSBranchErrors(t *testing.T) {
 		"elseif after else": func() {
 			ui.JS.If(ui.This.Checked()).Else().ElseIf(ui.This.Checked())
 		},
-		"two elses": func() { ui.JS.If(ui.This.Checked()).Else().Else() },
+		"two elses":                func() { ui.JS.If(ui.This.Checked()).Else().Else() },
+		"else(chain) without when": func() { ui.JS.If(ui.This.Checked()).Else(ui.JS) },
+		"else(chain) twice": func() {
+			ui.JS.When(ui.This.Checked(), ui.JS).Else(ui.JS).Else(ui.JS)
+		},
+		"else(chain) after a step": func() { ui.JS.When(ui.This.Checked(), ui.JS).Hide("#x").Else(ui.JS) },
+		"else(chain), two chains":  func() { ui.JS.When(ui.This.Checked(), ui.JS).Else(ui.JS, ui.JS) },
+		"else() after when":        func() { ui.JS.When(ui.This.Checked(), ui.JS).Else() },
 	} {
 		func() {
 			defer func() {
@@ -121,6 +159,17 @@ func TestJSMisplaced(t *testing.T) {
 		"call of nothing":        func() { ui.JS.Call("") },
 		"call, trailing dot":     func() { ui.JS.On("#x").Call("a.") },
 		"call, leading digit":    func() { ui.JS.Call("a.1b") },
+		"ref of nothing":         func() { ui.Ref() },
+		"sel of nothing":         func() { ui.Sel() },
+		"getattr of nothing":     func() { ui.GetAttr("") },
+		"getattr, bad name":      func() { ui.GetAttr("a b") },
+		"getattr, quote in name": func() { ui.GetAttr(`a"`) },
+		"empty prefix":           func() { ui.Prefix("") },
+		"page of a ref":          func() { ui.Ref("x").Page() },
+		"page of this":           func() { ui.This.Page() },
+		"some of a join":         func() { ui.This.Checked().And(ui.This.Value()).Some() },
+		"busy, a push option":    func() { ui.JS.Busy(ui.KeepOnError()) },
+		"busy, a value":          func() { ui.JS.Busy(ui.Value(1)) },
 	} {
 		func() {
 			defer func() {

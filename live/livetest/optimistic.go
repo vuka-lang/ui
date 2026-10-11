@@ -39,6 +39,7 @@ type pending struct {
 	keep        bool
 	deadline    time.Duration
 	settled     bool
+	busy        []*busyState // what Busy marked for it, undone when it settles
 }
 
 // sending is an event waiting to be sent, and the push it is the event of.
@@ -96,6 +97,11 @@ func (c *Client) Pending() int {
 // push settled already.
 func (c *Client) Advance(d time.Duration) error {
 	c.now += d
+	for _, b := range slices.Clone(c.busy) {
+		if b.deadline > 0 && b.deadline <= c.now {
+			c.unbusy(b)
+		}
+	}
 	for _, p := range slices.Clone(c.pending) {
 		if p.settled || p.deadline > c.now {
 			continue
@@ -110,9 +116,13 @@ func (c *Client) Advance(d time.Duration) error {
 	return c.flush()
 }
 
-// settle marks p settled and runs its hook, on_ok or on_error.
+// settle marks p settled, undoes the Busy marks waiting for it, and runs
+// its hook, on_ok or on_error.
 func (c *Client) settle(p *pending, ok bool) error {
 	p.settled = true
+	for _, b := range p.busy {
+		c.unbusy(b)
+	}
 	hook := p.onErr
 	if ok {
 		hook = p.onOK
@@ -172,7 +182,7 @@ func (c *Client) revert(changes []change) {
 // failLocally fails the push a failed call predicts for, the next push in
 // rest, without sending it: the changes of its segment so far are reverted
 // and its on_error runs.
-func (c *Client) failLocally(this *node, rest []op, acc *[]change) error {
+func (c *Client) failLocally(this *node, rest []op, acc *[]change, busy []*busyState) error {
 	seg := *acc
 	*acc = nil
 	for _, o := range rest {
@@ -185,7 +195,7 @@ func (c *Client) failLocally(this *node, rest []op, acc *[]change) error {
 		if !o.args.Keep {
 			c.revert(seg)
 		}
-		return c.settle(&pending{this: this.path, onErr: o.args.OnError}, false)
+		return c.settle(&pending{this: this.path, onErr: o.args.OnError, busy: busy}, false)
 	}
 	return nil
 }
@@ -269,6 +279,9 @@ func (c *Client) arg(this *node, raw json.RawMessage) (any, error) {
 	var read map[string]*cond
 	if json.Unmarshal(raw, &read) == nil && len(read) == 1 && read["$read"] != nil {
 		k := read["$read"]
+		if k.joined() {
+			return c.holds(this, k)
+		}
 		ts, err := c.targets(this, k.To)
 		if err != nil {
 			return nil, err

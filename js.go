@@ -47,6 +47,7 @@ func (c Commands) jsChain() Commands { return c }
 type jsOp struct {
 	name string
 	args []jsArg
+	when int // on the end closing a When: 1, or 2 once it has its Else
 }
 
 type jsArg struct {
@@ -80,20 +81,24 @@ func (a callArgs) MarshalJSON() ([]byte, error) {
 }
 
 func (c Commands) add(name string, args ...jsArg) Commands {
-	return Commands{append(slices.Clip(c.ops), jsOp{name, args})}
+	return Commands{append(slices.Clip(c.ops), jsOp{name: name, args: args})}
 }
 
 func to(t Target) jsArg { return jsArg{"to", t} }
 
 // Target is the element or elements a command acts on:
 //
-//	ui.This            the element the attribute is on (the default)
-//	ui.Ref("menu")     the element with ref="menu" in the same component
-//	ui.Closest(".card") the nearest of This and its ancestors matching a selector
-//	ui.Inner(".item")  the elements inside This matching a selector
-//	ui.Sel("#cart")    every element of the page matching a selector
+//	ui.This                  the element the attribute is on (the default)
+//	ui.Ref("menu")           the element with ref="menu" in the same component
+//	ui.Ref("user", "pass")   the elements with either ref, in page order
+//	ui.GetAttr("name", "q")  the component's elements whose name attribute is "q"
+//	ui.Closest(".card")      the nearest of This and its ancestors matching a selector
+//	ui.Inner(".item")        the elements inside This matching a selector
+//	ui.Sel("#cart")          every element of the page matching a selector
 //
-// A plain string is a selector too: ui.JS.Hide("#cart") hides #cart.
+// A plain string is a selector too: ui.JS.Hide("#cart") hides #cart. A
+// target of several parts matches every element any part matches, in page
+// order, each once.
 //
 // Example:
 //
@@ -104,6 +109,8 @@ type Target string
 // their kind.
 const (
 	refTarget     = "\x00ref:"
+	selsTarget    = "\x00sels:"
+	attrTarget    = "\x00attr:"
 	closestTarget = "\x00closest:"
 	innerTarget   = "\x00inner:"
 )
@@ -117,15 +124,29 @@ const (
 //	<button onClick={ui.JS.ToggleClass(ui.This, "active")}>Bold</button>
 const This Target = ""
 
-// Ref is the element marked ref="name" in the same component instance. Each
-// instance has its own refs, so ten Dropdowns each open their own menu; the
-// compiler checks that the component's JSX has the ref.
+// Ref is the element marked ref="name" in the same component instance, or
+// with several names, every element marked with one of them, in page order.
+// Each instance has its own refs, so ten Dropdowns each open their own
+// menu; the compiler checks that the component's JSX has each ref. Focus,
+// ScrollTo and Copy act on the first element a target finds.
 //
 // Example:
 //
 //	<button onClick={ui.JS.Toggle(ui.Ref("menu"))}>Menu</button>
 //	<ul ref="menu" style="display: none">…</ul>
-func Ref(name string) Target { return Target(refTarget + name) }
+//	<button onClick={ui.JS.SetAttr(ui.Ref("username", "password"), "readonly", "")}>Lock</button>
+//	<input ref="username" /><input ref="password" type="password" />
+func Ref(names ...string) Target {
+	if len(names) == 0 {
+		panic("ui: Ref needs a name")
+	}
+	for _, n := range names {
+		if strings.ContainsRune(n, 0) {
+			panic(fmt.Sprintf("ui: Ref %q: a name holds no NUL", n))
+		}
+	}
+	return Target(refTarget + strings.Join(names, "\x00"))
+}
 
 // Closest is the nearest element matching a CSS selector, looking at This
 // first and then up its ancestors.
@@ -142,36 +163,184 @@ func Closest(sel string) Target { return Target(closestTarget + sel) }
 //	<li onClick={ui.JS.Show(ui.Inner(".actions"))}>{post.Title} <span class="actions" style="display: none">Edit</span></li>
 func Inner(sel string) Target { return Target(innerTarget + sel) }
 
-// Sel is every element of the page matching a CSS selector; a plain string
-// is the same target. Inside a component prefer Ref, which can't reach into
-// another component.
+// Sel is every element of the page matching a CSS selector, or any of
+// several, in page order; a plain string is the same target. Inside a
+// component prefer Ref or GetAttr, which can't reach into another
+// component.
 //
 // Example:
 //
 //	<button onClick={ui.JS.Show(ui.Sel("#cart"))}>Cart</button>
-func Sel(css string) Target { return Target(css) }
+//	<button onClick={ui.JS.Hide(ui.Sel("#cart", "#wishlist"))}>Close</button>
+func Sel(css ...string) Target {
+	switch {
+	case len(css) == 0:
+		panic("ui: Sel needs a selector")
+	case len(css) == 1:
+		return Target(css[0])
+	}
+	for _, c := range css {
+		if strings.ContainsRune(c, 0) {
+			panic(fmt.Sprintf("ui: Sel %q: a selector holds no NUL", c))
+		}
+	}
+	return Target(selsTarget + strings.Join(css, "\x00"))
+}
+
+// attrSpec is a GetAttr target: the attribute, the values it may have
+// (strings, or matchers as {"prefix": s}…), and whether it looks at the
+// whole page.
+type attrSpec struct {
+	Name string `json:"name"`
+	Is   []any  `json:"is,omitempty"`
+	Page bool   `json:"page,omitempty"`
+}
+
+// Matchers are strings no attribute value is: a NUL, then their kind.
+const matcherMark = "\x00match:"
+
+func matcher(kind, s string) string {
+	if s == "" {
+		panic("ui: " + kind + "(\"\") matches no value; GetAttr(name) with no values matches the attribute's presence")
+	}
+	return matcherMark + kind + ":" + s
+}
+
+// GetAttr is the elements of the component instance that have the
+// attribute name: any value with no values given, else one of values.
+// A plain value is an exact match; Prefix, Suffix, Contains and Word match
+// part of one. Page() widens it to the whole page. GetAttr picks elements;
+// a target's Attr reads one.
+//
+// When the component's JSX writes the attribute literally, the compiler
+// checks each literal value against those it has. Panics when name is
+// empty or not an attribute name.
+//
+// Example:
+//
+//	<button onClick={ui.JS.SetAttr(ui.GetAttr("name", "username", "password"), "readonly", "")}>Lock</button>
+//	<input name="username" /><input name="password" type="password" />
+//	<button onClick={ui.JS.Hide(ui.GetAttr("data-step"))}>Skip</button>
+func GetAttr(name string, values ...string) Target {
+	if name == "" || strings.ContainsAny(name, " \t\n\f\r\"'>/=\x00") {
+		panic(fmt.Sprintf("ui: GetAttr %q: not an attribute name", name))
+	}
+	spec := attrSpec{Name: name}
+	for _, v := range values {
+		var is any = v
+		if rest, ok := strings.CutPrefix(v, matcherMark); ok {
+			kind, s, _ := strings.Cut(rest, ":")
+			is = map[string]string{kind: s}
+		} else if strings.ContainsRune(v, 0) {
+			panic(fmt.Sprintf("ui: GetAttr %q: a value holds no NUL", v))
+		}
+		spec.Is = append(spec.Is, is)
+	}
+	return spec.target()
+}
+
+func (s attrSpec) target() Target {
+	j, err := marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	return Target(attrTarget + string(j))
+}
+
+// Prefix is a GetAttr value matching any value that starts with s.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Hide(ui.GetAttr("id", ui.Prefix("step-")))}>Hide steps</button>
+func Prefix(s string) string { return matcher("prefix", s) }
+
+// Suffix is a GetAttr value matching any value that ends with s.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Show(ui.GetAttr("href", ui.Suffix(".pdf")))}>Show PDFs</button>
+func Suffix(s string) string { return matcher("suffix", s) }
+
+// Contains is a GetAttr value matching any value that holds s.
+//
+// Example:
+//
+//	<button onClick={ui.JS.AddClass(ui.GetAttr("title", ui.Contains("draft")), "italic")}>Mark drafts</button>
+func Contains(s string) string { return matcher("contains", s) }
+
+// Word is a GetAttr value matching any space-separated list of words that
+// has s among them, as class lists are.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Hide(ui.GetAttr("data-tags", ui.Word("old")))}>Hide old</button>
+func Word(s string) string { return matcher("word", s) }
+
+// Page widens a GetAttr target from the component instance to the whole
+// page. Panics on any other target.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Hide(ui.GetAttr("role", "alert").Page())}>Dismiss all</button>
+func (t Target) Page() Target {
+	j, ok := strings.CutPrefix(string(t), attrTarget)
+	if !ok {
+		panic("ui: Page widens a GetAttr target, not " + t.String())
+	}
+	var s attrSpec
+	if err := json.Unmarshal([]byte(j), &s); err != nil {
+		panic(err)
+	}
+	s.Page = true
+	return s.target()
+}
+
+// String is the target as its JSON shows it.
+func (t Target) String() string {
+	j, err := t.MarshalJSON()
+	if err != nil {
+		return string(t)
+	}
+	return string(j)
+}
 
 func (t Target) MarshalJSON() ([]byte, error) {
 	s := string(t)
-	for _, k := range [...]struct{ prefix, key string }{{refTarget, "ref"}, {closestTarget, "closest"}, {innerTarget, "inner"}} {
-		if v, ok := strings.CutPrefix(s, k.prefix); ok {
-			return marshal(map[string]string{k.key: v})
+	if j, ok := strings.CutPrefix(s, attrTarget); ok {
+		return []byte(`{"attr":` + j + `}`), nil
+	}
+	for _, k := range [...]struct{ prefix, key string }{{refTarget, "ref"}, {selsTarget, "sel"}, {closestTarget, "closest"}, {innerTarget, "inner"}} {
+		v, ok := strings.CutPrefix(s, k.prefix)
+		if !ok {
+			continue
 		}
+		if parts := strings.Split(v, "\x00"); len(parts) > 1 || k.prefix == selsTarget {
+			return marshal(map[string][]string{k.key: parts})
+		}
+		return marshal(map[string]string{k.key: v})
 	}
 	return marshal(map[string]string{"sel": s})
 }
 
-// Condition is a test for If and ElseIf, made from a target: t.Checked(),
-// t.Value(), t.Value().Eq(v), t.Attr(name), t.Is(css) or t.Exists(). It is
-// read in the browser when the If is reached, not when the chain is built.
+// Condition is a test for If, ElseIf and When, made from a target:
+// t.Checked(), t.Value(), t.Value().Eq(v), t.Attr(name), t.Is(css) or
+// t.Exists(), or conditions joined with And, Or, Not, All and Any. It is
+// read in the browser when it is reached, not when the chain is built.
+//
+// A read of a target that finds several elements holds when every one of
+// them passes it, or with Some when at least one does; a target that finds
+// none fails every read but Exists.
 //
 // Example:
 //
 //	<input type="checkbox" ref="all" onChange={ui.JS.If(ui.Ref("all").Checked()).Show(ui.Ref("bulk")).Else().Hide(ui.Ref("bulk")).End()} />
 type Condition struct {
-	to  Target
-	key string
-	val any
+	to   Target
+	key  string
+	val  any
+	some bool
+	op   string // "and", "or" or "not" for a joined condition
+	of   []Condition
 }
 
 // ValueCondition is t.Value(): it holds when the target's value isn't
@@ -184,7 +353,7 @@ type ValueCondition struct{ c Condition }
 // Example:
 //
 //	<input type="checkbox" ref="all" onChange={ui.JS.If(ui.Ref("all").Checked()).Show(ui.Ref("bulk")).Else().Hide(ui.Ref("bulk")).End()} />
-func (t Target) Checked() Condition { return Condition{t, "checked", true} }
+func (t Target) Checked() Condition { return Condition{to: t, key: "checked", val: true} }
 
 // Value holds when the target's value isn't empty; .Eq(v) compares it. As
 // an argument of Call it is the value itself, read when the step runs.
@@ -192,7 +361,9 @@ func (t Target) Checked() Condition { return Condition{t, "checked", true} }
 // Example:
 //
 //	<input ref="title" onInput={ui.JS.If(ui.Ref("title").Value()).RemoveAttr(ui.Ref("save"), "disabled").Else().SetAttr(ui.Ref("save"), "disabled", "").End()} />
-func (t Target) Value() ValueCondition { return ValueCondition{Condition{t, "value", true}} }
+func (t Target) Value() ValueCondition {
+	return ValueCondition{Condition{to: t, key: "value", val: true}}
+}
 
 func (c ValueCondition) MarshalJSON() ([]byte, error) { return c.c.MarshalJSON() }
 
@@ -201,7 +372,9 @@ func (c ValueCondition) MarshalJSON() ([]byte, error) { return c.c.MarshalJSON()
 // Example:
 //
 //	<select ref="kind" onChange={ui.JS.If(ui.Ref("kind").Value().Eq("other")).Show(ui.Ref("other")).Else().Hide(ui.Ref("other")).End()}>…</select>
-func (c ValueCondition) Eq(v string) Condition { return Condition{c.c.to, "value_eq", v} }
+func (c ValueCondition) Eq(v string) Condition {
+	return Condition{to: c.c.to, key: "value_eq", val: v, some: c.c.some}
+}
 
 // Attr holds when the target has the attribute name, whatever its value. As
 // an argument of Call it is the attribute's value, or null.
@@ -209,30 +382,141 @@ func (c ValueCondition) Eq(v string) Condition { return Condition{c.c.to, "value
 // Example:
 //
 //	<button onClick={ui.JS.If(ui.Ref("menu").Attr("hidden")).Show(ui.Ref("menu")).Else().Hide(ui.Ref("menu")).End()}>Menu</button>
-func (t Target) Attr(name string) Condition { return Condition{t, "attr", name} }
+func (t Target) Attr(name string) Condition { return Condition{to: t, key: "attr", val: name} }
 
 // Is holds when the target matches a CSS selector.
 //
 // Example:
 //
 //	<button onClick={ui.JS.If(ui.This.Is(".active")).Push(c.Unfollow).Else().Push(c.Follow).End()}>Follow</button>
-func (t Target) Is(css string) Condition { return Condition{t, "is", css} }
+func (t Target) Is(css string) Condition { return Condition{to: t, key: "is", val: css} }
 
 // Exists holds when the target finds an element at all.
 //
 // Example:
 //
 //	<button onClick={ui.JS.If(ui.Sel("#cart").Exists()).Show("#cart").Else().Navigate("/cart").End()}>Cart</button>
-func (t Target) Exists() Condition { return Condition{t, "exists", true} }
+func (t Target) Exists() Condition { return Condition{to: t, key: "exists", val: true} }
 
-// Conditional is what If and ElseIf test and what Call reads from an
+// Conditional is what If, ElseIf and When test and what Call reads from an
 // element: a Condition or a ValueCondition.
 type Conditional interface{ cond() Condition }
 
 func (c Condition) cond() Condition      { return c }
 func (c ValueCondition) cond() Condition { return c.c }
 
+// Some makes a read hold when at least one of the elements its target
+// finds passes it, rather than every one. Panics on a joined condition.
+//
+// Example:
+//
+//	<button onClick={ui.JS.If(ui.Inner("input").Value().Some()).Show(ui.Ref("clear")).End()}>Check</button>
+func (c Condition) Some() Condition {
+	if c.op != "" {
+		panic("ui: Some applies to a read of a target, not to a joined condition")
+	}
+	c.some = true
+	return c
+}
+
+// Some holds when at least one of the elements the target finds has a
+// value, rather than every one; .Eq still compares.
+//
+// Example:
+//
+//	<form onInput={ui.JS.If(ui.GetAttr("name", "q", "tag").Value().Some()).Show(ui.Ref("clear")).Else().Hide(ui.Ref("clear")).End()}>…</form>
+func (c ValueCondition) Some() ValueCondition {
+	c.c.some = true
+	return c
+}
+
+// join is a condition of op over conds, flattening those of the same op,
+// so a.And(b).And(c) is one list.
+func join(op string, conds ...Conditional) Condition {
+	j := Condition{op: op}
+	for _, c := range conds {
+		k := c.cond()
+		if k.op == op {
+			j.of = append(j.of, k.of...)
+		} else {
+			j.of = append(j.of, k)
+		}
+	}
+	return j
+}
+
+// And holds when c and every one of more hold. Joining nests as written:
+// a.And(b).Or(d) holds when a and b hold, or d does.
+//
+// Example:
+//
+//	<input ref="email" onInput={ui.JS.If(ui.Ref("email").Value().And(ui.Ref("terms").Checked())).RemoveAttr(ui.Ref("send"), "disabled").End()} />
+func (c Condition) And(more ...Conditional) Condition {
+	return join("and", append([]Conditional{c}, more...)...)
+}
+
+// Or holds when c or one of more holds.
+//
+// Example:
+//
+//	<select ref="plan" onChange={ui.JS.If(ui.Ref("plan").Value().Eq("team").Or(ui.Ref("plan").Value().Eq("business"))).Show(ui.Ref("seats")).End()}>…</select>
+func (c Condition) Or(more ...Conditional) Condition {
+	return join("or", append([]Conditional{c}, more...)...)
+}
+
+// Not holds when c doesn't.
+//
+// Example:
+//
+//	<button onClick={ui.JS.If(ui.Ref("menu").Attr("hidden").Not()).Hide(ui.Ref("menu")).End()}>Close</button>
+func (c Condition) Not() Condition { return Condition{op: "not", of: []Condition{c}} }
+
+// And holds when the target has a value and every one of more holds.
+//
+// Example:
+//
+//	<input ref="email" onInput={ui.JS.When(ui.Ref("email").Value().And(ui.Ref("terms").Checked()), ui.JS.RemoveAttr(ui.Ref("send"), "disabled"))} />
+func (c ValueCondition) And(more ...Conditional) Condition { return c.c.And(more...) }
+
+// Or holds when the target has a value or one of more holds.
+//
+// Example:
+//
+//	<input ref="phone" onInput={ui.JS.When(ui.Ref("phone").Value().Or(ui.Ref("email").Value()), ui.JS.Hide(ui.Ref("contact-error")))} />
+func (c ValueCondition) Or(more ...Conditional) Condition { return c.c.Or(more...) }
+
+// Not holds when the target's value is empty.
+//
+// Example:
+//
+//	<input ref="title" onInput={ui.JS.When(ui.Ref("title").Value().Not(), ui.JS.SetAttr(ui.Ref("save"), "disabled", ""))} />
+func (c ValueCondition) Not() Condition { return c.c.Not() }
+
+// All holds when every one of conds holds; with none, it holds.
+//
+// Example:
+//
+//	<input ref="name" onInput={ui.JS.When(ui.All(ui.Ref("name").Value(), ui.Ref("email").Value()), ui.JS.RemoveAttr(ui.Ref("send"), "disabled"))} />
+func All(conds ...Conditional) Condition { return join("and", conds...) }
+
+// Any holds when one of conds holds; with none, it doesn't.
+//
+// Example:
+//
+//	<input ref="phone" onInput={ui.JS.When(ui.Any(ui.Ref("phone").Value(), ui.Ref("email").Value()), ui.JS.Hide(ui.Ref("contact-error")))} />
+func Any(conds ...Conditional) Condition { return join("or", conds...) }
+
 func (c Condition) MarshalJSON() ([]byte, error) {
+	switch c.op {
+	case "and", "or":
+		of := c.of
+		if of == nil {
+			of = []Condition{}
+		}
+		return marshal(map[string][]Condition{c.op: of})
+	case "not":
+		return marshal(map[string]Condition{"not": c.of[0]})
+	}
 	var b bytes.Buffer
 	b.WriteByte('{')
 	if c.to != This {
@@ -243,6 +527,9 @@ func (c Condition) MarshalJSON() ([]byte, error) {
 	}
 	if err := writeKV(&b, c.key, c.val); err != nil {
 		return nil, err
+	}
+	if c.some {
+		b.WriteString(`,"some":true`)
 	}
 	b.WriteByte('}')
 	return b.Bytes(), nil
@@ -568,7 +855,7 @@ func (c Commands) withPush(step string, f func(*push)) Commands {
 		p := *c.ops[i].args[0].val.(*push)
 		f(&p)
 		ops := slices.Clone(c.ops)
-		ops[i] = jsOp{"push", []jsArg{{"h", &p}}}
+		ops[i] = jsOp{name: "push", args: []jsArg{{"h", &p}}}
 		return Commands{ops}
 	}
 	panic("ui: JS " + step + " without a Push before it")
@@ -669,12 +956,64 @@ func (c Commands) ElseIf(cond Conditional) Commands {
 // Else is the open If's last branch: its steps run when no branch before it
 // ran. Panics with no open If, or after another Else.
 //
+// Right after a When, Else(chain) is that When's other branch: chain runs
+// when the condition doesn't hold, and no End is needed.
+//
 // Example:
 //
 //	<input type="checkbox" ref="all" onChange={ui.JS.If(ui.Ref("all").Checked()).Show(ui.Ref("bulk")).Else().Hide(ui.Ref("bulk")).End()} />
-func (c Commands) Else() Commands {
-	c.branch("Else")
-	return c.add("else")
+//	<input type="checkbox" ref="all" onChange={ui.JS.When(ui.Ref("all").Checked(), ui.JS.Show(ui.Ref("bulk"))).Else(ui.JS.Hide(ui.Ref("bulk")))} />
+func (c Commands) Else(chain ...JSChain) Commands {
+	switch len(chain) {
+	case 0:
+		c.branch("Else")
+		return c.add("else")
+	case 1:
+	default:
+		panic("ui: JS Else takes one chain at most")
+	}
+	n := len(c.ops)
+	if n == 0 || c.ops[n-1].when != 1 {
+		panic("ui: JS Else(chain) goes right after a When, once")
+	}
+	ops := append(slices.Clone(c.ops[:n-1]), jsOp{name: "else"})
+	ops = append(ops, closed(chain[0].jsChain().ops)...)
+	return Commands{append(ops, jsOp{name: "end", when: 2})}
+}
+
+// When runs chain only when cond holds, read when the step is reached; the
+// steps after it run either way. Else(chain) right after it gives the
+// other branch. It needs no End: an If whose branch is chain.
+//
+// Example:
+//
+//	<input ref="title" onInput={ui.JS.When(ui.Ref("title").Value(), ui.JS.RemoveAttr(ui.Ref("save"), "disabled")).Else(ui.JS.SetAttr(ui.Ref("save"), "disabled", ""))} />
+func (c Commands) When(cond Conditional, chain JSChain) Commands {
+	ops := append(slices.Clone(c.ops), jsOp{name: "if", args: []jsArg{{"cond", cond.cond()}}})
+	ops = append(ops, closed(chain.jsChain().ops)...)
+	return Commands{append(ops, jsOp{name: "end", when: 1})}
+}
+
+// closed is ops with an End for each If they leave open, so a chain put in
+// a branch can't take over the branch's End.
+func closed(ops []jsOp) []jsOp {
+	open := 0
+	for _, o := range ops {
+		switch o.name {
+		case "if":
+			open++
+		case "end":
+			open--
+		}
+	}
+	out := slices.Clone(ops)
+	if n := len(out); n > 0 && out[n-1].when != 0 {
+		out[n-1].when = 0 // a When ending the inner chain takes no Else from outside it
+	}
+	for ; open > 0; open-- {
+		out = append(out, jsOp{name: "end"})
+	}
+	return out
 }
 
 // End closes the open If: the steps after it run whichever branch ran.
@@ -708,6 +1047,61 @@ func (c Commands) branch(step string) {
 	case open[len(open)-1] && step != "End":
 		panic("ui: JS " + step + " after an Else; an If has one Else, last")
 	}
+}
+
+// BusyArg is what Busy takes: the targets to mark busy, and ui.Timeout.
+type BusyArg interface{ busyArg() }
+
+func (Target) busyArg()     {}
+func (PushOption) busyArg() {}
+
+// Busy marks target busy — This when none is given — while what the event
+// started is under way: a form posting, a Push waiting for its reply.
+//
+// It sets aria-busy="true" on the target; makes the inputs, textareas and
+// selects inside it readonly (never disabled, so their values are still
+// submitted); gives its buttons and links aria-disabled="true" and
+// tabindex="-1"; and ignores further clicks and submits on it, so a form
+// can't be sent twice. Style it with Tailwind's aria-busy: variants, or
+// group-aria-busy: inside an element with class="group".
+//
+// It is undone, each attribute put back as it was, by the reply to a Push
+// of the same chain (success or failure, before OnSuccess or OnError run),
+// by ui.Timeout(d), or when the browser shows the page again from its
+// back/forward cache. A plain form post that loads the next page needs
+// none of them.
+//
+// Example:
+//
+//	<form method="post" class="group" onSubmit={ui.JS.Busy()}><input name="username" /><button class="group-aria-busy:opacity-50">Sign in</button></form>
+//	<button onClick={ui.JS.Busy(ui.Ref("form"), ui.Timeout(5*time.Second)).Push(c.Save)}>Save</button>
+func (c Commands) Busy(args ...BusyArg) Commands {
+	var ts []Target
+	var ms int64
+	for _, a := range args {
+		switch a := a.(type) {
+		case Target:
+			ts = append(ts, a)
+		case PushOption:
+			var p push
+			a(&p)
+			if p.has || p.keep || p.timeout <= 0 {
+				panic("ui: JS Busy takes targets and ui.Timeout, no other option")
+			}
+			ms = p.timeout.Milliseconds()
+		}
+	}
+	if len(ts) == 0 {
+		ts = []Target{This}
+	}
+	for _, t := range ts {
+		op := []jsArg{to(t)}
+		if ms > 0 {
+			op = append(op, jsArg{"timeout", ms})
+		}
+		c = c.add("busy", op...)
+	}
+	return c
 }
 
 // Copy copies target's value (an input, textarea or select), or else its
@@ -1003,12 +1397,39 @@ func (o CommandsOn) If(cond Conditional) CommandsOn { return o.with(o.c.If(cond)
 //	<select ref="plan" onChange={ui.JS.On(ui.Ref("seats")).If(ui.Ref("plan").Value().Eq("team")).Show().ElseIf(ui.Ref("plan").Value().Eq("free")).Hide().End()}>…</select>
 func (o CommandsOn) ElseIf(cond Conditional) CommandsOn { return o.with(o.c.ElseIf(cond)) }
 
-// Else is the open If's last branch, taken when no branch before it was.
+// Else is the open If's last branch, taken when no branch before it was;
+// right after a When, Else(chain) is its other branch (see Commands.Else).
 //
 // Example:
 //
 //	<input type="checkbox" ref="all" onChange={ui.JS.On(ui.Ref("bulk")).If(ui.Ref("all").Checked()).Show().Else().Hide().End()} />
-func (o CommandsOn) Else() CommandsOn { return o.with(o.c.Else()) }
+//	<input type="checkbox" ref="all" onChange={ui.JS.On(ui.Ref("bulk")).When(ui.Ref("all").Checked(), ui.JS.Show(ui.Ref("bulk"))).Else(ui.JS.Hide(ui.Ref("bulk")))} />
+func (o CommandsOn) Else(chain ...JSChain) CommandsOn { return o.with(o.c.Else(chain...)) }
+
+// When runs chain only when cond holds (see Commands.When). The chain names
+// its own targets.
+//
+// Example:
+//
+//	<input ref="title" onInput={ui.JS.On(ui.Ref("save")).When(ui.Ref("title").Value().Not(), ui.JS.SetAttr(ui.Ref("save"), "disabled", "")).AddClass("checked")} />
+func (o CommandsOn) When(cond Conditional, chain JSChain) CommandsOn {
+	return o.with(o.c.When(cond, chain))
+}
+
+// Busy marks the target busy until a Push of the chain is answered, the
+// timeout given with ui.Timeout passes, or the page comes back from the
+// browser's back/forward cache (see Commands.Busy).
+//
+// Example:
+//
+//	<form method="post" ref="login" onSubmit={ui.JS.On(ui.Ref("login")).Busy(ui.Timeout(30*time.Second))}>…</form>
+func (o CommandsOn) Busy(opts ...PushOption) CommandsOn {
+	args := []BusyArg{o.to}
+	for _, op := range opts {
+		args = append(args, op)
+	}
+	return o.with(o.c.Busy(args...))
+}
 
 // End closes the open If: the steps after it run whichever branch ran.
 //

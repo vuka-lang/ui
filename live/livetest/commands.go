@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
@@ -231,6 +232,9 @@ func (c *Client) Fire(sel string, ev ui.Event) error {
 // A click on a ui.Link (or inside one) also follows it, unless the link
 // itself takes the click.
 func (c *Client) fire(e *node, ev ui.Event, bubbles bool) error {
+	if (ev.Type == "click" || ev.Type == "submit") && c.inBusy(e) {
+		return nil // ignored while busy
+	}
 	var link *node
 	if ev.Type == "click" && bubbles {
 		link = c.linkOf(e)
@@ -344,7 +348,14 @@ type cond struct {
 	Attr    string          `json:"attr"`
 	Is      string          `json:"is"`
 	Exists  bool            `json:"exists"`
+	Some    bool            `json:"some"`
+	And     []*cond         `json:"and"`
+	Or      []*cond         `json:"or"`
+	Not     *cond           `json:"not"`
 }
+
+// joined reports whether k joins other conditions.
+func (k *cond) joined() bool { return k.And != nil || k.Or != nil || k.Not != nil }
 
 func parseOps(data []byte) ([]op, error) {
 	var raw [][]json.RawMessage
@@ -360,17 +371,24 @@ func parseOps(data []byte) ([]op, error) {
 	return ops, nil
 }
 
-// targets is the elements a command's to names, from this.
+// targets is the elements a command's to names, from this, in page order.
 func (c *Client) targets(this *node, to json.RawMessage) ([]*node, error) {
 	if len(to) == 0 {
 		return []*node{this}, nil
 	}
-	var t struct{ Ref, Sel, Closest, Inner *string }
+	var t struct {
+		Ref, Sel       oneOrMore
+		Closest, Inner *string
+		Attr           *attrTarget
+	}
 	if err := json.Unmarshal(to, &t); err != nil {
 		return nil, fmt.Errorf("livetest: target %s: %w", to, err)
 	}
 	var out []*node
 	collect := func(under *node, keep func(*node) bool) {
+		if under.tag != "#root" && keep(under) {
+			out = append(out, under)
+		}
 		under.walk(func(e *node) bool {
 			if keep(e) {
 				out = append(out, e)
@@ -383,11 +401,24 @@ func (c *Client) targets(this *node, to json.RawMessage) ([]*node, error) {
 		scope := instanceOf(this)
 		collect(scope, func(e *node) bool {
 			r, ok := c.get(e, "data-vk-ref")
-			return ok && r == *t.Ref && instanceOf(e) == scope
+			return ok && slices.Contains(t.Ref, r) && instanceOf(e) == scope
+		})
+	case t.Attr != nil:
+		scope := instanceOf(this)
+		if t.Attr.Page {
+			scope = c.page()
+		}
+		collect(scope, func(e *node) bool {
+			return t.Attr.matches(c, e) && (t.Attr.Page || instanceOf(e) == scope)
 		})
 	case t.Sel != nil:
-		s := parseSelector(*t.Sel)
-		collect(c.page(), func(e *node) bool { return s.matches(e, c.get) })
+		var sels []selector
+		for _, s := range t.Sel {
+			sels = append(sels, parseSelector(s))
+		}
+		collect(c.page(), func(e *node) bool {
+			return slices.ContainsFunc(sels, func(s selector) bool { return s.matches(e, c.get) })
+		})
 	case t.Closest != nil:
 		s := parseSelector(*t.Closest)
 		for e := this; e != nil; e = e.parent {
@@ -397,9 +428,79 @@ func (c *Client) targets(this *node, to json.RawMessage) ([]*node, error) {
 		}
 	case t.Inner != nil:
 		s := parseSelector(*t.Inner)
-		collect(this, func(e *node) bool { return s.matches(e, c.get) })
+		this.walk(func(e *node) bool {
+			if s.matches(e, c.get) {
+				out = append(out, e)
+			}
+			return true
+		})
 	}
 	return out, nil
+}
+
+// oneOrMore is a target's ref or sel: one string, or a list of them.
+type oneOrMore []string
+
+func (o *oneOrMore) UnmarshalJSON(b []byte) error {
+	var one string
+	if json.Unmarshal(b, &one) == nil {
+		*o = oneOrMore{one}
+		return nil
+	}
+	var more []string
+	if err := json.Unmarshal(b, &more); err != nil {
+		return err
+	}
+	*o = append(oneOrMore{}, more...)
+	return nil
+}
+
+// attrTarget is an attr target: the attribute, the values it may have,
+// and whether it looks at the whole page.
+type attrTarget struct {
+	Name string
+	Is   []json.RawMessage
+	Page bool
+}
+
+// matches reports whether e has the attribute with one of the values.
+func (a *attrTarget) matches(c *Client, e *node) bool {
+	v, ok := c.get(e, a.Name)
+	if !ok || e.tag == "#root" {
+		return false
+	}
+	if len(a.Is) == 0 {
+		return true
+	}
+	for _, raw := range a.Is {
+		var exact string
+		if json.Unmarshal(raw, &exact) == nil {
+			if v == exact {
+				return true
+			}
+			continue
+		}
+		var m map[string]string
+		json.Unmarshal(raw, &m)
+		for kind, s := range m {
+			switch kind {
+			case "prefix":
+				ok = s != "" && strings.HasPrefix(v, s)
+			case "suffix":
+				ok = s != "" && strings.HasSuffix(v, s)
+			case "contains":
+				ok = s != "" && strings.Contains(v, s)
+			case "word":
+				ok = slices.Contains(strings.Fields(v), s)
+			default:
+				ok = false
+			}
+			if ok {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // instanceOf is the nearest element, e or an ancestor, carrying data-vk-id.
@@ -412,15 +513,49 @@ func instanceOf(e *node) *node {
 	return e
 }
 
+// holds tests a condition: a joined one by its parts; a read by every
+// element its target finds, or with some by at least one. A read of no
+// element fails, except exists.
 func (c *Client) holds(this *node, k *cond) (bool, error) {
+	if k == nil {
+		return false, fmt.Errorf("livetest: no condition")
+	}
+	switch {
+	case k.Not != nil:
+		ok, err := c.holds(this, k.Not)
+		return !ok, err
+	case k.And != nil || k.Or != nil:
+		all, parts := k.And != nil, k.And
+		if !all {
+			parts = k.Or
+		}
+		for _, p := range parts {
+			ok, err := c.holds(this, p)
+			if err != nil || ok != all {
+				return ok, err
+			}
+		}
+		return all, nil
+	}
 	ts, err := c.targets(this, k.To)
-	if err != nil || len(ts) == 0 {
+	if err != nil {
 		return false, err
 	}
-	e := ts[0]
+	if k.Exists || len(ts) == 0 {
+		return len(ts) > 0 && k.Exists, nil
+	}
+	for _, e := range ts {
+		ok, err := c.read(e, k)
+		if err != nil || ok == k.Some {
+			return ok, err
+		}
+	}
+	return !k.Some, nil
+}
+
+// read tests a read on one element.
+func (c *Client) read(e *node, k *cond) (bool, error) {
 	switch {
-	case k.Exists:
-		return true, nil
 	case k.Checked:
 		_, on := c.get(e, "checked")
 		return on, nil
@@ -451,6 +586,8 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 	c.acc = acc
 	type level struct{ taken, active, outer bool }
 	var levels []level
+	var waiting []*busyState // Busy marks for the next push
+	var last *pending        // the chain's last push sent
 	running := func() bool { return len(levels) == 0 || levels[len(levels)-1].active }
 	for i, o := range ops {
 		a := &o.args
@@ -525,7 +662,26 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 			} else if p.Value == "" {
 				p.Value = c.value(this)
 			}
-			c.queue = append(c.queue, sending{ev: p, p: c.predict(this, a, seg)})
+			pd := c.predict(this, a, seg)
+			pd.busy, waiting, last = waiting, nil, pd
+			c.queue = append(c.queue, sending{ev: p, p: pd})
+			continue
+		case "busy":
+			ts, err := c.targets(this, a.To)
+			if err != nil {
+				return err
+			}
+			later := slices.ContainsFunc(ops[i+1:], func(o op) bool { return o.name == "push" && o.args.H != "" })
+			for _, t := range ts {
+				b := c.makeBusy(t, a.Timeout)
+				switch {
+				case b == nil:
+				case later || last == nil:
+					waiting = append(waiting, b)
+				default:
+					last.busy = append(last.busy, b)
+				}
+			}
 			continue
 		case "call":
 			ok, err := c.call(this, a, ev)
@@ -534,7 +690,7 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 				if err := c.fire(this, ui.Event{Type: "vk:error"}, true); err != nil {
 					return err
 				}
-				return c.failLocally(this, ops[i+1:], acc)
+				return c.failLocally(this, ops[i+1:], acc, waiting)
 			}
 			if !ok {
 				return nil
@@ -675,4 +831,85 @@ func (c *Client) runPushed(js []live.JSPush) error {
 		}
 	}
 	return nil
+}
+
+// busyState is what one Busy marked on an element and inside it, to put
+// back when it is undone.
+type busyState struct {
+	path     string
+	changes  []change
+	deadline time.Duration // 0: none
+	done     bool
+}
+
+// makeBusy marks e busy, as a browser runtime does: aria-busy on it,
+// readonly on its fields, aria-disabled and tabindex -1 on its buttons and
+// links. Nil when e is busy already.
+func (c *Client) makeBusy(e *node, timeout int64) *busyState {
+	if e.tag == "#root" || slices.ContainsFunc(c.busy, func(b *busyState) bool { return b.path == e.path }) {
+		return nil
+	}
+	b := &busyState{path: e.path}
+	if timeout > 0 {
+		b.deadline = c.now + time.Duration(timeout)*time.Millisecond
+	}
+	defer func(outer *[]change) { c.acc = outer }(c.acc)
+	c.acc = &b.changes
+	ensure := func(e *node, name, v string) {
+		if have, ok := c.get(e, name); !ok || have != v && name != "readonly" {
+			c.set(e, name, v, true)
+		}
+	}
+	ensure(e, "aria-busy", "true")
+	mark := func(x *node) {
+		typ, _ := c.get(x, "type")
+		_, href := c.get(x, "href")
+		switch {
+		case x.tag == "button" || x.tag == "a" && href || x.tag == "input" && slices.Contains([]string{"submit", "button", "reset", "image"}, typ):
+			ensure(x, "aria-disabled", "true")
+			ensure(x, "tabindex", "-1")
+		case x.tag == "input" || x.tag == "textarea" || x.tag == "select":
+			ensure(x, "readonly", "")
+		}
+	}
+	mark(e)
+	e.walk(func(x *node) bool { mark(x); return true })
+	c.busy = append(c.busy, b)
+	return b
+}
+
+// unbusy puts back what a Busy changed, where the server hasn't rendered
+// another value since.
+func (c *Client) unbusy(b *busyState) {
+	if b.done {
+		return
+	}
+	b.done = true
+	c.revert(b.changes)
+	c.busy = slices.DeleteFunc(c.busy, func(x *busyState) bool { return x == b })
+}
+
+// inBusy reports whether e or an ancestor is marked busy.
+func (c *Client) inBusy(e *node) bool {
+	for ; e != nil; e = e.parent {
+		if slices.ContainsFunc(c.busy, func(b *busyState) bool { return b.path == e.path }) {
+			return true
+		}
+	}
+	return false
+}
+
+// Busy reports whether the first element matching sel is marked busy by a
+// Busy command.
+func (c *Client) Busy(sel string) bool {
+	e := c.find(sel)
+	return e != nil && slices.ContainsFunc(c.busy, func(b *busyState) bool { return b.path == e.path })
+}
+
+// PageShow is the browser showing the page again from its back/forward
+// cache: every Busy mark is undone.
+func (c *Client) PageShow() {
+	for _, b := range slices.Clone(c.busy) {
+		c.unbusy(b)
+	}
 }

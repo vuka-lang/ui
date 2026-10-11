@@ -3,9 +3,11 @@ package live_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"html"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
@@ -259,4 +261,172 @@ func TestLivetestOps(t *testing.T) {
 	step("#if", func() bool { return c.Visible("i") && c.Text("p") == "picked,1" })
 	step("#set", func() bool { return c.Clipboard == "typed" && c.Text("p") == "picked,1,typed" })
 	step("#if", func() bool { return !c.Visible("i") && c.Text("p") == "picked,1,typed" })
+}
+
+// Fields picks elements by several refs and by attribute, and tests
+// joined conditions over several elements.
+type Fields struct{ ui.Live }
+
+func (f *Fields) Render() ui.Node {
+	on := func(ch ui.JSChain) ui.Attr { return a("onClick", ui.On(ch)) }
+	names := ui.GetAttr("name", "username", "password")
+	return ui.El("form", []ui.Attr{a("ref", "form")},
+		ui.El("input", []ui.Attr{a("name", "username"), a("ref", "u")}),
+		ui.El("input", []ui.Attr{a("name", "password"), a("ref", "p")}),
+		ui.El("input", []ui.Attr{a("name", "step-1"), a("data-tags", "new old")}),
+		ui.El("input", []ui.Attr{a("name", "step-2"), a("data-tags", "older")}),
+		ui.El("button", []ui.Attr{a("id", "fill-u"), on(ui.JS.SetValue(ui.Ref("u"), "ann"))}),
+		ui.El("button", []ui.Attr{a("id", "fill-p"), on(ui.JS.SetValue(ui.Ref("p"), "secret"))}),
+		ui.El("button", []ui.Attr{a("id", "refs"), on(ui.JS.AddClass(ui.Ref("p", "u", "p"), "r"))}),
+		ui.El("button", []ui.Attr{a("id", "attrs"), on(ui.JS.AddClass(names, "n").AddClass(ui.GetAttr("name", ui.Prefix("step-")), "s").AddClass(ui.GetAttr("data-tags", ui.Word("old")), "w"))}),
+		ui.El("button", []ui.Attr{a("id", "page"), on(ui.JS.AddClass(ui.GetAttr("data-outside").Page(), "seen").AddClass(ui.GetAttr("data-outside"), "never"))}),
+		ui.El("button", []ui.Attr{a("id", "every"), on(ui.JS.
+			When(names.Value(), ui.JS.SetAttr(ui.Ref("form"), "data-every", "yes")).Else(ui.JS.SetAttr(ui.Ref("form"), "data-every", "no")).
+			When(names.Value().Some(), ui.JS.SetAttr(ui.Ref("form"), "data-some", "yes")).Else(ui.JS.SetAttr(ui.Ref("form"), "data-some", "no")).
+			When(ui.GetAttr("name", "none").Value().Not().And(ui.GetAttr("name", "none").Exists().Not()), ui.JS.SetAttr(ui.Ref("form"), "data-none", "no match fails a read")).
+			When(ui.Any(ui.Ref("u").Value().Eq("x"), ui.All(ui.Ref("p").Value(), ui.Ref("u").Value())), ui.JS.SetAttr(ui.Ref("form"), "data-or", "yes")))}),
+	)
+}
+
+func TestLivetestTargetsAndConditions(t *testing.T) {
+	c, err := livetest.Join(live.NewSession(context.Background(), func(context.Context) ui.Node {
+		return ui.El("main", nil, ui.Component("f#1", nil, &Fields{}), ui.El("p", []ui.Attr{a("data-outside", "")}))
+	}), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Click("#refs")
+	if !c.HasClass(`[name="username"]`, "r") || !c.HasClass(`[name="password"]`, "r") || c.HasClass(`[name="step-1"]`, "r") {
+		t.Fatalf("several refs: %s", c.HTML())
+	}
+	c.Click("#attrs")
+	for sel, want := range map[string][3]bool{`[name="username"]`: {true}, `[name="password"]`: {true}, `[name="step-1"]`: {false, true, true}, `[name="step-2"]`: {false, true, false}} {
+		if got := [3]bool{c.HasClass(sel, "n"), c.HasClass(sel, "s"), c.HasClass(sel, "w")}; got != want {
+			t.Errorf("%s: %v, want %v", sel, got, want)
+		}
+	}
+	c.Click("#page")
+	if !c.HasClass("p", "seen") || c.HasClass("p", "never") {
+		t.Fatalf("GetAttr is the instance's unless Page: %s", c.HTML())
+	}
+	cond := func(name, want string) {
+		t.Helper()
+		c.Click("#every")
+		if got, _ := c.Attr("form", name); got != want {
+			t.Fatalf("%s = %q, want %q: %s", name, got, want, c.HTML())
+		}
+	}
+	cond("data-every", "no")
+	cond("data-some", "no")
+	cond("data-none", "no match fails a read")
+	cond("data-or", "")
+	c.Click("#fill-u")
+	cond("data-every", "no")
+	cond("data-some", "yes")
+	cond("data-or", "")
+	c.Click("#fill-p")
+	cond("data-every", "yes")
+	cond("data-or", "yes")
+}
+
+// Saver marks its form busy while a save is under way.
+type Saver struct {
+	ui.Live
+	Fail  *bool
+	saves int
+}
+
+func (s *Saver) Save() error {
+	if *s.Fail {
+		*s.Fail = false
+		return errors.New("not saved")
+	}
+	s.saves++
+	return nil
+}
+
+func (s *Saver) Render() ui.Node {
+	// OnError's chain sees the form usable again.
+	usable := ui.JS.When(ui.Ref("form").Attr("aria-busy").Not().And(ui.Ref("name").Attr("readonly").Not()), ui.JS.SetAttr(ui.Ref("form"), "data-usable", "yes"))
+	return ui.El("div", nil,
+		ui.El("form", []ui.Attr{a("ref", "form")},
+			ui.El("input", []ui.Attr{a("name", "name"), a("ref", "name")}),
+			ui.El("input", []ui.Attr{a("name", "code"), a("readonly", "readonly")}),
+			ui.El("a", []ui.Attr{a("href", "/help"), a("aria-disabled", "false")}),
+			ui.El("button", []ui.Attr{a("id", "save"), a("type", "button"), a("onClick", ui.On(ui.JS.Busy(ui.Ref("form")).Push(s.Save).OnError(usable)))}),
+			ui.El("button", []ui.Attr{a("id", "slow"), a("type", "button"), a("onClick", ui.On(ui.JS.Push(s.Save).Busy(ui.Ref("form"), ui.Timeout(time.Second))))}),
+			ui.El("button", []ui.Attr{a("id", "mark"), a("type", "button"), a("onClick", ui.On(ui.JS.On(ui.Ref("form")).Busy(ui.Timeout(2*time.Second))))}),
+		),
+		ui.El("p", nil, ui.Child(s.saves)))
+}
+
+func TestLivetestBusy(t *testing.T) {
+	fail := false
+	c, err := livetest.Join(live.NewSession(context.Background(), func(context.Context) ui.Node {
+		return ui.Component("s#1", nil, &Saver{Fail: &fail})
+	}), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attr := func(sel, name string) string {
+		v, ok := c.Attr(sel, name)
+		if !ok {
+			return "-"
+		}
+		return v
+	}
+	state := func() string {
+		return strings.Join([]string{attr("form", "aria-busy"), attr(`[name="name"]`, "readonly"), attr(`[name="code"]`, "readonly"),
+			attr("a", "aria-disabled"), attr("a", "tabindex"), attr("#save", "aria-disabled"), attr("#save", "tabindex")}, " ")
+	}
+	const idle, busy = "- - readonly false - - -", "true  readonly true -1 true -1"
+	if got := state(); got != idle {
+		t.Fatalf("at first: %q", got)
+	}
+	c.Hold()
+	c.Click("#save")
+	if got := state(); got != busy || !c.Busy("form") {
+		t.Fatalf("busy: %q", got)
+	}
+	c.Click("#save")
+	if c.Pending() != 1 {
+		t.Fatalf("a second click while busy is ignored: %d pending", c.Pending())
+	}
+	c.Deliver()
+	if got := state(); got != idle || c.Busy("form") || c.Text("p") != "1" {
+		t.Fatalf("the push's reply undoes it, exactly: %q %s", got, c.Text("p"))
+	}
+
+	fail = true
+	c.Click("#save")
+	c.Deliver()
+	if got := state(); got != idle || attr("form", "data-usable") != "yes" {
+		t.Fatalf("a failed push undoes it before OnError runs: %q %s", got, c.HTML())
+	}
+
+	// A Busy after the push waits for it too; its timeout comes first.
+	c.Click("#slow")
+	if got := state(); got != busy {
+		t.Fatalf("busy after the push: %q", got)
+	}
+	c.Advance(time.Second)
+	if got := state(); got != idle || c.Pending() != 1 {
+		t.Fatalf("its timeout undoes it: %q", got)
+	}
+	c.Deliver()
+
+	c.Click("#mark")
+	c.Advance(time.Second)
+	if !c.Busy("form") {
+		t.Fatal("no push: busy until its timeout")
+	}
+	c.Advance(time.Second)
+	if c.Busy("form") || state() != idle {
+		t.Fatal("undone at its timeout")
+	}
+	c.Click("#mark")
+	c.PageShow()
+	if c.Busy("form") || state() != idle {
+		t.Fatal("undone when the page is shown again")
+	}
 }

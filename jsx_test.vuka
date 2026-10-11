@@ -225,7 +225,7 @@ func (c *Docs) SelectAll()      {}
 func (c *Docs) DeleteTodo()     {}
 
 func (c *Docs) Render() ui.Node {
-	return <div>{c.menu()}{c.targets()}{c.dialog()}{c.conditions()}{c.pushes()}{c.misc()}</div>
+	return <div>{c.menu()}{c.targets()}{c.dialog()}{c.conditions()}{c.pushes()}{c.misc()}{c.more()}</div>
 }
 
 func (c *Docs) menu() ui.Node {
@@ -363,6 +363,43 @@ func (c *Docs) misc() ui.Node {
 	</div>
 }
 
+// more holds the examples of several refs, GetAttr, joined conditions,
+// When and Busy.
+func (c *Docs) more() ui.Node {
+	return <div>
+		<button onClick={ui.JS.SetAttr(ui.Ref("username", "password"), "readonly", "")}>Lock</button>
+		<input ref="username" /><input ref="password" type="password" />
+		<button onClick={ui.JS.Hide(ui.Sel("#cart", "#wishlist"))}>Close</button>
+		<button onClick={ui.JS.SetAttr(ui.GetAttr("name", "username", "password"), "readonly", "")}>Lock</button>
+		<input name="username" /><input name="password" type="password" />
+		<button onClick={ui.JS.Hide(ui.GetAttr("data-step"))}>Skip</button>
+		<button onClick={ui.JS.Hide(ui.GetAttr("id", ui.Prefix("step-")))}>Hide steps</button>
+		<button onClick={ui.JS.Show(ui.GetAttr("href", ui.Suffix(".pdf")))}>Show PDFs</button>
+		<button onClick={ui.JS.AddClass(ui.GetAttr("title", ui.Contains("draft")), "italic")}>Mark drafts</button>
+		<button onClick={ui.JS.Hide(ui.GetAttr("data-tags", ui.Word("old")))}>Hide old</button>
+		<button onClick={ui.JS.Hide(ui.GetAttr("role", "alert").Page())}>Dismiss all</button>
+		<button onClick={ui.JS.If(ui.Inner("input").Value().Some()).Show(ui.Ref("clear")).End()}>Check</button>
+		<form onInput={ui.JS.If(ui.GetAttr("name", "q", "tag").Value().Some()).Show(ui.Ref("clear")).Else().Hide(ui.Ref("clear")).End()}>…</form>
+		<input ref="email" onInput={ui.JS.If(ui.Ref("email").Value().And(ui.Ref("terms").Checked())).RemoveAttr(ui.Ref("send"), "disabled").End()} />
+		<select ref="plan" onChange={ui.JS.If(ui.Ref("plan").Value().Eq("team").Or(ui.Ref("plan").Value().Eq("business"))).Show(ui.Ref("seats")).End()}>…</select>
+		<button onClick={ui.JS.If(ui.Ref("menu").Attr("hidden").Not()).Hide(ui.Ref("menu")).End()}>Close</button>
+		<input ref="email" onInput={ui.JS.When(ui.Ref("email").Value().And(ui.Ref("terms").Checked()), ui.JS.RemoveAttr(ui.Ref("send"), "disabled"))} />
+		<input ref="phone" onInput={ui.JS.When(ui.Ref("phone").Value().Or(ui.Ref("email").Value()), ui.JS.Hide(ui.Ref("contact-error")))} />
+		<input ref="title" onInput={ui.JS.When(ui.Ref("title").Value().Not(), ui.JS.SetAttr(ui.Ref("save"), "disabled", ""))} />
+		<input ref="name" onInput={ui.JS.When(ui.All(ui.Ref("name").Value(), ui.Ref("email").Value()), ui.JS.RemoveAttr(ui.Ref("send"), "disabled"))} />
+		<input ref="phone" onInput={ui.JS.When(ui.Any(ui.Ref("phone").Value(), ui.Ref("email").Value()), ui.JS.Hide(ui.Ref("contact-error")))} />
+		<input type="checkbox" ref="all" onChange={ui.JS.When(ui.Ref("all").Checked(), ui.JS.Show(ui.Ref("bulk"))).Else(ui.JS.Hide(ui.Ref("bulk")))} />
+		<input ref="title" onInput={ui.JS.When(ui.Ref("title").Value(), ui.JS.RemoveAttr(ui.Ref("save"), "disabled")).Else(ui.JS.SetAttr(ui.Ref("save"), "disabled", ""))} />
+		<form method="post" class="group" onSubmit={ui.JS.Busy()}><input name="username" /><button class="group-aria-busy:opacity-50">Sign in</button></form>
+		<button onClick={ui.JS.Busy(ui.Ref("form"), ui.Timeout(5*time.Second)).Push(c.Save)}>Save</button>
+		<input type="checkbox" ref="all" onChange={ui.JS.On(ui.Ref("bulk")).When(ui.Ref("all").Checked(), ui.JS.Show(ui.Ref("bulk"))).Else(ui.JS.Hide(ui.Ref("bulk")))} />
+		<input ref="title" onInput={ui.JS.On(ui.Ref("save")).When(ui.Ref("title").Value().Not(), ui.JS.SetAttr(ui.Ref("save"), "disabled", "")).AddClass("checked")} />
+		<form method="post" ref="login" onSubmit={ui.JS.On(ui.Ref("login")).Busy(ui.Timeout(30*time.Second))}>…</form>
+		<input name="q" /><input name="tag" /><p role="alert" /><input ref="terms" type="checkbox" /><button ref="send" />
+		<ul ref="menu" /><button ref="clear" /><p ref="contact-error" /><div ref="bulk" /><button ref="save" /><form ref="form" /><input ref="seats" />
+	</div>
+}
+
 // TestJSXDocExamples renders the doc examples, statically and in a live
 // session: each chain encodes, its handlers are ones an on… attribute
 // takes, and its branches are well formed.
@@ -371,7 +408,7 @@ func TestJSXDocExamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"else_if"`, `"exec"`, `"call"`, `"throttle"`, `"debounce"`, `"set_value"`} {
+	for _, want := range []string{`"else_if"`, `"exec"`, `"call"`, `"throttle"`, `"debounce"`, `"set_value"`, `"busy"`, `"attr"`, `"and"`, `"some"`} {
 		if !strings.Contains(got, html.EscapeString(want)) {
 			t.Errorf("no %s rendered", want)
 		}

@@ -57,6 +57,7 @@ type Client struct {
 	held    bool                            // events wait for Deliver
 	url     string                          // the page's URL, once it moved
 	funcs   map[string]Func
+	busy    []*busyState // what Busy commands marked, not yet undone
 }
 
 type frame struct {

@@ -57,6 +57,7 @@ func (c *Client) navigate(n navigation) (live.ServerMessage, error) {
 				p.settled = true
 			}
 			c.pending = nil
+			c.busy = nil // a new page: its elements were never marked
 		}
 	case live.Redirect:
 		c.url = m.URL
