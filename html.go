@@ -5,31 +5,48 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
 )
 
-// renderHTML is every built-in Node's Render: a walk into an HTMLRenderer,
-// buffered like templ's generated code.
-func renderHTML(ctx context.Context, w io.Writer, n Node) (err error) {
-	buf, existing := templruntime.GetBuffer(w)
-	if !existing {
-		defer func() {
-			if ferr := templruntime.ReleaseBuffer(buf); err == nil {
-				err = ferr
-			}
-		}()
+// renderHTML is every built-in Node's Render: a walk into an HTMLRenderer
+// writing through a pooled buffer, in chunks.
+func renderHTML(ctx context.Context, w io.Writer, n Node) error {
+	sw, ok := w.(io.StringWriter)
+	if !ok {
+		sw = stringWriter{w}
 	}
-	h := HTMLRenderer{ctx: ctx, w: buf}
-	return Walk(ctx, n, &h)
+	h := renderers.Get().(*HTMLRenderer)
+	h.ctx, h.w, h.out, h.buf = ctx, sw, w, h.buf[:0]
+	err := Walk(ctx, n, h)
+	h.flush()
+	if err == nil {
+		err = h.err
+	}
+	*h = HTMLRenderer{buf: h.buf[:0]}
+	if cap(h.buf) <= maxPooledBuf {
+		renderers.Put(h)
+	}
+	return err
 }
+
+// renderers are renderHTML's HTMLRenderers, each with its buffer.
+var renderers = sync.Pool{New: func() any { return &HTMLRenderer{buf: make([]byte, 0, renderBuf)} }}
+
+const (
+	renderBuf    = 8 << 10 // a buffered HTMLRenderer writes its buffer out when it is full
+	maxPooledBuf = 64 << 10
+)
 
 // HTMLRenderer is the Renderer writing HTML: what Render does. Escaping and
 // sanitizing are templ's (see Attr and Element).
 type HTMLRenderer struct {
 	ctx  context.Context
 	w    io.StringWriter
+	buf  []byte    // buffered (renderHTML's): what is yet to be written to out
+	out  io.Writer // what w writes to, when buffered
 	mode uint8
 	err  error
 }
@@ -55,8 +72,88 @@ type stringWriter struct{ io.Writer }
 func (w stringWriter) WriteString(s string) (int, error) { return io.WriteString(w.Writer, s) }
 
 func (h *HTMLRenderer) write(s string) {
+	if len(s) <= cap(h.buf)-len(h.buf) {
+		h.buf = append(h.buf, s...)
+		return
+	}
+	h.writeMore(s)
+}
+
+func (h *HTMLRenderer) writeByte(c byte) {
+	if len(h.buf) < cap(h.buf) {
+		h.buf = append(h.buf, c)
+		return
+	}
+	h.writeMore(byteStrings[c : int(c)+1])
+}
+
+// byteStrings holds every byte, for writeByte's slow path.
+var byteStrings = func() string {
+	b := make([]byte, 256)
+	for i := range b {
+		b[i] = byte(i)
+	}
+	return string(b)
+}()
+
+// writeMore is write's slow path: a full buffer, or none.
+func (h *HTMLRenderer) writeMore(s string) {
+	if h.buf != nil {
+		h.flush()
+		if len(s) <= cap(h.buf) {
+			h.buf = append(h.buf, s...)
+			return
+		}
+	}
 	if h.err == nil {
 		_, h.err = h.w.WriteString(s)
+	}
+}
+
+// writeEscaped writes s escaped as templ.EscapeString (html.EscapeString)
+// escapes it.
+func (h *HTMLRenderer) writeEscaped(s string) {
+	i := 0
+	for i < len(s) && !htmlSpecial[s[i]] {
+		i++
+	}
+	if i == len(s) {
+		h.write(s)
+		return
+	}
+	last := 0
+	for ; i < len(s); i++ {
+		var esc string
+		switch s[i] {
+		case '&':
+			esc = "&amp;"
+		case '\'':
+			esc = "&#39;"
+		case '<':
+			esc = "&lt;"
+		case '>':
+			esc = "&gt;"
+		case '"':
+			esc = "&#34;"
+		default:
+			continue
+		}
+		h.write(s[last:i])
+		h.write(esc)
+		last = i + 1
+	}
+	h.write(s[last:])
+}
+
+var htmlSpecial = [256]bool{'&': true, '\'': true, '<': true, '>': true, '"': true}
+
+// flush writes a buffered renderer's buffer out.
+func (h *HTMLRenderer) flush() {
+	if len(h.buf) > 0 {
+		if h.err == nil {
+			_, h.err = h.out.Write(h.buf)
+		}
+		h.buf = h.buf[:0]
 	}
 }
 
@@ -78,14 +175,14 @@ func (h *HTMLRenderer) openTag(e *Element) error {
 	if e.Tag == "html" {
 		h.write("<!DOCTYPE html>")
 	}
-	h.write("<")
+	h.writeByte('<')
 	h.write(e.Tag)
 	return h.err
 }
 
 // endTag ends an element's start tag, entering script or style content.
 func (h *HTMLRenderer) endTag(e *Element) error {
-	h.write(">")
+	h.writeByte('>')
 	switch e.Tag {
 	case "script":
 		h.mode = inScript
@@ -97,9 +194,10 @@ func (h *HTMLRenderer) endTag(e *Element) error {
 
 func (h *HTMLRenderer) Close(e *Element) error {
 	h.mode = inHTML
-	h.write("</")
+	h.writeByte('<')
+	h.writeByte('/')
 	h.write(e.Tag)
-	h.write(">")
+	h.writeByte('>')
 	return h.err
 }
 
@@ -114,12 +212,13 @@ func (h *HTMLRenderer) Text(s string) error {
 	case inStyle:
 		h.write(strings.ReplaceAll(s, "</", `<\/`))
 	default:
-		h.write(templ.EscapeString(s))
+		h.writeEscaped(s)
 	}
 	return h.err
 }
 
 func (h *HTMLRenderer) Raw(html string) error {
+	h.noteRaw(html)
 	h.write(html)
 	return h.err
 }
@@ -128,6 +227,10 @@ func (h *HTMLRenderer) Opaque(ctx context.Context, n Node) error {
 	if h.err != nil {
 		return h.err
 	}
+	if p := h.probe(); p != nil {
+		p.info.Opaque = true
+	}
+	h.flush()
 	w, ok := h.w.(io.Writer)
 	if !ok {
 		w = writerOf{h.w}
@@ -186,17 +289,19 @@ func (h *HTMLRenderer) attr(e *Element, a Attr) error {
 	switch kind {
 	case attrOmit:
 	case attrBare:
-		h.write(" ")
+		h.writeByte(' ')
 		h.write(name)
 	default:
-		if kind == attrEscaped {
-			v = templ.EscapeString(v)
-		}
-		h.write(" ")
+		h.writeByte(' ')
 		h.write(name)
-		h.write(`="`)
-		h.write(v)
-		h.write(`"`)
+		h.writeByte('=')
+		h.writeByte('"')
+		if kind == attrEscaped {
+			h.writeEscaped(v)
+		} else {
+			h.write(v)
+		}
+		h.writeByte('"')
 	}
 	return nil
 }
@@ -265,20 +370,33 @@ func attrValue(ctx context.Context, tag, name string, v any) (string, uint8, err
 // validName reports whether s is a tag or attribute name the renderer accepts:
 // letters, digits, - _ : and ., starting with a letter.
 func validName(s string) bool {
-	if s == "" {
+	if s == "" || nameByte[s[0]] != nameLetter {
 		return false
 	}
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case 'a' <= c && c <= 'z', 'A' <= c && c <= 'Z':
-		case i > 0 && ('0' <= c && c <= '9' || c == '-' || c == '_' || c == ':' || c == '.'):
-		default:
+	for i := 1; i < len(s); i++ {
+		if nameByte[s[i]] == 0 {
 			return false
 		}
 	}
 	return true
 }
+
+// nameByte classes a name's bytes: letters, then the other bytes a name
+// may hold after its first.
+var nameByte = func() (t [256]uint8) {
+	for c := 'a'; c <= 'z'; c++ {
+		t[c], t[c-'a'+'A'] = nameLetter, nameLetter
+	}
+	for _, c := range "0123456789-_:." {
+		t[c] = nameOther
+	}
+	return t
+}()
+
+const (
+	nameLetter = 1 + iota
+	nameOther
+)
 
 // sanitizeURL is the value of a URL attribute (isURLAttr): templ.URL's,
 // which keeps relative URLs and http, https, mailto, tel, ftp and ftps, and
@@ -300,6 +418,9 @@ func sanitizeURL(tag, name, v string) string {
 }
 
 func mediaAttr(tag, name string) bool {
+	if len(name) != 3 && len(name) != 6 {
+		return false
+	}
 	tag, name = strings.ToLower(tag), strings.ToLower(name)
 	switch name {
 	case "src":
@@ -322,6 +443,11 @@ func mediaAttr(tag, name string) bool {
 // element (use, image, …), and xlink:href anywhere. Names and tags match
 // ignoring case, as HTML's do.
 func isURLAttr(tag, name string) bool {
+	switch len(name) {
+	case 3, 4, 6, 10: // src, href, data, poster, action, formaction, xlink:href
+	default:
+		return false
+	}
 	tag, name = strings.ToLower(tag), strings.ToLower(name)
 	switch name {
 	case "href":

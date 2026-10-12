@@ -242,8 +242,12 @@ func (h *HTMLRenderer) handlerAttr(name string, eh EventHandler) error {
 	if host == nil {
 		return nil
 	}
+	id := host.Handler(h.ctx, eh.Fn)
+	if _, probe := host.(*pageProbe); probe {
+		return errPageLive
+	}
 	h.write(` data-vk-on-` + EventName(name) + `="`)
-	h.write(host.Handler(h.ctx, eh.Fn))
+	h.write(id)
 	h.write(`"`)
 	return nil
 }

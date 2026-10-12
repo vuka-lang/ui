@@ -35,8 +35,8 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		if void && len(n.Children) > 0 {
 			return fmt.Errorf("ui: <%s> is a void element and can't have children", n.Tag)
 		}
-		if h := liveHost(ctx); h != nil {
-			if k, ok := elementKey(n); ok {
+		if k, ok := elementKey(n); ok {
+			if h := liveHost(ctx); h != nil {
 				ctx = h.Keyed(ctx, k)
 			}
 		}

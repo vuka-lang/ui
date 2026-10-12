@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"strconv"
@@ -91,6 +92,39 @@ func BenchmarkPageRender(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkPageWrite renders the page with its rows built beforehand: the
+// HTML writing alone.
+func BenchmarkPageWrite(b *testing.B) {
+	var rows ui.Group
+	ctx := context.Background()
+	if err := ui.Walk(ctx, benchPage(), rowCollector{&rows}); err != nil {
+		b.Fatal(err)
+	}
+	n := benchLayout("Users", ui.El("table", nil, ui.El("tbody", nil, rows)))
+	var buf bytes.Buffer
+	b.ReportAllocs()
+	for b.Loop() {
+		buf.Reset()
+		if err := n.Render(ctx, &buf); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// rowCollector keeps the tr elements a walk meets.
+type rowCollector struct{ rows *ui.Group }
+
+func (c rowCollector) Open(e *ui.Element) error {
+	if e.Tag == "tr" {
+		*c.rows = append(*c.rows, e)
+	}
+	return nil
+}
+func (rowCollector) Close(*ui.Element) error               { return nil }
+func (rowCollector) Text(string) error                     { return nil }
+func (rowCollector) Raw(string) error                      { return nil }
+func (rowCollector) Opaque(context.Context, ui.Node) error { return nil }
 
 func BenchmarkPage(b *testing.B) {
 	ctx := context.Background()

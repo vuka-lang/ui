@@ -1629,6 +1629,11 @@ func (h *HTMLRenderer) jsAttr(name string, ch JSChain) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", name, err)
 	}
+	if p := h.probe(); p != nil {
+		if p.info.JS = true; p.info.Live {
+			return errPageLive
+		}
+	}
 	h.write(` data-vk-js-` + EventName(name) + `="`)
 	h.write(templ.EscapeString(string(j)))
 	h.write(`"`)
