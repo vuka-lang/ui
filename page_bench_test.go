@@ -126,13 +126,14 @@ func (rowCollector) Text(string) error                     { return nil }
 func (rowCollector) Raw(string) error                      { return nil }
 func (rowCollector) Opaque(context.Context, ui.Node) error { return nil }
 
+// BenchmarkPage builds and renders the page into a reused buffer.
 func BenchmarkPage(b *testing.B) {
 	ctx := context.Background()
-	var sb strings.Builder
+	var buf bytes.Buffer
 	b.ReportAllocs()
 	for b.Loop() {
-		sb.Reset()
-		if err := benchPage().Render(ctx, &sb); err != nil {
+		buf.Reset()
+		if err := benchPage().Render(ctx, &buf); err != nil {
 			b.Fatal(err)
 		}
 	}
