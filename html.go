@@ -255,7 +255,14 @@ func (h *HTMLRenderer) attrs(e *Element) error {
 }
 
 // attr writes one of e's attributes, with its leading space.
-func (h *HTMLRenderer) attr(e *Element, a Attr) error {
+func (h *HTMLRenderer) attr(e *Element, a Attr) error { return h.attrNamed(e.Tag, e, a) }
+
+// attrNamed writes attribute a on an element of the given tag, with its
+// leading space, exactly as attr does. e, when non-nil, is the element; only
+// its data-vk-key is read, for the key attribute. The lazy-frame fast path
+// (lazyFrame.fastHTML) passes a nil e and never a key attribute — a frame
+// holding one is compiled as not fast.
+func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 	name := a.Name
 	if eh, ok := a.Value.(EventHandler); ok {
 		if ch, ok := eh.Fn.(JSChain); ok {
@@ -268,7 +275,7 @@ func (h *HTMLRenderer) attr(e *Element, a Attr) error {
 	}
 	switch name {
 	case "key":
-		if liveHost(h.ctx) != nil && a.Value != nil && !hasAttr(e, "data-vk-key") {
+		if liveHost(h.ctx) != nil && a.Value != nil && !(e != nil && hasAttr(e, "data-vk-key")) {
 			h.write(` data-vk-key="` + templ.EscapeString(fmt.Sprint(a.Value)) + `"`)
 		}
 		return nil
@@ -282,7 +289,7 @@ func (h *HTMLRenderer) attr(e *Element, a Attr) error {
 	if !validName(name) {
 		return fmt.Errorf("ui: invalid attribute name %q", a.Name)
 	}
-	v, kind, err := attrValue(h.ctx, e.Tag, name, a.Value)
+	v, kind, err := attrValue(h.ctx, tag, name, a.Value)
 	if err != nil {
 		return err
 	}

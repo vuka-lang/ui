@@ -52,6 +52,11 @@ func RootAttrs(n Node, attrs ...Attr) (Node, bool) {
 		cp := *n
 		cp.Attrs = append(slices.Clip(n.Attrs), attrs...)
 		return &cp, true
+	case *lazyFrame:
+		if n == nil {
+			return nil, false
+		}
+		return RootAttrs(n.frame(), attrs...)
 	case *Frame:
 		if n == nil || len(n.Kids) != 1 || n.Shape == "" || n.Shape[0] != 'E' {
 			return nil, false

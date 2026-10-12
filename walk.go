@@ -75,6 +75,11 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 			}
 		}
 		return nil
+	case *lazyFrame:
+		if n == nil {
+			return nil
+		}
+		return n.walk(ctx, r)
 	case Group:
 		for _, c := range n {
 			if err := Walk(ctx, c, r); err != nil {

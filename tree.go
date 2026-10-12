@@ -337,6 +337,11 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 			return "", nil
 		}
 		return b.frame(ctx, n)
+	case *lazyFrame:
+		if n == nil {
+			return "", nil
+		}
+		return b.value(ctx, n.frame())
 	case *ComponentNode:
 		if th, ok := liveHost(ctx).(TreeHost); ok && n != nil {
 			id, err := th.ComponentRef(ctx, n)
@@ -373,18 +378,24 @@ func (b *treeBuilder) seq(ctx context.Context, ns []Node, block bool) (any, erro
 		return b.value(ctx, ns[0])
 	}
 	frames := len(ns) > 0 || block
-	for _, n := range ns {
-		if f, ok := n.(*Frame); !ok || f == nil {
-			frames = false
-			break
+	fs := make([]*Frame, len(ns))
+	for i, n := range ns {
+		if lf, ok := n.(*lazyFrame); ok && lf != nil {
+			n = lf.frame() // a lazy frame is a frame of the block, like F's
 		}
+		if f, ok := n.(*Frame); ok && f != nil {
+			fs[i] = f
+			continue
+		}
+		frames = false
+		break
 	}
 	if !frames {
 		return b.html(ctx, Group(ns))
 	}
 	l := &TreeList{Items: make([]*Tree, len(ns)), Keys: make([]string, len(ns))}
-	for i, n := range ns {
-		f := n.(*Frame)
+	for i := range ns {
+		f := fs[i]
 		t, err := b.frame(ctx, f)
 		if err != nil {
 			return nil, err
