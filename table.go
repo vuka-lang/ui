@@ -1,5 +1,7 @@
 package ui
 
+import "strconv"
+
 // Column describes one column of a Table or DataTable over rows of type T.
 type Column[T any] struct {
 	// Header is the heading cell's content.
@@ -26,14 +28,38 @@ type TableProps[T any] struct {
 	RowHref func(T) string
 	// RowActions, when set, adds a trailing column rendering per-row controls.
 	RowActions func(T) Node
-	// Selectable adds a leading checkbox column; the checkboxes are named
-	// SelectName (default "selected") with the row's RowKey as value, for a
-	// form or a server handler to read.
+
+	// Selectable adds a leading checkbox column. With OnSelect the boxes are
+	// live (ticked by RowSelected, toggled through OnSelect); without it they
+	// are plain form checkboxes named SelectName (default "selected") with the
+	// row's RowKey as value, for a form or handler to read.
 	Selectable bool
 	SelectName string
+	// RowSelected is a live checkbox's ticked state, and highlights the row.
+	RowSelected func(T) bool
+	// OnSelect is the live handler a row's checkbox calls; it receives the row
+	// and returns the handler to run (a func, as an on… attribute takes).
+	OnSelect func(T) any
+	// OnSelectAll is the header checkbox's handler (select or clear the page).
+	OnSelectAll any
+	// AllSelected ticks the header checkbox; SomeSelected marks it mixed.
+	AllSelected  bool
+	SomeSelected bool
+
+	// Index adds a leading row-number column. IndexFrom is the number before
+	// the first row (0 numbers the first row 1); DataTable sets it from the
+	// page.
+	Index     bool
+	IndexFrom int
+
 	// Empty is shown in place of the body when there are no rows; a default
-	// message is used when nil.
-	Empty Node
+	// message is used when nil. EmptyIcon is shown above it.
+	Empty     Node
+	EmptyIcon Node
+
+	// Flush drops the table's outer border and side padding so it sits flush
+	// in a Card (use with CardProps.NoPad).
+	Flush bool
 	Class string
 }
 
@@ -50,11 +76,17 @@ type TableProps[T any] struct {
 //	})
 func Table[T any](p TableProps[T]) Node {
 	class := "vk-table"
+	if p.Flush {
+		class += " vk-table--flush"
+	}
 	if p.Class != "" {
 		class += " " + p.Class
 	}
 	span := len(p.Columns)
 	if p.Selectable {
+		span++
+	}
+	if p.Index {
 		span++
 	}
 	if p.RowActions != nil {
@@ -71,7 +103,10 @@ func Table[T any](p TableProps[T]) Node {
 func headerCells[T any](p TableProps[T]) []Node {
 	var cells []Node
 	if p.Selectable {
-		cells = append(cells, El("th", []Attr{{"class", "vk-col--center"}, {"scope", "col"}}))
+		cells = append(cells, El("th", []Attr{{"class", "vk-col--center vk-col--select"}, {"scope", "col"}}, selectAll(p)))
+	}
+	if p.Index {
+		cells = append(cells, El("th", []Attr{{"class", "vk-col--center vk-col--index"}, {"scope", "col"}}, Text("#")))
 	}
 	for _, c := range p.Columns {
 		cells = append(cells, El("th", thAttrs(c), c.Header))
@@ -80,6 +115,21 @@ func headerCells[T any](p TableProps[T]) []Node {
 		cells = append(cells, El("th", []Attr{{"class", "vk-col--right"}, {"scope", "col"}, {"aria-label", "Actions"}}))
 	}
 	return cells
+}
+
+func selectAll[T any](p TableProps[T]) Node {
+	if p.OnSelectAll == nil {
+		return nil
+	}
+	attrs := []Attr{{"type", "checkbox"}, {"class", "vk-check__box"}, {"aria-label", "Select all"}}
+	if p.AllSelected {
+		attrs = append(attrs, Attr{"checked", true})
+	}
+	if p.SomeSelected && !p.AllSelected {
+		attrs = append(attrs, Attr{"aria-checked", "mixed"}, Attr{"data-vk-mixed", "true"})
+	}
+	attrs = append(attrs, Attr{"onClick", On(p.OnSelectAll)})
+	return El("input", attrs)
 }
 
 func thAttrs[T any](c Column[T]) []Attr {
@@ -105,44 +155,88 @@ func colClass[T any](c Column[T]) string {
 
 func tableBody[T any](p TableProps[T], span int) Node {
 	if len(p.Rows) == 0 {
-		empty := p.Empty
-		if empty == nil {
-			empty = Text("Nothing to show.")
-		}
 		return El("tbody", nil, El("tr", nil,
-			El("td", []Attr{{"colspan", span}, {"class", "vk-table__empty"}}, empty)))
+			El("td", []Attr{{"colspan", span}, {"class", "vk-table__empty"}}, emptyState(p))))
 	}
 	name := p.SelectName
 	if name == "" {
 		name = "selected"
 	}
 	var rows []Node
-	for _, row := range p.Rows {
+	for i, row := range p.Rows {
 		var cells []Node
 		if p.Selectable {
-			cb := []Attr{{"type", "checkbox"}, {"name", name}}
-			if p.RowKey != nil {
-				cb = append(cb, Attr{"value", Text(p.RowKey(row))})
-			}
-			cells = append(cells, El("td", []Attr{{"class", "vk-col--center"}}, El("input", cb)))
+			cells = append(cells, selectCell(p, row, name))
+		}
+		if p.Index {
+			cells = append(cells, El("td", []Attr{{"class", "vk-col--center vk-col--index"}}, Text(strconv.Itoa(p.IndexFrom+i+1))))
 		}
 		for _, c := range p.Columns {
 			cells = append(cells, El("td", []Attr{{"class", colClass(c)}}, cellNode(c, row)))
 		}
 		if p.RowActions != nil {
-			cells = append(cells, El("td", []Attr{{"class", "vk-col--right"}}, p.RowActions(row)))
+			cells = append(cells, El("td", []Attr{{"class", "vk-col--right vk-col--actions"}}, p.RowActions(row)))
 		}
-
-		attrs := []Attr{}
-		if p.RowKey != nil {
-			attrs = append(attrs, Attr{"key", p.RowKey(row)})
-		}
-		if p.RowHref != nil {
-			attrs = append(attrs, Attr{"class", "vk-row--link"}, Attr{"onClick", On(JS.Navigate(p.RowHref(row)))})
-		}
-		rows = append(rows, El("tr", attrs, cells...))
+		rows = append(rows, El("tr", rowAttrs(p, row), cells...))
 	}
 	return El("tbody", nil, rows...)
+}
+
+func rowAttrs[T any](p TableProps[T], row T) []Attr {
+	var attrs []Attr
+	if p.RowKey != nil {
+		attrs = append(attrs, Attr{"key", p.RowKey(row)})
+	}
+	class := ""
+	if p.RowHref != nil {
+		class = "vk-row--link"
+	}
+	if p.RowSelected != nil && p.RowSelected(row) {
+		if class != "" {
+			class += " "
+		}
+		class += "vk-row--selected"
+	}
+	if class != "" {
+		attrs = append(attrs, Attr{"class", class})
+	}
+	if p.RowHref != nil {
+		attrs = append(attrs, Attr{"onClick", On(JS.Navigate(p.RowHref(row)))})
+	}
+	return attrs
+}
+
+// selectCell renders a row's checkbox. A click on it is answered by the box's
+// own handler alone — the live runtime dispatches the nearest handler, so a
+// box inside a navigable row doesn't also trigger the row.
+func selectCell[T any](p TableProps[T], row T, name string) Node {
+	attrs := []Attr{{"type", "checkbox"}, {"class", "vk-check__box"}, {"aria-label", "Select row"}}
+	if p.RowKey != nil {
+		attrs = append(attrs, Attr{"value", Text(p.RowKey(row))})
+	}
+	if p.OnSelect != nil {
+		if p.RowSelected != nil && p.RowSelected(row) {
+			attrs = append(attrs, Attr{"checked", true})
+		}
+		attrs = append(attrs, Attr{"onClick", On(p.OnSelect(row))})
+	} else {
+		attrs = append(attrs, Attr{"name", name})
+	}
+	return El("td", []Attr{{"class", "vk-col--center vk-col--select"}}, El("input", attrs))
+}
+
+func emptyState[T any](p TableProps[T]) Node {
+	msg := p.Empty
+	if msg == nil {
+		msg = Text("Nothing to show.")
+	}
+	if p.EmptyIcon == nil {
+		return msg
+	}
+	return El("div", []Attr{{"class", "vk-empty"}},
+		El("span", []Attr{{"class", "vk-empty__icon"}}, p.EmptyIcon),
+		El("span", []Attr{{"class", "vk-empty__msg"}}, msg),
+	)
 }
 
 func cellNode[T any](c Column[T], row T) Node {

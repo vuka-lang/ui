@@ -37,13 +37,29 @@ type DataTableProps[T any] struct {
 	Window int
 
 	// Passed through to the underlying Table.
-	RowKey     func(T) any
-	RowHref    func(T) string
-	RowActions func(T) Node
-	Selectable bool
-	SelectName string
-	Empty      Node
-	Class      string
+	RowKey       func(T) any
+	RowHref      func(T) string
+	RowActions   func(T) Node
+	Selectable   bool
+	SelectName   string
+	RowSelected  func(T) bool
+	OnSelect     func(T) any
+	OnSelectAll  any
+	AllSelected  bool
+	SomeSelected bool
+	// Index adds a row-number column numbered from the page's first row.
+	Index     bool
+	Empty     Node
+	EmptyIcon Node
+	// Flush drops the table's border so it sits flush in a Card.
+	Flush bool
+	Class string
+
+	// Toolbar is extra controls shown in the bar beside the search box
+	// (filters, a "New" button).
+	Toolbar Node
+	// Tabs, when set, are shown in the bar above the table.
+	Tabs Node
 }
 
 // DataTable is a Table with a search box, sortable headers and a pager,
@@ -77,7 +93,11 @@ func DataTable[T any](p DataTableProps[T]) Node {
 
 	table := Table(TableProps[T]{
 		Columns: cols, Rows: p.Page.Items, RowKey: p.RowKey, RowHref: p.RowHref,
-		RowActions: p.RowActions, Selectable: p.Selectable, SelectName: p.SelectName, Empty: p.Empty,
+		RowActions: p.RowActions, Selectable: p.Selectable, SelectName: p.SelectName,
+		RowSelected: p.RowSelected, OnSelect: p.OnSelect, OnSelectAll: p.OnSelectAll,
+		AllSelected: p.AllSelected, SomeSelected: p.SomeSelected,
+		Index: p.Index, IndexFrom: p.Page.From() - 1,
+		Empty: p.Empty, EmptyIcon: p.EmptyIcon, Flush: p.Flush,
 	})
 
 	var kids []Node
@@ -89,13 +109,13 @@ func DataTable[T any](p DataTableProps[T]) Node {
 }
 
 func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
-	ind := Node(nil)
+	ind := Icon("caret-up-down", "vk-sort__ind")
 	if c.Sort == sort {
-		arrow := "↑" // up
+		name := "caret-up"
 		if dir == "desc" {
-			arrow = "↓" // down
+			name = "caret-down"
 		}
-		ind = El("span", []Attr{{"class", "vk-sort__ind"}, {"aria-hidden", "true"}}, Text(arrow))
+		ind = Icon(name, "vk-sort__ind vk-sort__ind--active")
 	}
 	aria := "none"
 	if c.Sort == sort {
@@ -112,19 +132,32 @@ func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
 }
 
 func dataTableBar[T any](p DataTableProps[T]) Node {
-	if p.OnSearch == nil {
+	if p.OnSearch == nil && p.Tabs == nil && p.Toolbar == nil {
 		return nil
 	}
-	ph := p.SearchPlaceholder
-	if ph == "" {
-		ph = "Search…"
+	var left []Node
+	if p.Tabs != nil {
+		left = append(left, p.Tabs)
 	}
-	search := El("input", []Attr{
-		{"type", "search"}, {"class", "vk-datatable__search"}, {"name", "q"},
-		{"placeholder", ph}, {"aria-label", "Search"}, {"value", p.Search},
-		{"onInput", On(p.OnSearch)},
-	})
-	return El("div", []Attr{{"class", "vk-datatable__bar"}}, search)
+	if p.OnSearch != nil {
+		ph := p.SearchPlaceholder
+		if ph == "" {
+			ph = "Search…"
+		}
+		left = append(left, El("div", []Attr{{"class", "vk-datatable__searchbox"}},
+			Icon("search", "vk-datatable__searchicon"),
+			El("input", []Attr{
+				{"type", "search"}, {"class", "vk-datatable__search"}, {"name", "q"},
+				{"placeholder", ph}, {"aria-label", "Search"}, {"value", p.Search},
+				{"onInput", On(p.OnSearch)},
+			}),
+		))
+	}
+	kids := []Node{El("div", []Attr{{"class", "vk-datatable__bar-left"}}, left...)}
+	if p.Toolbar != nil {
+		kids = append(kids, El("div", []Attr{{"class", "vk-datatable__bar-right"}}, p.Toolbar))
+	}
+	return El("div", []Attr{{"class", "vk-datatable__bar"}}, kids...)
 }
 
 func dataTableFoot[T any](p DataTableProps[T]) Node {

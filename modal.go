@@ -8,6 +8,11 @@ type ModalProps struct {
 	Ref string
 	// Title is the header content; omitted when nil.
 	Title Node
+	// Icon is an optional icon shown in a tile before the title, e.g.
+	// ui.Icon("check-circle").
+	Icon Node
+	// Subtitle is optional muted text under the title.
+	Subtitle string
 	// Footer is the footer content (buttons); omitted when nil.
 	Footer Node
 	// Open renders the modal already shown, for a server-owned modal whose
@@ -22,7 +27,7 @@ type ModalProps struct {
 	// (a func, as an on… attribute takes); the close also pops focus in the
 	// browser. Without it the close is browser-only (CloseModal).
 	OnClose any
-	// Size is "sm", "" (default) or "lg".
+	// Size is "sm", "" / "md" (default), "lg" or "xl".
 	Size     string
 	Class    string
 	Children Node
@@ -54,6 +59,8 @@ func Modal(p ModalProps) Node {
 		class += " vk-modal--sm"
 	case "lg":
 		class += " vk-modal--lg"
+	case "xl":
+		class += " vk-modal--xl"
 	}
 	if p.Class != "" {
 		class += " " + p.Class
@@ -69,13 +76,23 @@ func Modal(p ModalProps) Node {
 	}
 
 	var head []Node
-	if p.Title != nil {
-		head = append(head, El("h2", []Attr{{"class", "vk-modal__title"}}, p.Title))
+	if p.Icon != nil {
+		head = append(head, El("span", []Attr{{"class", "vk-modal__icon"}}, p.Icon))
+	}
+	if p.Title != nil || p.Subtitle != "" {
+		heading := []Node{}
+		if p.Title != nil {
+			heading = append(heading, El("h2", []Attr{{"class", "vk-modal__title"}}, p.Title))
+		}
+		if p.Subtitle != "" {
+			heading = append(heading, El("p", []Attr{{"class", "vk-modal__subtitle"}}, Text(p.Subtitle)))
+		}
+		head = append(head, El("div", []Attr{{"class", "vk-modal__heading"}}, heading...))
 	}
 	if dismissible {
 		head = append(head, El("button", []Attr{
 			{"type", "button"}, {"class", "vk-modal__close"}, {"aria-label", "Close"}, {"onClick", close},
-		}, Text("×")))
+		}, Icon("x")))
 	}
 
 	dialogKids := []Node{}
