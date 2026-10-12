@@ -21,25 +21,25 @@ type Inbox struct {
 func (b *Inbox) Read() { b.read.Update(func(n int) int { return n + 1 }) }
 
 func (b *Inbox) Render() ui.Node {
-	panel := ui.F(0xaf63de4c8601eff2, "c", ui.WithChildren(/*line pages.vuka:21:12*/Panel("Inbox", /*line pages.vuka:21:41*/b.Unread - b.read.Get(), ), ui.F(0xaa36629f423bfa0e, "E(t)Ed(t)", ui.El("p", nil, ui.Text("Messages arrive here."), ), ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.On(
+	panel := ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, ui.WithChildren(/*line pages.vuka:21:12*/Panel("Inbox", /*line pages.vuka:21:41*/b.Unread - b.read.Get(), ), ui.FT(0xaa36629f423bfa0e, "E(t)Ed(t)", func(__d []any) ui.Node { return ui.F(0xaa36629f423bfa0e, "E(t)Ed(t)", ui.El("p", nil, ui.Text("Messages arrive here."), ), ui.El("button", []ui.Attr{{Name: "onClick", Value: __d[0]}, }, ui.Text("Read one"), ), ) }, ui.On(
 
-/*line pages.vuka:23:20*/b.Read)}, }, ui.Text("Read one"), ), )), 
+/*line pages.vuka:23:20*/b.Read), )), 
 )
 	if b.Opaque {
 		panel = Opaque(panel)
 	}
-	return ui.F(0xa36d9d11ee39bba7, "Es(h)", ui.El("div", []ui.Attr{{Name: "class", Value: "inbox"}, }, ui.Child(/*line pages.vuka:28:29*/panel), ), )
+	return ui.FT(0xa36d9d11ee39bba7, "Es(h)", func(__d []any) ui.Node { return ui.F(0xa36d9d11ee39bba7, "Es(h)", ui.El("div", []ui.Attr{{Name: "class", Value: "inbox"}, }, ui.Child(__d[0]), ), ) }, /*line pages.vuka:28:29*/panel, )
 }
 
 // InboxPage and BooksPage are pages sharing the templ Layout.
 func InboxPage() ui.Node {
-	return ui.F(0xaf63de4c8601eff2, "c", ui.WithChildren(/*line pages.vuka:33:10*/Layout("Inbox", "/inbox", ), ui.F(0xaf63de4c8601eff2, "c", ui.Component("pages.vuka#3", nil, 
+	return ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, ui.WithChildren(/*line pages.vuka:33:10*/Layout("Inbox", "/inbox", ), ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, ui.Component("pages.vuka#3", nil, 
 &/*line pages.vuka:34:4*/Inbox{Unread: 3, }), )), 
 )
 }
 
 func BooksPage(books []string) ui.Node {
-	return ui.F(0xaf63de4c8601eff2, "c", ui.WithChildren(/*line pages.vuka:39:10*/Layout("Books", "/books", ), ui.F(0xaf63de4c8601eff2, "c", ui.WithChildren(
-/*line pages.vuka:40:4*/Panel("Books", /*line pages.vuka:40:33*/len(books), ), ui.F(0xaf63de4c8601eff2, "c", /*line pages.vuka:40:46*/Shelf(/*line pages.vuka:40:59*/books, ), )), )), 
+	return ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, ui.WithChildren(/*line pages.vuka:39:10*/Layout("Books", "/books", ), ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, ui.WithChildren(
+/*line pages.vuka:40:4*/Panel("Books", /*line pages.vuka:40:33*/len(books), ), ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, /*line pages.vuka:40:46*/Shelf(/*line pages.vuka:40:59*/books, ), )), )), 
 )
 }

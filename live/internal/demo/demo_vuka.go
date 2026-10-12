@@ -25,7 +25,7 @@ type Row struct {
 func (r *Row) Inc() { r.qty.Update(func(n int) int { return n + 1 }) }
 
 func (r *Row) Render() ui.Node {
-	return ui.F(0x4500888e5ca7f1a2, "Ed(E(h)E(h)E(Ed(t)))", ui.El("tr", []ui.Attr{{Name: "key", Value: /*line demo.vuka:25:18*/r.ID}, }, ui.El("td", nil, ui.Child(/*line demo.vuka:25:29*/r.Name), ), ui.El("td", nil, ui.Child(/*line demo.vuka:25:46*/r.qty.Get()), ), ui.El("td", nil, ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.On(/*line demo.vuka:25:84*/r.Inc)}, }, ui.Text("+"), ), ), ), )
+	return ui.FT(0x4500888e5ca7f1a2, "Ed(E(h)E(h)E(Ed(t)))", func(__d []any) ui.Node { return ui.F(0x4500888e5ca7f1a2, "Ed(E(h)E(h)E(Ed(t)))", ui.El("tr", []ui.Attr{{Name: "key", Value: __d[0]}, }, ui.El("td", nil, ui.Child(__d[1]), ), ui.El("td", nil, ui.Child(__d[2]), ), ui.El("td", nil, ui.El("button", []ui.Attr{{Name: "onClick", Value: __d[3]}, }, ui.Text("+"), ), ), ), ) }, /*line demo.vuka:25:18*/r.ID, /*line demo.vuka:25:29*/r.Name, /*line demo.vuka:25:46*/r.qty.Get(), ui.On(/*line demo.vuka:25:84*/r.Inc), )
 }
 
 // PlainRow is Row with plain state: rendered again with its table.
@@ -39,7 +39,7 @@ type PlainRow struct {
 func (r *PlainRow) Inc() { r.qty++ }
 
 func (r *PlainRow) Render() ui.Node {
-	return ui.F(0x4500888e5ca7f1a2, "Ed(E(h)E(h)E(Ed(t)))", ui.El("tr", []ui.Attr{{Name: "key", Value: /*line demo.vuka:39:18*/r.ID}, }, ui.El("td", nil, ui.Child(/*line demo.vuka:39:29*/r.Name), ), ui.El("td", nil, ui.Child(/*line demo.vuka:39:46*/r.qty), ), ui.El("td", nil, ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.On(/*line demo.vuka:39:78*/r.Inc)}, }, ui.Text("+"), ), ), ), )
+	return ui.FT(0x4500888e5ca7f1a2, "Ed(E(h)E(h)E(Ed(t)))", func(__d []any) ui.Node { return ui.F(0x4500888e5ca7f1a2, "Ed(E(h)E(h)E(Ed(t)))", ui.El("tr", []ui.Attr{{Name: "key", Value: __d[0]}, }, ui.El("td", nil, ui.Child(__d[1]), ), ui.El("td", nil, ui.Child(__d[2]), ), ui.El("td", nil, ui.El("button", []ui.Attr{{Name: "onClick", Value: __d[3]}, }, ui.Text("+"), ), ), ), ) }, /*line demo.vuka:39:18*/r.ID, /*line demo.vuka:39:29*/r.Name, /*line demo.vuka:39:46*/r.qty, ui.On(/*line demo.vuka:39:78*/r.Inc), )
 }
 
 // Table is a table of n rows, each a component.
@@ -51,10 +51,10 @@ type Table struct {
 }
 
 func (t *Table) Render() ui.Node {
-	return ui.F(0x1001ea6d61c2e18f, "E(E(h)b)", ui.El("table", nil, ui.El("caption", nil, ui.Child(
-/*line demo.vuka:52:13*/t.title.Get()), ), ui.Nodes(func(__add func(ui.Node)) { 
-/*line demo.vuka:53:4*/for i := range t.N { __add(ui.F(0xaf63df4c8601f1a5, "b", ui.Nodes(func(__add func(ui.Node)) { 
-/*line demo.vuka:54:5*/if t.Plain { __add(ui.F(0xaf63de4c8601eff2, "c", func(__a1 int, __a2 int, __a3 string) ui.Node { return ui.Component("demo.vuka#1", __a1, &/*line demo.vuka:54:19*/PlainRow{ID: __a2, Name: __a3, }) }(/*line demo.vuka:54:33*/i, /*line demo.vuka:54:40*/i, /*line demo.vuka:54:49*/"row " + strconv.Itoa(i), ), )); } /*line demo.vuka:54:80*/else { __add(ui.F(0xaf63de4c8601eff2, "c", func(__a1 int, __a2 int, __a3 string) ui.Node { return ui.Component("demo.vuka#2", __a1, &/*line demo.vuka:54:88*/Row{ID: __a2, Name: __a3, }) }(/*line demo.vuka:54:97*/i, /*line demo.vuka:54:104*/i, /*line demo.vuka:54:113*/"row " + strconv.Itoa(i), ), )); } }), )); } }), ), 
+	return ui.FT(0x1001ea6d61c2e18f, "E(E(h)b)", func(__d []any) ui.Node { return ui.F(0x1001ea6d61c2e18f, "E(E(h)b)", ui.El("table", nil, ui.El("caption", nil, ui.Child(__d[0]), ), ui.Child(__d[1]), ), ) }, 
+/*line demo.vuka:52:13*/t.title.Get(), ui.Nodes(func(__add func(ui.Node)) { 
+/*line demo.vuka:53:4*/for i := range t.N { __add(ui.FT(0xaf63df4c8601f1a5, "b", func(__d []any) ui.Node { return ui.F(0xaf63df4c8601f1a5, "b", ui.Child(__d[0]), ) }, ui.Nodes(func(__add func(ui.Node)) { 
+/*line demo.vuka:54:5*/if t.Plain { __add(ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, func(__a1 int, __a2 int, __a3 string) ui.Node { return ui.Component("demo.vuka#1", __a1, &/*line demo.vuka:54:19*/PlainRow{ID: __a2, Name: __a3, }) }(/*line demo.vuka:54:33*/i, /*line demo.vuka:54:40*/i, /*line demo.vuka:54:49*/"row " + strconv.Itoa(i), ), )); } /*line demo.vuka:54:80*/else { __add(ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, func(__a1 int, __a2 int, __a3 string) ui.Node { return ui.Component("demo.vuka#2", __a1, &/*line demo.vuka:54:88*/Row{ID: __a2, Name: __a3, }) }(/*line demo.vuka:54:97*/i, /*line demo.vuka:54:104*/i, /*line demo.vuka:54:113*/"row " + strconv.Itoa(i), ), )); } }), )); } }), 
 
 )
 }
@@ -72,9 +72,9 @@ func (t *CellTable) Mount() { t.cells = make([]int, t.N) }
 func (t *CellTable) Bump(i int) { t.cells[i]++ }
 
 func (t *CellTable) Render() ui.Node {
-	return ui.F(0xd5334c12df227221, "E(b)", ui.El("table", nil, ui.Nodes(func(__add func(ui.Node)) { 
-/*line demo.vuka:73:4*/for i, v := range t.cells { __add(ui.F(0x7e145e55294a2476, "Ed(E(th)Es(h)E(Ed(t)))", ui.El("tr", []ui.Attr{{Name: "key", Value: 
-/*line demo.vuka:74:13*/i}, }, ui.El("td", nil, ui.Text("row "), ui.Child(/*line demo.vuka:74:25*/i), ), ui.El("td", []ui.Attr{{Name: "className", Value: "n"}, }, ui.Child(/*line demo.vuka:74:51*/v), ), ui.El("td", nil, ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.On(/*line demo.vuka:74:79*/func() { t.Bump(i) })}, }, ui.Text("+"), ), ), ), )); } }), ), 
+	return ui.FT(0xd5334c12df227221, "E(b)", func(__d []any) ui.Node { return ui.F(0xd5334c12df227221, "E(b)", ui.El("table", nil, ui.Child(__d[0]), ), ) }, ui.Nodes(func(__add func(ui.Node)) { 
+/*line demo.vuka:73:4*/for i, v := range t.cells { __add(ui.FT(0x7e145e55294a2476, "Ed(E(th)Es(h)E(Ed(t)))", func(__d []any) ui.Node { return ui.F(0x7e145e55294a2476, "Ed(E(th)Es(h)E(Ed(t)))", ui.El("tr", []ui.Attr{{Name: "key", Value: __d[0]}, }, ui.El("td", nil, ui.Text("row "), ui.Child(__d[1]), ), ui.El("td", []ui.Attr{{Name: "className", Value: "n"}, }, ui.Child(__d[2]), ), ui.El("td", nil, ui.El("button", []ui.Attr{{Name: "onClick", Value: __d[3]}, }, ui.Text("+"), ), ), ), ) }, 
+/*line demo.vuka:74:13*/i, /*line demo.vuka:74:25*/i, /*line demo.vuka:74:51*/v, ui.On(/*line demo.vuka:74:79*/func() { t.Bump(i) }), )); } }), 
 
 )
 }
@@ -89,13 +89,13 @@ type Counter struct {
 func (c *Counter) Inc() { c.n.Update(func(n int) int { return n + 1 }) }
 
 func (c *Counter) Render() ui.Node {
-	return ui.F(0x255446f1e1e9ccd2, "E(hthtEd(t))", ui.El("span", nil, ui.Child(/*line demo.vuka:89:16*/c.Label), ui.Text(": "), ui.Child(/*line demo.vuka:89:27*/c.n.Get()), ui.Text(" "), ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.On(/*line demo.vuka:89:55*/c.Inc)}, }, ui.Text("+"), ), ), )
+	return ui.FT(0x255446f1e1e9ccd2, "E(hthtEd(t))", func(__d []any) ui.Node { return ui.F(0x255446f1e1e9ccd2, "E(hthtEd(t))", ui.El("span", nil, ui.Child(__d[0]), ui.Text(": "), ui.Child(__d[1]), ui.Text(" "), ui.El("button", []ui.Attr{{Name: "onClick", Value: __d[2]}, }, ui.Text("+"), ), ), ) }, /*line demo.vuka:89:16*/c.Label, /*line demo.vuka:89:27*/c.n.Get(), ui.On(/*line demo.vuka:89:55*/c.Inc), )
 }
 
 // Counters is a page of n counters.
 func Counters(n int) func(context.Context) ui.Node {
 	return func(context.Context) ui.Node {
-		return ui.F(0x77d309cba315688a, "E(b)", ui.El("main", nil, ui.Nodes(func(__add func(ui.Node)) { /*line demo.vuka:95:17*/for i := range n { __add(ui.F(0xaf63de4c8601eff2, "c", func(__a1 int, __a2 string) ui.Node { return ui.Component("demo.vuka#3", __a1, &/*line demo.vuka:95:37*/Counter{Label: __a2, }) }(/*line demo.vuka:95:50*/i, /*line demo.vuka:95:60*/"c" + strconv.Itoa(i), ), )); } }), ), )
+		return ui.FT(0x77d309cba315688a, "E(b)", func(__d []any) ui.Node { return ui.F(0x77d309cba315688a, "E(b)", ui.El("main", nil, ui.Child(__d[0]), ), ) }, ui.Nodes(func(__add func(ui.Node)) { /*line demo.vuka:95:17*/for i := range n { __add(ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, func(__a1 int, __a2 string) ui.Node { return ui.Component("demo.vuka#3", __a1, &/*line demo.vuka:95:37*/Counter{Label: __a2, }) }(/*line demo.vuka:95:50*/i, /*line demo.vuka:95:60*/"c" + strconv.Itoa(i), ), )); } }), )
 	}
 }
 
@@ -177,45 +177,45 @@ func (b *Board) Remove(id int) {
 }
 
 func (b *Board) Render() ui.Node {
-	return ui.F(0x208d9ada60bb505f, "Ed(Ed(htht)hEdd()Ed(t)E(b)E(b)bbE(h)b)", ui.El("section", []ui.Attr{{Name: "className", Value: /*line demo.vuka:177:29*/"board " + b.mode}, }, ui.El("h2", []ui.Attr{{Name: "title", Value: 
-/*line demo.vuka:178:14*/b.note}, }, ui.Child(/*line demo.vuka:178:23*/b.Title), ui.Text(" ("), ui.Child(/*line demo.vuka:178:34*/len(b.items)), ui.Text(")"), ), ui.Child(
-/*line demo.vuka:179:4*/b.Children), ui.El("input", []ui.Attr{{Name: "onInput", Value: ui.On(
-/*line demo.vuka:180:19*/b.Do)}, {Name: "value", Value: /*line demo.vuka:180:32*/b.mode}, }, ), ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.On(
-/*line demo.vuka:181:20*/b.Toggle)}, }, ui.Text("toggle"), ), ui.El("ul", nil, ui.Nodes(func(__add func(ui.Node)) { 
+	return ui.FT(0x208d9ada60bb505f, "Ed(Ed(htht)hEdd()Ed(t)E(b)E(b)bbE(h)b)", func(__d []any) ui.Node { return ui.F(0x208d9ada60bb505f, "Ed(Ed(htht)hEdd()Ed(t)E(b)E(b)bbE(h)b)", ui.El("section", []ui.Attr{{Name: "className", Value: __d[0]}, }, ui.El("h2", []ui.Attr{{Name: "title", Value: __d[1]}, }, ui.Child(__d[2]), ui.Text(" ("), ui.Child(__d[3]), ui.Text(")"), ), ui.Child(__d[4]), ui.El("input", []ui.Attr{{Name: "onInput", Value: __d[5]}, {Name: "value", Value: __d[6]}, }, ), ui.El("button", []ui.Attr{{Name: "onClick", Value: __d[7]}, }, ui.Text("toggle"), ), ui.El("ul", nil, ui.Child(__d[8]), ), ui.El("ol", nil, ui.Child(__d[9]), ), ui.Child(__d[10]), ui.Child(__d[11]), ui.El("script", nil, ui.Child(__d[12]), ), ui.Child(__d[13]), ), ) }, /*line demo.vuka:177:29*/"board " + b.mode, 
+/*line demo.vuka:178:14*/b.note, /*line demo.vuka:178:23*/b.Title, /*line demo.vuka:178:34*/len(b.items), 
+/*line demo.vuka:179:4*/b.Children, ui.On(
+/*line demo.vuka:180:19*/b.Do), /*line demo.vuka:180:32*/b.mode, ui.On(
+/*line demo.vuka:181:20*/b.Toggle), ui.Nodes(func(__add func(ui.Node)) { 
 
-/*line demo.vuka:183:5*/for _, it := range b.items { __add(ui.F(0xbb03a5071d868fe7, "Ed(htcEd(t))", ui.El("li", []ui.Attr{{Name: "key", Value: 
-/*line demo.vuka:184:14*/it.ID}, }, ui.Child(/*line demo.vuka:184:22*/it.Name), ui.Text(" "), ui.Component("demo.vuka#4", nil, &/*line demo.vuka:184:32*/Counter{Label: it.Name, }), ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.On(/*line demo.vuka:184:75*/func() { b.Remove(it.ID) })}, }, ui.Text("x"), ), ), )); } }), ), ui.El("ol", nil, ui.Nodes(func(__add func(ui.Node)) { 
+/*line demo.vuka:183:5*/for _, it := range b.items { __add(ui.FT(0xbb03a5071d868fe7, "Ed(htcEd(t))", func(__d []any) ui.Node { return ui.F(0xbb03a5071d868fe7, "Ed(htcEd(t))", ui.El("li", []ui.Attr{{Name: "key", Value: __d[0]}, }, ui.Child(__d[1]), ui.Text(" "), ui.Child(__d[2]), ui.El("button", []ui.Attr{{Name: "onClick", Value: __d[3]}, }, ui.Text("x"), ), ), ) }, 
+/*line demo.vuka:184:14*/it.ID, /*line demo.vuka:184:22*/it.Name, ui.Component("demo.vuka#4", nil, &/*line demo.vuka:184:32*/Counter{Label: it.Name, }), ui.On(/*line demo.vuka:184:75*/func() { b.Remove(it.ID) }), )); } }), ui.Nodes(func(__add func(ui.Node)) { 
 
 
-/*line demo.vuka:187:8*/for i, it := range b.items { __add(ui.F(0x58e327489fab1530, "E(hth)", ui.El("li", nil, ui.Child(/*line demo.vuka:187:42*/i), ui.Text(": "), ui.Child(/*line demo.vuka:187:47*/it.Name), ), )); } }), ), ui.Nodes(func(__add func(ui.Node)) { 
-/*line demo.vuka:188:4*/if b.open { __add(ui.F(0x433c8382836d2b7d, "Ed(th)", ui.El("p", []ui.Attr{{Name: "onClick", Value: ui.On(
-/*line demo.vuka:189:16*/b.Toggle)}, }, ui.Text("open "), ui.Child(/*line demo.vuka:189:32*/b.note), ), )); 
-} /*line demo.vuka:190:5*/else if len(b.items) == 0 { __add(ui.F(0xf674339c770eef02, "E(t)", ui.El("p", nil, ui.Text("empty"), ), )); 
+/*line demo.vuka:187:8*/for i, it := range b.items { __add(ui.FT(0x58e327489fab1530, "E(hth)", func(__d []any) ui.Node { return ui.F(0x58e327489fab1530, "E(hth)", ui.El("li", nil, ui.Child(__d[0]), ui.Text(": "), ui.Child(__d[1]), ), ) }, /*line demo.vuka:187:42*/i, /*line demo.vuka:187:47*/it.Name, )); } }), ui.Nodes(func(__add func(ui.Node)) { 
+/*line demo.vuka:188:4*/if b.open { __add(ui.FT(0x433c8382836d2b7d, "Ed(th)", func(__d []any) ui.Node { return ui.F(0x433c8382836d2b7d, "Ed(th)", ui.El("p", []ui.Attr{{Name: "onClick", Value: __d[0]}, }, ui.Text("open "), ui.Child(__d[1]), ), ) }, ui.On(
+/*line demo.vuka:189:16*/b.Toggle), /*line demo.vuka:189:32*/b.note, )); 
+} /*line demo.vuka:190:5*/else if len(b.items) == 0 { __add(ui.FT(0xf674339c770eef02, "E(t)", func(__d []any) ui.Node { return ui.F(0xf674339c770eef02, "E(t)", ui.El("p", nil, ui.Text("empty"), ), ) }, )); 
 
-} /*line demo.vuka:192:5*/else { __add(ui.F(0xc1566abc726ea497, "E(t)", ui.El("p", nil, ui.Text("closed"), ), )); } }), ui.Nodes(func(__add func(ui.Node)) { 
+} /*line demo.vuka:192:5*/else { __add(ui.FT(0xc1566abc726ea497, "E(t)", func(__d []any) ui.Node { return ui.F(0xc1566abc726ea497, "E(t)", ui.El("p", nil, ui.Text("closed"), ), ) }, )); } }), ui.Nodes(func(__add func(ui.Node)) { 
 
 
 /*line demo.vuka:195:4*/if __m1 := /*line demo.vuka:195:10*/b.mode; false { panic(__m1)
-/*line demo.vuka:196:3*/} else if __m1 == "big" { __add(ui.F(0xfe27e6131077520f, "E(t)", ui.El("b", nil, ui.Text("BIG"), ), )); 
+/*line demo.vuka:196:3*/} else if __m1 == "big" { __add(ui.FT(0xfe27e6131077520f, "E(t)", func(__d []any) ui.Node { return ui.F(0xfe27e6131077520f, "E(t)", ui.El("b", nil, ui.Text("BIG"), ), ) }, )); 
 
-/*line demo.vuka:198:3*/} else if __m1 == "note" { __add(ui.F(0x9eeb9795ae044d61, "Edd()", ui.El("input", []ui.Attr{{Name: "onInput", Value: ui.On(
-/*line demo.vuka:199:20*/b.Note)}, {Name: "value", Value: /*line demo.vuka:199:35*/b.note}, }, ), )); 
-/*line demo.vuka:200:3*/} else if true { __add(ui.F(0xaf63e54c8601fbd7, "h", ui.Child(
-/*line demo.vuka:201:5*/ui.El("i", nil, ui.Text("opaque " + b.mode), ui.Component("demo#opaque", nil, &Counter{Label: "inner"}))), )); 
-/*line demo.vuka:202:3*/} else { panic("vuka: no case matched") }/*line demo.vuka:202:4*/ }), ui.El("script", nil, ui.Child(
-/*line demo.vuka:203:12*/"var mode = '" + b.mode + "' </script>"), ), ui.Nodes(func(__add func(ui.Node)) { 
-/*line demo.vuka:204:4*/for _, it := range b.items { __add(ui.F(0xaf63de4c8601eff2, "c", func(__a1 int, __a2 string) ui.Node { return ui.Component("demo.vuka#5", __a1, 
-&/*line demo.vuka:205:5*/Counter{Label: __a2, }) }(/*line demo.vuka:205:18*/it.ID, /*line demo.vuka:205:32*/"k" + it.Name, ), )); } }), ), 
+/*line demo.vuka:198:3*/} else if __m1 == "note" { __add(ui.FT(0x9eeb9795ae044d61, "Edd()", func(__d []any) ui.Node { return ui.F(0x9eeb9795ae044d61, "Edd()", ui.El("input", []ui.Attr{{Name: "onInput", Value: __d[0]}, {Name: "value", Value: __d[1]}, }, ), ) }, ui.On(
+/*line demo.vuka:199:20*/b.Note), /*line demo.vuka:199:35*/b.note, )); 
+} else if true { __add(ui.FT(0xaf63e54c8601fbd7, "h", func(__d []any) ui.Node { return ui.F(0xaf63e54c8601fbd7, "h", ui.Child(__d[0]), ) }, 
+/*line demo.vuka:201:5*/ui.El("i", nil, ui.Text("opaque " + b.mode), ui.Component("demo#opaque", nil, &Counter{Label: "inner"})), )); 
+/*line demo.vuka:202:3*/} else { panic("vuka: no case matched") }/*line demo.vuka:202:4*/ }), 
+/*line demo.vuka:203:12*/"var mode = '" + b.mode + "' </script>", ui.Nodes(func(__add func(ui.Node)) { 
+/*line demo.vuka:204:4*/for _, it := range b.items { __add(ui.FT(0xaf63de4c8601eff2, "c", func(__d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(__d[0]), ) }, func(__a1 int, __a2 string) ui.Node { return ui.Component("demo.vuka#5", __a1, 
+&/*line demo.vuka:205:5*/Counter{Label: __a2, }) }(/*line demo.vuka:205:18*/it.ID, /*line demo.vuka:205:32*/"k" + it.Name, ), )); } }), 
 
 )
 }
 
 // Page is a page with two boards and a counter.
 func Page(context.Context) ui.Node {
-	return ui.F(0x8ead5c5cbb04d351, "E(ccc)", ui.El("main", nil, ui.Component("demo.vuka#6", nil, 
-&/*line demo.vuka:213:4*/Board{Title: "one", Children: ui.F(0x86ef4689d48dafbf, "E(t)", ui.El("em", nil, ui.Text("first"), ), ), }), ui.Component("demo.vuka#7", nil, 
+	return ui.FT(0x8ead5c5cbb04d351, "E(ccc)", func(__d []any) ui.Node { return ui.F(0x8ead5c5cbb04d351, "E(ccc)", ui.El("main", nil, ui.Child(__d[0]), ui.Child(__d[1]), ui.Child(__d[2]), ), ) }, ui.Component("demo.vuka#6", nil, 
+&/*line demo.vuka:213:4*/Board{Title: "one", Children: ui.FT(0x86ef4689d48dafbf, "E(t)", func(__d []any) ui.Node { return ui.F(0x86ef4689d48dafbf, "E(t)", ui.El("em", nil, ui.Text("first"), ), ) }, ), }), ui.Component("demo.vuka#7", nil, 
 &/*line demo.vuka:214:4*/Board{Title: "two", }), ui.Component("demo.vuka#8", nil, 
-&/*line demo.vuka:215:4*/Counter{Label: "solo", }), ), 
+&/*line demo.vuka:215:4*/Counter{Label: "solo", }), 
 )
 }
 
