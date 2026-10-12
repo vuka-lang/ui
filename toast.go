@@ -1,0 +1,117 @@
+package ui
+
+import (
+	"strconv"
+	"time"
+)
+
+// ToastPosition is a ToastContainer's corner.
+type ToastPosition string
+
+const (
+	ToastTopRight    ToastPosition = "top-right"
+	ToastTopLeft     ToastPosition = "top-left"
+	ToastBottomRight ToastPosition = "bottom-right"
+	ToastBottomLeft  ToastPosition = "bottom-left"
+)
+
+// ToastContainerProps configures a ToastContainer; Children are its toasts.
+type ToastContainerProps struct {
+	// Ref names the region for ShowToast to reveal a toast inside it; the
+	// default is "toasts".
+	Ref string
+	// Position is the corner the stack sits in; ToastTopRight by default.
+	Position ToastPosition
+	Class    string
+	Children Node
+}
+
+// ToastContainer is the fixed region toasts stack in. Place one per page (a
+// live view renders a Toast per message it holds inside it):
+//
+//	ui.ToastContainer(ui.ToastContainerProps{Children: ui.Fragment(toasts…)})
+func ToastContainer(p ToastContainerProps) Node {
+	ref := p.Ref
+	if ref == "" {
+		ref = "toasts"
+	}
+	pos := p.Position
+	if pos == "" {
+		pos = ToastTopRight
+	}
+	class := "vk-toasts vk-toasts--" + string(pos)
+	if p.Class != "" {
+		class += " " + p.Class
+	}
+	return El("div", []Attr{
+		{"ref", ref}, {"class", class}, {"role", "region"}, {"aria-label", "Notifications"}, {"aria-live", "polite"},
+	}, Child(p.Children))
+}
+
+// ToastProps configures one Toast; Children is the message body.
+type ToastProps struct {
+	// Variant is the tone: AlertInfo (default), AlertSuccess, AlertWarning or
+	// AlertError, shared with Alert.
+	Variant AlertVariant
+	// Title is an optional bold heading.
+	Title string
+	// ID identifies the toast for DismissToastRef and for a server list's key;
+	// it renders as both id and ref so ShowToast/DismissToastRef can find it.
+	ID string
+	// Dismissible adds a close button; default true.
+	Closed bool
+	// Timeout, when set, fades the toast out after it in the browser (a CSS
+	// animation, no JavaScript). The server removing it from its render is the
+	// reliable way to drop it.
+	Timeout  time.Duration
+	Class    string
+	Children Node
+}
+
+// Toast is one notification. Its tone matches Alert's variants:
+//
+//	ui.Toast(ui.ToastProps{Variant: ui.AlertSuccess, Title: "Saved", Timeout: 4 * time.Second})
+func Toast(p ToastProps) Node {
+	variant := p.Variant
+	if variant == "" {
+		variant = AlertInfo
+	}
+	class := "vk-toast vk-toast--" + string(variant)
+	if p.Class != "" {
+		class += " " + p.Class
+	}
+
+	attrs := []Attr{{"class", class}, {"role", "status"}}
+	if p.ID != "" {
+		attrs = append(attrs, Attr{"id", p.ID}, Attr{"ref", p.ID})
+	}
+	if p.Timeout > 0 {
+		attrs = append(attrs, Attr{"style", Style{"--vk-toast-life": strconv.FormatInt(p.Timeout.Milliseconds(), 10) + "ms"}})
+	}
+
+	var body []Node
+	if p.Title != "" {
+		body = append(body, El("div", []Attr{{"class", "vk-toast__title"}}, Text(p.Title)))
+	}
+	body = append(body, Child(p.Children))
+
+	kids := []Node{El("div", []Attr{{"class", "vk-toast__body"}}, body...)}
+	if !p.Closed {
+		kids = append(kids, El("button", []Attr{
+			{"type", "button"}, {"class", "vk-toast__close"}, {"aria-label", "Dismiss"},
+			{"onClick", On(DismissToast())},
+		}, Text("×")))
+	}
+	return El("div", attrs, kids...)
+}
+
+// ShowToast reveals the toast named ref (one pre-rendered hidden in the
+// container), for a browser-only notification.
+func ShowToast(ref string) Commands { return JS.Show(Ref(ref)) }
+
+// DismissToast hides the toast the event came from (the close button's), no
+// round trip.
+func DismissToast() Commands { return JS.Hide(Closest(".vk-toast")) }
+
+// DismissToastRef hides the toast named ref.
+func DismissToastRef(ref string) Commands { return JS.Hide(Ref(ref)) }
