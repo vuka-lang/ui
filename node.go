@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unsafe"
 
 	"github.com/a-h/templ"
 )
@@ -106,22 +107,27 @@ type Boundary struct {
 
 // El is an element.
 func El(tag string, attrs []Attr, children ...Node) Node {
-	return &Element{Tag: tag, Attrs: attrs, Children: children}
+	return newElement(tag, attrs, children)
 }
 
 // Text is text: v formatted like fmt.Sprint, nil as nothing.
-func Text(v any) Node { return TextNode(toString(v)) }
+func Text(v any) Node {
+	if _, ok := v.(string); ok {
+		return textOf(v)
+	}
+	return TextNode(toString(v))
+}
 
 // Child is a {expr} child: a Node as is, nil as nothing, an error as its
 // message, a []Node or []any as each element in turn, anything else as Text.
-func Child(v any) Node {
-	switch v := v.(type) {
+func Child(x any) Node {
+	switch v := x.(type) {
 	case nil:
 		return Group(nil)
 	case Node:
 		return v
 	case string:
-		return TextNode(v)
+		return textOf(x)
 	case []Node:
 		return Group(v)
 	case []any:
@@ -131,8 +137,24 @@ func Child(v any) Node {
 		}
 		return ns
 	}
-	return TextNode(toString(v))
+	return TextNode(toString(x))
 }
+
+// textOf is the string x holds as a TextNode, sharing the string x boxes:
+// a TextNode is a string, so the interface's data is the same.
+func textOf(x any) Node {
+	var n Node
+	(*iface)(unsafe.Pointer(&n)).tab = textNodeTab
+	(*iface)(unsafe.Pointer(&n)).data = (*iface)(unsafe.Pointer(&x)).data
+	return n
+}
+
+type iface struct{ tab, data unsafe.Pointer }
+
+var textNodeTab = func() unsafe.Pointer {
+	var n Node = TextNode("")
+	return (*iface)(unsafe.Pointer(&n)).tab
+}()
 
 // Fragment renders children in order, with no element around them.
 func Fragment(children ...Node) Node { return Group(children) }

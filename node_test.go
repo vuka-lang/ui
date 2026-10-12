@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -262,5 +263,50 @@ func BenchmarkTable1000(b *testing.B) {
 		if err := n.Render(ctx, io.Discard); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+// TestElCopies checks El and F at every size their one-allocation boxes
+// cover and beyond: the element holds copies of its attributes and children.
+func TestElCopies(t *testing.T) {
+	for na := 0; na <= 9; na++ {
+		for nk := 0; nk <= 20; nk++ {
+			attrs := make([]ui.Attr, na)
+			for i := range attrs {
+				attrs[i] = ui.Attr{Name: fmt.Sprintf("a%d", i), Value: i}
+			}
+			kids := make([]ui.Node, nk)
+			for i := range kids {
+				kids[i] = ui.Text(i)
+			}
+			e := ui.El("p", attrs, kids...).(*ui.Element)
+			if !reflect.DeepEqual(e.Attrs, attrs) && na > 0 || na == 0 && e.Attrs != nil ||
+				!reflect.DeepEqual(e.Children, kids) && nk > 0 || nk == 0 && e.Children != nil {
+				t.Fatalf("El with %d attrs, %d children: %+v", na, nk, e)
+			}
+			if na > 0 {
+				attrs[0].Value = "changed"
+				if e.Attrs[0].Value != 0 {
+					t.Fatalf("El shares the caller's attributes")
+				}
+			}
+			f := ui.F(1, "", kids...).(*ui.Frame)
+			if !reflect.DeepEqual(f.Kids, kids) && nk > 0 || nk == 0 && f.Kids != nil {
+				t.Fatalf("F with %d kids: %+v", nk, f)
+			}
+		}
+	}
+}
+
+func TestChildText(t *testing.T) {
+	s := "a<b"
+	for _, n := range []ui.Node{ui.Child(s), ui.Text(s), ui.Child(s[:1])} {
+		tn, ok := n.(ui.TextNode)
+		if !ok || !strings.HasPrefix(s, string(tn)) {
+			t.Fatalf("%#v", n)
+		}
+	}
+	if got, _ := ui.String(context.Background(), ui.El("p", nil, ui.Child(s), ui.Text(""), ui.Child(""), ui.Text(7))); got != "<p>a&lt;b7</p>" {
+		t.Fatal(got)
 	}
 }

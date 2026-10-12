@@ -36,7 +36,7 @@ type Frame struct {
 
 // F is a Frame. Generated code calls it.
 func F(fp uint64, shape string, kids ...Node) Node {
-	return &Frame{FP: fp, Shape: shape, Kids: kids}
+	return newFrame(fp, shape, kids)
 }
 
 func (n *Frame) Render(ctx context.Context, w io.Writer) error { return renderHTML(ctx, w, n) }
