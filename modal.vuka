@@ -77,19 +77,21 @@ func Modal(p ModalProps) Node {
 
 	var head []Node
 	if p.Icon != nil {
-		head = append(head, El("span", []Attr{{"class", "vk-modal__icon"}}, p.Icon))
+		head = append(head, <span class="vk-modal__icon">{p.Icon}</span>)
 	}
 	if p.Title != nil || p.Subtitle != "" {
 		heading := []Node{}
 		if p.Title != nil {
-			heading = append(heading, El("h2", []Attr{{"class", "vk-modal__title"}}, p.Title))
+			heading = append(heading, <h2 class="vk-modal__title">{p.Title}</h2>)
 		}
 		if p.Subtitle != "" {
-			heading = append(heading, El("p", []Attr{{"class", "vk-modal__subtitle"}}, Text(p.Subtitle)))
+			heading = append(heading, <p class="vk-modal__subtitle">{Text(p.Subtitle)}</p>)
 		}
-		head = append(head, El("div", []Attr{{"class", "vk-modal__heading"}}, heading...))
+		head = append(head, <div class="vk-modal__heading">{heading}</div>)
 	}
 	if dismissible {
+		// close is already an On(...) value; pass it directly rather than through
+		// JSX's on… lowering (which would wrap it in On again).
 		head = append(head, El("button", []Attr{
 			{"type", "button"}, {"class", "vk-modal__close"}, {"aria-label", "Close"}, {"onClick", close},
 		}, Icon("x")))
@@ -97,11 +99,11 @@ func Modal(p ModalProps) Node {
 
 	dialogKids := []Node{}
 	if len(head) > 0 {
-		dialogKids = append(dialogKids, El("div", []Attr{{"class", "vk-modal__header"}}, head...))
+		dialogKids = append(dialogKids, <div class="vk-modal__header">{head}</div>)
 	}
-	dialogKids = append(dialogKids, El("div", []Attr{{"class", "vk-modal__body"}}, Child(p.Children)))
+	dialogKids = append(dialogKids, <div class="vk-modal__body">{p.Children}</div>)
 	if p.Footer != nil {
-		dialogKids = append(dialogKids, El("div", []Attr{{"class", "vk-modal__footer"}}, p.Footer))
+		dialogKids = append(dialogKids, <div class="vk-modal__footer">{p.Footer}</div>)
 	}
 
 	dialogAttrs := []Attr{{"class", class}, {"role", "dialog"}, {"aria-modal", "true"}, {"tabindex", "-1"}}

@@ -43,9 +43,7 @@ func ToastContainer(p ToastContainerProps) Node {
 	if p.Class != "" {
 		class += " " + p.Class
 	}
-	return El("div", []Attr{
-		{"ref", ref}, {"class", class}, {"role", "region"}, {"aria-label", "Notifications"}, {"aria-live", "polite"},
-	}, Child(p.Children))
+	return <div ref={ref} class={class} role="region" aria-label="Notifications" aria-live="polite">{p.Children}</div>
 }
 
 // ToastProps configures one Toast; Children is the message body.
@@ -91,16 +89,13 @@ func Toast(p ToastProps) Node {
 
 	var body []Node
 	if p.Title != "" {
-		body = append(body, El("div", []Attr{{"class", "vk-toast__title"}}, Text(p.Title)))
+		body = append(body, <div class="vk-toast__title">{Text(p.Title)}</div>)
 	}
 	body = append(body, Child(p.Children))
 
-	kids := []Node{El("div", []Attr{{"class", "vk-toast__body"}}, body...)}
+	kids := []Node{<div class="vk-toast__body">{body}</div>}
 	if !p.Closed {
-		kids = append(kids, El("button", []Attr{
-			{"type", "button"}, {"class", "vk-toast__close"}, {"aria-label", "Dismiss"},
-			{"onClick", On(DismissToast())},
-		}, Text("×")))
+		kids = append(kids, <button type="button" class="vk-toast__close" aria-label="Dismiss" onClick={DismissToast()}>{Text("×")}</button>)
 	}
 	return El("div", attrs, kids...)
 }

@@ -42,16 +42,13 @@ func Alert(p AlertProps) Node {
 
 	var body []Node
 	if p.Title != "" {
-		body = append(body, El("div", []Attr{{"class", "vk-alert__title"}}, Text(p.Title)))
+		body = append(body, <div class="vk-alert__title">{Text(p.Title)}</div>)
 	}
 	body = append(body, Child(p.Children))
 
-	kids := []Node{El("div", []Attr{{"class", "vk-alert__body"}}, body...)}
+	kids := []Node{<div class="vk-alert__body">{body}</div>}
 	if p.Dismissible {
-		kids = append(kids, El("button", []Attr{
-			{"type", "button"}, {"class", "vk-alert__close"}, {"aria-label", "Dismiss"},
-			{"onClick", On(JS.Hide(Closest(".vk-alert")))},
-		}, Text("×")))
+		kids = append(kids, <button type="button" class="vk-alert__close" aria-label="Dismiss" onClick={JS.Hide(Closest(".vk-alert"))}>{Text("×")}</button>)
 	}
-	return El("div", []Attr{{"class", class}, {"role", "alert"}}, kids...)
+	return <div class={class} role="alert">{kids}</div>
 }

@@ -105,7 +105,7 @@ func DataTable[T any](p DataTableProps[T]) Node {
 		kids = append(kids, bar)
 	}
 	kids = append(kids, table, dataTableFoot(p))
-	return El("div", []Attr{{"class", class}}, kids...)
+	return <div class={class}>{kids}</div>
 }
 
 func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
@@ -125,10 +125,7 @@ func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
 			aria = "ascending"
 		}
 	}
-	return El("button", []Attr{
-		{"type", "button"}, {"class", "vk-sort"}, {"aria-sort", aria},
-		{"onClick", On(JS.Push(onSort, Value(c.Sort)))},
-	}, c.Header, ind)
+	return <button type="button" class="vk-sort" aria-sort={aria} onClick={JS.Push(onSort, Value(c.Sort))}>{c.Header}{ind}</button>
 }
 
 func dataTableBar[T any](p DataTableProps[T]) Node {
@@ -144,20 +141,20 @@ func dataTableBar[T any](p DataTableProps[T]) Node {
 		if ph == "" {
 			ph = "Search…"
 		}
-		left = append(left, El("div", []Attr{{"class", "vk-datatable__searchbox"}},
-			Icon("search", "vk-datatable__searchicon"),
-			El("input", []Attr{
-				{"type", "search"}, {"class", "vk-datatable__search"}, {"name", "q"},
-				{"placeholder", ph}, {"aria-label", "Search"}, {"value", p.Search},
-				{"onInput", On(p.OnSearch)},
-			}),
-		))
+		// OnSearch is any (a JS chain or a live handler); On accepts it, while
+		// JSX's on… lowering requires a function type, so build the input with El.
+		search := El("input", []Attr{
+			{"type", "search"}, {"class", "vk-datatable__search"}, {"name", "q"},
+			{"placeholder", ph}, {"aria-label", "Search"}, {"value", p.Search},
+			{"onInput", On(p.OnSearch)},
+		})
+		left = append(left, <div class="vk-datatable__searchbox">{Icon("search", "vk-datatable__searchicon")}{search}</div>)
 	}
-	kids := []Node{El("div", []Attr{{"class", "vk-datatable__bar-left"}}, left...)}
+	kids := []Node{<div class="vk-datatable__bar-left">{left}</div>}
 	if p.Toolbar != nil {
-		kids = append(kids, El("div", []Attr{{"class", "vk-datatable__bar-right"}}, p.Toolbar))
+		kids = append(kids, <div class="vk-datatable__bar-right">{p.Toolbar}</div>)
 	}
-	return El("div", []Attr{{"class", "vk-datatable__bar"}}, kids...)
+	return <div class="vk-datatable__bar">{kids}</div>
 }
 
 func dataTableFoot[T any](p DataTableProps[T]) Node {
@@ -173,10 +170,7 @@ func dataTableFoot[T any](p DataTableProps[T]) Node {
 		left = append(left, sizeSelect(p))
 	}
 
-	return El("div", []Attr{{"class", "vk-datatable__foot"}},
-		El("div", []Attr{{"class", "vk-datatable__count"}}, left...),
-		pager(page, p.Window, p.OnPage),
-	)
+	return <div class="vk-datatable__foot"><div class="vk-datatable__count">{left}</div>{pager(page, p.Window, p.OnPage)}</div>
 }
 
 func sizeSelect[T any](p DataTableProps[T]) Node {
@@ -188,14 +182,15 @@ func sizeSelect[T any](p DataTableProps[T]) Node {
 		}
 		opts = append(opts, El("option", a, Text(strconv.Itoa(n))))
 	}
-	return El("label", []Attr{{"class", "vk-datatable__size"}},
-		Text("Per page "),
-		El("select", []Attr{{"aria-label", "Rows per page"}, {"onChange", On(p.OnSize)}}, opts...))
+	// OnSize is any; build the select with El so On can wrap it (JSX's on…
+	// lowering requires a function type).
+	sel := El("select", []Attr{{"aria-label", "Rows per page"}, {"onChange", On(p.OnSize)}}, opts...)
+	return <label class="vk-datatable__size">{Text("Per page ")}{sel}</label>
 }
 
 func pager[T any](page Page[T], window int, onPage any) Node {
 	if page.Pages <= 1 {
-		return El("div", []Attr{{"class", "vk-pager"}})
+		return <div class="vk-pager"></div>
 	}
 	if window < 1 {
 		window = 5
@@ -205,7 +200,7 @@ func pager[T any](page Page[T], window int, onPage any) Node {
 		kids = append(kids, pagerButton(strconv.Itoa(n), "Page "+strconv.Itoa(n), n, true, n == page.Page, onPage))
 	}
 	kids = append(kids, pagerButton("›", "Next page", page.Page+1, page.HasNext, false, onPage))
-	return El("nav", []Attr{{"class", "vk-pager"}, {"aria-label", "Pagination"}}, kids...)
+	return <nav class="vk-pager" aria-label="Pagination">{kids}</nav>
 }
 
 func pagerButton(label, aria string, target int, enabled, current bool, onPage any) Node {

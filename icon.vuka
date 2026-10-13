@@ -46,12 +46,7 @@ func Icon(name string, class ...string) Node {
 		}
 	}
 	inner := icons[name]
-	return El("svg", []Attr{
-		{"class", c}, {"viewBox", "0 0 24 24"}, {"width", "1em"}, {"height", "1em"},
-		{"fill", "none"}, {"stroke", "currentColor"}, {"stroke-width", "2"},
-		{"stroke-linecap", "round"}, {"stroke-linejoin", "round"},
-		{"aria-hidden", "true"}, {"data-vk-icon", name},
-	}, RawHTML(inner))
+	return <svg class={c} viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon={name}>{RawHTML(inner)}</svg>
 }
 
 // RegisterIcon adds or replaces an icon in the built-in set. body is the inner

@@ -24,21 +24,21 @@ type CardProps struct {
 func Card(p CardProps) Node {
 	var kids []Node
 	if p.Title != nil || p.Header != nil {
-		head := []Node{El("div", []Attr{{"class", "vk-card__title"}}, Child(p.Title))}
+		head := []Node{<div class="vk-card__title">{p.Title}</div>}
 		if p.Header != nil {
-			head = append(head, El("div", []Attr{{"class", "vk-card__header-actions"}}, p.Header))
+			head = append(head, <div class="vk-card__header-actions">{p.Header}</div>)
 		}
-		kids = append(kids, El("div", []Attr{{"class", "vk-card__header"}}, head...))
+		kids = append(kids, <div class="vk-card__header">{head}</div>)
 	}
 	bodyClass := "vk-card__body"
 	if p.NoPad {
 		bodyClass += " vk-card__body--flush"
 	}
-	kids = append(kids, El("div", []Attr{{"class", bodyClass}}, Child(p.Children)))
+	kids = append(kids, <div class={bodyClass}>{p.Children}</div>)
 
 	class := "vk-card"
 	if p.Class != "" {
 		class += " " + p.Class
 	}
-	return El("div", []Attr{{"class", class}}, kids...)
+	return <div class={class}>{kids}</div>
 }
