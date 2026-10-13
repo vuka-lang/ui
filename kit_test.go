@@ -172,15 +172,15 @@ func TestDataTableSelection(t *testing.T) {
 		if boxes != 3 {
 			t.Fatalf("v%d: expected 3 row checkboxes, got %d", v, boxes)
 		}
-		// Tick the first row.
-		if err := c.Fire(r+`input[aria-label="Select row"]`, ui.Event{Type: "click"}); err != nil {
+		// Tick the first row (a checkbox fires change, not click).
+		if err := c.Fire(r+`input[aria-label="Select row"]`, ui.Event{Type: "change"}); err != nil {
 			t.Fatal(err)
 		}
 		if !strings.Contains(c.HTML(), "vk-row--selected") {
 			t.Fatalf("v%d: row not highlighted after select: %s", v, c.HTML())
 		}
 		// Select-all.
-		if err := c.Click(r + `input[aria-label="Select all"]`); err != nil {
+		if err := c.Fire(r+`input[aria-label="Select all"]`, ui.Event{Type: "change"}); err != nil {
 			t.Fatal(err)
 		}
 		if n := strings.Count(c.HTML(), "vk-row--selected"); n != 3 {

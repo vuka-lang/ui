@@ -40,10 +40,15 @@ type TableProps[T any] struct {
 	SelectName string
 	// RowSelected is a live checkbox's ticked state, and highlights the row.
 	RowSelected func(T) bool
-	// OnSelect is the live handler a row's checkbox calls; it receives the row
-	// and returns the handler to run (a func, as an on… attribute takes).
+	// OnSelect is the live handler a row's checkbox calls on change; it
+	// receives the row and returns the handler to run. The checkbox fires
+	// onChange with its new ticked state, so the returned handler should take
+	// that bool (func(ctx, bool) or func(bool)) and set the row's selection
+	// to it — reading the real box state, not toggling a server-side guess.
 	OnSelect func(T) any
-	// OnSelectAll is the header checkbox's handler (select or clear the page).
+	// OnSelectAll is the header checkbox's onChange handler; it takes the new
+	// ticked state (func(ctx, bool) / func(bool)) — select the page when true,
+	// clear it when false.
 	OnSelectAll any
 	// AllSelected ticks the header checkbox; SomeSelected marks it mixed.
 	AllSelected  bool
@@ -96,23 +101,23 @@ func Table[T any](p TableProps[T]) Node {
 		span++
 	}
 
-	table := FT(0xbbef6bbf761609e, "Ed(E(E(h))h)", func(__d []any) Node { return F(0xbbef6bbf761609e, "Ed(E(E(h))h)", El("table", []Attr{{Name: "class", Value: __d[0]}, }, El("thead", nil, El("tr", nil, Child(__d[1]), ), ), Child(__d[2]), ), ) }, /*line table.vuka:96:25*/class, /*line table.vuka:96:44*/headerCells(p), /*line table.vuka:96:73*/tableBody(p, span), )
-	return FT(0x1d53ff64f23eda42, "Es(h)", func(__d []any) Node { return F(0x1d53ff64f23eda42, "Es(h)", El("div", []Attr{{Name: "class", Value: "vk-table-wrap"}, }, Child(__d[0]), ), ) }, /*line table.vuka:97:37*/table, )
+	table := FT(0xbbef6bbf761609e, "Ed(E(E(h))h)", func(__d []any) Node { return F(0xbbef6bbf761609e, "Ed(E(E(h))h)", El("table", []Attr{{Name: "class", Value: __d[0]}, }, El("thead", nil, El("tr", nil, Child(__d[1]), ), ), Child(__d[2]), ), ) }, /*line table.vuka:101:25*/class, /*line table.vuka:101:44*/headerCells(p), /*line table.vuka:101:73*/tableBody(p, span), )
+	return FT(0x1d53ff64f23eda42, "Es(h)", func(__d []any) Node { return F(0x1d53ff64f23eda42, "Es(h)", El("div", []Attr{{Name: "class", Value: "vk-table-wrap"}, }, Child(__d[0]), ), ) }, /*line table.vuka:102:37*/table, )
 }
 
 func headerCells[T any](p TableProps[T]) []Node {
 	var cells []Node
 	if p.Selectable {
-		cells = append(cells, FT(0x322511ed4a8215c6, "Ess(h)", func(__d []any) Node { return F(0x322511ed4a8215c6, "Ess(h)", El("th", []Attr{{Name: "class", Value: "vk-col--center vk-col--select"}, {Name: "scope", Value: "col"}, }, Child(__d[0]), ), ) }, /*line table.vuka:103:80*/selectAll(p), )/*line table.vuka:103:98*/)
+		cells = append(cells, FT(0x322511ed4a8215c6, "Ess(h)", func(__d []any) Node { return F(0x322511ed4a8215c6, "Ess(h)", El("th", []Attr{{Name: "class", Value: "vk-col--center vk-col--select"}, {Name: "scope", Value: "col"}, }, Child(__d[0]), ), ) }, /*line table.vuka:108:80*/selectAll(p), )/*line table.vuka:108:98*/)
 	}
 	if p.Index {
-		cells = append(cells, FT(0x20d167f848868fea, "Ess(h)", func(__d []any) Node { return F(0x20d167f848868fea, "Ess(h)", El("th", []Attr{{Name: "class", Value: "vk-col--center vk-col--index"}, {Name: "scope", Value: "col"}, }, Child(__d[0]), ), ) }, /*line table.vuka:106:79*/Text("#"), )/*line table.vuka:106:94*/)
+		cells = append(cells, FT(0x20d167f848868fea, "Ess(h)", func(__d []any) Node { return F(0x20d167f848868fea, "Ess(h)", El("th", []Attr{{Name: "class", Value: "vk-col--center vk-col--index"}, {Name: "scope", Value: "col"}, }, Child(__d[0]), ), ) }, /*line table.vuka:111:79*/Text("#"), )/*line table.vuka:111:94*/)
 	}
 	for _, c := range p.Columns {
 		cells = append(cells, El("th", thAttrs(c), c.Header))
 	}
 	if p.RowActions != nil {
-		cells = append(cells, FT(0xdcdb60d2670a80f1, "Esss()", func(__d []any) Node { return F(0xdcdb60d2670a80f1, "Esss()", El("th", []Attr{{Name: "class", Value: "vk-col--right"}, {Name: "scope", Value: "col"}, {Name: "aria-label", Value: "Actions"}, }, ), ) }, )/*line table.vuka:112:89*/)
+		cells = append(cells, FT(0xdcdb60d2670a80f1, "Esss()", func(__d []any) Node { return F(0xdcdb60d2670a80f1, "Esss()", El("th", []Attr{{Name: "class", Value: "vk-col--right"}, {Name: "scope", Value: "col"}, {Name: "aria-label", Value: "Actions"}, }, ), ) }, )/*line table.vuka:117:89*/)
 	}
 	return cells
 }
@@ -128,7 +133,7 @@ func selectAll[T any](p TableProps[T]) Node {
 	if p.SomeSelected && !p.AllSelected {
 		attrs = append(attrs, Attr{"aria-checked", "mixed"}, Attr{"data-vk-mixed", "true"})
 	}
-	attrs = append(attrs, Attr{"onClick", On(p.OnSelectAll)})
+	attrs = append(attrs, Attr{"onChange", On(p.OnSelectAll)})
 	return El("input", attrs)
 }
 
@@ -155,7 +160,7 @@ func colClass[T any](c Column[T]) string {
 
 func tableBody[T any](p TableProps[T], span int) Node {
 	if len(p.Rows) == 0 {
-		return FT(0x66b004ef1e9379a4, "E(E(Eds(h)))", func(__d []any) Node { return F(0x66b004ef1e9379a4, "E(E(Eds(h)))", El("tbody", nil, El("tr", nil, El("td", []Attr{{Name: "colspan", Value: __d[0]}, {Name: "class", Value: "vk-table__empty"}, }, Child(__d[1]), ), ), ), ) }, /*line table.vuka:155:34*/span, /*line table.vuka:155:65*/emptyState(p), )
+		return FT(0x66b004ef1e9379a4, "E(E(Eds(h)))", func(__d []any) Node { return F(0x66b004ef1e9379a4, "E(E(Eds(h)))", El("tbody", nil, El("tr", nil, El("td", []Attr{{Name: "colspan", Value: __d[0]}, {Name: "class", Value: "vk-table__empty"}, }, Child(__d[1]), ), ), ), ) }, /*line table.vuka:160:34*/span, /*line table.vuka:160:65*/emptyState(p), )
 	}
 	name := p.SelectName
 	if name == "" {
@@ -168,17 +173,17 @@ func tableBody[T any](p TableProps[T], span int) Node {
 			cells = append(cells, selectCell(p, row, name))
 		}
 		if p.Index {
-			cells = append(cells, FT(0xb644018ea163e4a1, "Es(h)", func(__d []any) Node { return F(0xb644018ea163e4a1, "Es(h)", El("td", []Attr{{Name: "class", Value: "vk-col--center vk-col--index"}, }, Child(__d[0]), ), ) }, /*line table.vuka:168:68*/Text(strconv.Itoa(p.IndexFrom+i+1)), )/*line table.vuka:168:109*/)
+			cells = append(cells, FT(0xb644018ea163e4a1, "Es(h)", func(__d []any) Node { return F(0xb644018ea163e4a1, "Es(h)", El("td", []Attr{{Name: "class", Value: "vk-col--center vk-col--index"}, }, Child(__d[0]), ), ) }, /*line table.vuka:173:68*/Text(strconv.Itoa(p.IndexFrom+i+1)), )/*line table.vuka:173:109*/)
 		}
 		for _, c := range p.Columns {
-			cells = append(cells, FT(0x6156f19f2b23c53a, "Ed(h)", func(__d []any) Node { return F(0x6156f19f2b23c53a, "Ed(h)", El("td", []Attr{{Name: "class", Value: __d[0]}, }, Child(__d[1]), ), ) }, /*line table.vuka:171:37*/colClass(c), /*line table.vuka:171:51*/cellNode(c, row), )/*line table.vuka:171:73*/)
+			cells = append(cells, FT(0x6156f19f2b23c53a, "Ed(h)", func(__d []any) Node { return F(0x6156f19f2b23c53a, "Ed(h)", El("td", []Attr{{Name: "class", Value: __d[0]}, }, Child(__d[1]), ), ) }, /*line table.vuka:176:37*/colClass(c), /*line table.vuka:176:51*/cellNode(c, row), )/*line table.vuka:176:73*/)
 		}
 		if p.RowActions != nil {
-			cells = append(cells, FT(0xe70f0b704bcc89f3, "Es(h)", func(__d []any) Node { return F(0xe70f0b704bcc89f3, "Es(h)", El("td", []Attr{{Name: "class", Value: "vk-col--right vk-col--actions"}, }, Child(__d[0]), ), ) }, /*line table.vuka:174:69*/p.RowActions(row), )/*line table.vuka:174:92*/)
+			cells = append(cells, FT(0xe70f0b704bcc89f3, "Es(h)", func(__d []any) Node { return F(0xe70f0b704bcc89f3, "Es(h)", El("td", []Attr{{Name: "class", Value: "vk-col--right vk-col--actions"}, }, Child(__d[0]), ), ) }, /*line table.vuka:179:69*/p.RowActions(row), )/*line table.vuka:179:92*/)
 		}
 		rows = append(rows, El("tr", rowAttrs(p, row), cells...))
 	}
-	return FT(0xde0e1f86d4cc8c33, "E(h)", func(__d []any) Node { return F(0xde0e1f86d4cc8c33, "E(h)", El("tbody", nil, Child(__d[0]), ), ) }, /*line table.vuka:178:17*/rows, )
+	return FT(0xde0e1f86d4cc8c33, "E(h)", func(__d []any) Node { return F(0xde0e1f86d4cc8c33, "E(h)", El("tbody", nil, Child(__d[0]), ), ) }, /*line table.vuka:183:17*/rows, )
 }
 
 func rowAttrs[T any](p TableProps[T], row T) []Attr {
@@ -217,11 +222,11 @@ func selectCell[T any](p TableProps[T], row T, name string) Node {
 		if p.RowSelected != nil && p.RowSelected(row) {
 			attrs = append(attrs, Attr{"checked", true})
 		}
-		attrs = append(attrs, Attr{"onClick", On(p.OnSelect(row))})
+		attrs = append(attrs, Attr{"onChange", On(p.OnSelect(row))})
 	} else {
 		attrs = append(attrs, Attr{"name", name})
 	}
-	return FT(0xf2ffff67f56e5cbd, "Es(h)", func(__d []any) Node { return F(0xf2ffff67f56e5cbd, "Es(h)", El("td", []Attr{{Name: "class", Value: "vk-col--center vk-col--select"}, }, Child(__d[0]), ), ) }, /*line table.vuka:221:52*/El("input", attrs), )
+	return FT(0xf2ffff67f56e5cbd, "Es(h)", func(__d []any) Node { return F(0xf2ffff67f56e5cbd, "Es(h)", El("td", []Attr{{Name: "class", Value: "vk-col--center vk-col--select"}, }, Child(__d[0]), ), ) }, /*line table.vuka:226:52*/El("input", attrs), )
 }
 
 func emptyState[T any](p TableProps[T]) Node {
@@ -232,7 +237,7 @@ func emptyState[T any](p TableProps[T]) Node {
 	if p.EmptyIcon == nil {
 		return msg
 	}
-	return FT(0xf86a827239167692, "Es(Es(h)Es(h))", func(__d []any) Node { return F(0xf86a827239167692, "Es(Es(h)Es(h))", El("div", []Attr{{Name: "class", Value: "vk-empty"}, }, El("span", []Attr{{Name: "class", Value: "vk-empty__icon"}, }, Child(__d[0]), ), El("span", []Attr{{Name: "class", Value: "vk-empty__msg"}, }, Child(__d[1]), ), ), ) }, /*line table.vuka:232:61*/p.EmptyIcon, /*line table.vuka:232:109*/msg, )
+	return FT(0xf86a827239167692, "Es(Es(h)Es(h))", func(__d []any) Node { return F(0xf86a827239167692, "Es(Es(h)Es(h))", El("div", []Attr{{Name: "class", Value: "vk-empty"}, }, El("span", []Attr{{Name: "class", Value: "vk-empty__icon"}, }, Child(__d[0]), ), El("span", []Attr{{Name: "class", Value: "vk-empty__msg"}, }, Child(__d[1]), ), ), ) }, /*line table.vuka:237:61*/p.EmptyIcon, /*line table.vuka:237:109*/msg, )
 }
 
 func cellNode[T any](c Column[T], row T) Node {

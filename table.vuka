@@ -37,10 +37,15 @@ type TableProps[T any] struct {
 	SelectName string
 	// RowSelected is a live checkbox's ticked state, and highlights the row.
 	RowSelected func(T) bool
-	// OnSelect is the live handler a row's checkbox calls; it receives the row
-	// and returns the handler to run (a func, as an on… attribute takes).
+	// OnSelect is the live handler a row's checkbox calls on change; it
+	// receives the row and returns the handler to run. The checkbox fires
+	// onChange with its new ticked state, so the returned handler should take
+	// that bool (func(ctx, bool) or func(bool)) and set the row's selection
+	// to it — reading the real box state, not toggling a server-side guess.
 	OnSelect func(T) any
-	// OnSelectAll is the header checkbox's handler (select or clear the page).
+	// OnSelectAll is the header checkbox's onChange handler; it takes the new
+	// ticked state (func(ctx, bool) / func(bool)) — select the page when true,
+	// clear it when false.
 	OnSelectAll any
 	// AllSelected ticks the header checkbox; SomeSelected marks it mixed.
 	AllSelected  bool
@@ -125,7 +130,7 @@ func selectAll[T any](p TableProps[T]) Node {
 	if p.SomeSelected && !p.AllSelected {
 		attrs = append(attrs, Attr{"aria-checked", "mixed"}, Attr{"data-vk-mixed", "true"})
 	}
-	attrs = append(attrs, Attr{"onClick", On(p.OnSelectAll)})
+	attrs = append(attrs, Attr{"onChange", On(p.OnSelectAll)})
 	return El("input", attrs)
 }
 
@@ -214,7 +219,7 @@ func selectCell[T any](p TableProps[T], row T, name string) Node {
 		if p.RowSelected != nil && p.RowSelected(row) {
 			attrs = append(attrs, Attr{"checked", true})
 		}
-		attrs = append(attrs, Attr{"onClick", On(p.OnSelect(row))})
+		attrs = append(attrs, Attr{"onChange", On(p.OnSelect(row))})
 	} else {
 		attrs = append(attrs, Attr{"name", name})
 	}
