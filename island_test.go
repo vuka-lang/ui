@@ -31,12 +31,13 @@ func renderIsland(t *testing.T, n Node) string {
 
 func TestIslandHostAttributes(t *testing.T) {
 	registerChart(t)
-	html := renderIsland(t, MountIsland(Chart{Series: []int{1, 2}, Title: "Sales"}, Visible()))
+	html := renderIsland(t, MountIsland("p#1", Chart{Series: []int{1, 2}, Title: "Sales"}, Visible()))
 
 	for _, want := range []string{
 		"<vk-island",
 		`data-vk-island="Chart"`,
 		`data-vk-client="visible"`,
+		`data-vk-s="p#1"`, // the stable site, not a per-render counter
 		`data-vk-props="`,
 		"&#34;series&#34;:[1,2]", // JSON, HTML-escaped in the attribute
 		"&#34;title&#34;:&#34;Sales&#34;",
@@ -69,12 +70,12 @@ func TestIslandStrategyDefaultAndOverride(t *testing.T) {
 	// decorator default = idle
 	Island("islands/Chart.vue", "idle")(vuka.TypeOf[Chart]("dashboard.Chart"))
 
-	def := renderIsland(t, MountIsland(Chart{}))
+	def := renderIsland(t, MountIsland("p#1", Chart{}))
 	if !strings.Contains(def, `data-vk-client="idle"`) {
 		t.Errorf("decorator default strategy not used:\n%s", def)
 	}
 
-	over := renderIsland(t, MountIsland(Chart{}, Load()))
+	over := renderIsland(t, MountIsland("p#1", Chart{}, Load()))
 	if !strings.Contains(over, `data-vk-client="load"`) {
 		t.Errorf("tag strategy did not override default:\n%s", over)
 	}
@@ -83,12 +84,12 @@ func TestIslandStrategyDefaultAndOverride(t *testing.T) {
 func TestIslandMediaAndRootMargin(t *testing.T) {
 	registerChart(t)
 
-	m := renderIsland(t, MountIsland(Chart{}, Media("(max-width:600px)")))
+	m := renderIsland(t, MountIsland("p#1", Chart{}, Media("(max-width:600px)")))
 	if !strings.Contains(m, `data-vk-client="media"`) || !strings.Contains(m, `data-vk-media="(max-width:600px)"`) {
 		t.Errorf("media strategy not emitted:\n%s", m)
 	}
 
-	v := renderIsland(t, MountIsland(Chart{}, Visible("200px")))
+	v := renderIsland(t, MountIsland("p#1", Chart{}, Visible("200px")))
 	if !strings.Contains(v, `data-vk-rootmargin="200px"`) {
 		t.Errorf("visible rootMargin not emitted:\n%s", v)
 	}
@@ -96,7 +97,7 @@ func TestIslandMediaAndRootMargin(t *testing.T) {
 
 func TestIslandSlotAndFallback(t *testing.T) {
 	registerChart(t)
-	html := renderIsland(t, MountIsland(Chart{},
+	html := renderIsland(t, MountIsland("p#1", Chart{},
 		Visible(),
 		Fallback(El("div", []Attr{{"class", "skeleton"}})),
 		Slot(Text("clicks")),
@@ -117,7 +118,7 @@ func TestIslandLivePropUnwrapped(t *testing.T) {
 	Island("islands/Live.ts")(vuka.TypeOf[Live]("dashboard.Live"))
 	a := &Assign[[]int]{}
 	a.Set([]int{1, 2, 3})
-	html := renderIsland(t, MountIsland(Live{Rows: a}))
+	html := renderIsland(t, MountIsland("p#1", Live{Rows: a}))
 	if !strings.Contains(html, "&#34;rows&#34;:[1,2,3]") {
 		t.Errorf("live *Assign prop should serialize its value, not the struct:\n%s", html)
 	}
@@ -125,7 +126,7 @@ func TestIslandLivePropUnwrapped(t *testing.T) {
 
 func TestIslandUnregistered(t *testing.T) {
 	type orphan struct{ X int }
-	html := renderIsland(t, MountIsland(orphan{}))
+	html := renderIsland(t, MountIsland("p#1", orphan{}))
 	if !strings.Contains(html, "data-vk-error") {
 		t.Errorf("unregistered island should render an error host:\n%s", html)
 	}

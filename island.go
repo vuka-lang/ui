@@ -206,9 +206,11 @@ func islandProps(v any) ([]byte, error) {
 var islandSeq atomic.Uint64
 
 // MountIsland renders the <vk-island> host the client loader hydrates. The
-// transpiler emits it for a tag whose type carries @ui.Island; props is that
-// type's value (its exported fields are serialized as JSON for the client).
-func MountIsland(props any, opts ...IslandOpt) Node {
+// transpiler emits it for a tag whose type carries @ui.Island; site is a stable
+// id for the island's placement (the live-view diff and ctx.ref rely on it not
+// changing across renders), and props is the type's value (its exported fields
+// are serialized as JSON for the client).
+func MountIsland(site string, props any, opts ...IslandOpt) Node {
 	var cfg islandConfig
 	for _, o := range opts {
 		o(&cfg)
@@ -227,8 +229,15 @@ func MountIsland(props any, opts ...IslandOpt) Node {
 		strategy = "visible"
 	}
 
+	// A stable scope id per placement. The transpiler passes the source site;
+	// a direct call without one falls back to a per-process counter (not stable
+	// across renders, but direct callers aren't in the live-view diff path).
+	scope := site
+	if scope == "" {
+		scope = "i" + strconv.FormatUint(islandSeq.Add(1), 36)
+	}
 	attrs := []Attr{
-		{"data-vk-s", "i" + strconv.FormatUint(islandSeq.Add(1), 36)},
+		{"data-vk-s", scope},
 		{"data-vk-island", info.Name},
 		{"data-vk-client", strategy},
 	}
