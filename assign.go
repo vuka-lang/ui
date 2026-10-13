@@ -40,7 +40,14 @@ func (a *Assign[T]) Update(f func(T) T) { a.v, a.dirty = f(a.v), true }
 
 func (a *Assign[T]) assignDirty() *bool { return &a.dirty }
 
+// assignValue is the current value as any, for island props serialization: a
+// `*Assign[T]` island prop is sent to the client as its value, and a live
+// re-render with a changed value drives the island's update().
+func (a *Assign[T]) assignValue() any { return a.v }
+
 type assigner interface{ assignDirty() *bool }
+
+type assignValuer interface{ assignValue() any }
 
 // stateFields is a component type's Assign fields, or tracked false when a
 // state field isn't one.

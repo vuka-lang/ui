@@ -163,7 +163,11 @@ func islandProps(v any) ([]byte, error) {
 		if name == "" {
 			name = f.Name
 		}
-		out[name] = rv.Field(i).Interface()
+		v := rv.Field(i).Interface()
+		if av, ok := v.(assignValuer); ok { // a *Assign[T] live prop → its value
+			v = av.assignValue()
+		}
+		out[name] = v
 	}
 	return json.Marshal(out)
 }

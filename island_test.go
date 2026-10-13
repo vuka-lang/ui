@@ -110,6 +110,19 @@ func TestIslandSlotAndFallback(t *testing.T) {
 	}
 }
 
+func TestIslandLivePropUnwrapped(t *testing.T) {
+	type Live struct {
+		Rows *Assign[[]int] `json:"rows"`
+	}
+	Island("islands/Live.ts")(vuka.TypeOf[Live]("dashboard.Live"))
+	a := &Assign[[]int]{}
+	a.Set([]int{1, 2, 3})
+	html := renderIsland(t, MountIsland(Live{Rows: a}))
+	if !strings.Contains(html, "&#34;rows&#34;:[1,2,3]") {
+		t.Errorf("live *Assign prop should serialize its value, not the struct:\n%s", html)
+	}
+}
+
 func TestIslandUnregistered(t *testing.T) {
 	type orphan struct{ X int }
 	html := renderIsland(t, MountIsland(orphan{}))
