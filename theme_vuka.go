@@ -168,7 +168,8 @@ const Styles = `:root{
 .vk-badge--soft.vk-badge--info{color:var(--ui-info);background:color-mix(in srgb,var(--ui-info) 14%,transparent)}
 
 /* Tabs */
-.vk-tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--ui-border);margin-bottom:1rem;overflow-x:auto}
+.vk-tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--ui-border);margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.vk-tabs::-webkit-scrollbar{width:0;height:0;display:none}
 .vk-tab{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem .9rem;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ui-muted);
   font:inherit;font-weight:600;font-size:.9rem;cursor:pointer;text-decoration:none;white-space:nowrap;margin-bottom:-1px}
 .vk-tab:hover{color:var(--ui-fg)}
@@ -229,4 +230,4 @@ const Styles = `:root{
 //	func layout(page ui.Node) ui.Node {
 //		return ui.El("html", nil, ui.El("head", nil, ui.StyleTag()), ui.El("body", nil, page))
 //	}
-func StyleTag() Node { return FT(0xf79e2de859ee41ef, "Es(h)", func(__d []any) Node { return F(0xf79e2de859ee41ef, "Es(h)", El("style", []Attr{{Name: "data-vk-ui", Value: true}, }, Child(__d[0]), ), ) }, /*line theme.vuka:229:50*/RawHTML(Styles), )/*line theme.vuka:229:74*/ }
+func StyleTag() Node { return FT(0xf79e2de859ee41ef, "Es(h)", func(__d []any) Node { return F(0xf79e2de859ee41ef, "Es(h)", El("style", []Attr{{Name: "data-vk-ui", Value: true}, }, Child(__d[0]), ), ) }, /*line theme.vuka:230:50*/RawHTML(Styles), )/*line theme.vuka:230:74*/ }

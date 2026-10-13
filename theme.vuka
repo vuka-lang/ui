@@ -165,7 +165,8 @@ const Styles = `:root{
 .vk-badge--soft.vk-badge--info{color:var(--ui-info);background:color-mix(in srgb,var(--ui-info) 14%,transparent)}
 
 /* Tabs */
-.vk-tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--ui-border);margin-bottom:1rem;overflow-x:auto}
+.vk-tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--ui-border);margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.vk-tabs::-webkit-scrollbar{width:0;height:0;display:none}
 .vk-tab{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem .9rem;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ui-muted);
   font:inherit;font-weight:600;font-size:.9rem;cursor:pointer;text-decoration:none;white-space:nowrap;margin-bottom:-1px}
 .vk-tab:hover{color:var(--ui-fg)}
