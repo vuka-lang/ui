@@ -2,6 +2,7 @@ package live
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -73,9 +74,15 @@ func payload(t reflect.Type, ev ui.Event) (reflect.Value, error) {
 		return reflect.ValueOf(ev.Form).Convert(t), nil
 	case t.Kind() == reflect.Struct:
 		v := reflect.New(t)
+		if len(ev.Data) > 0 { // an island emit's JSON payload
+			return v.Elem(), jsonPayload(v.Interface(), ev)
+		}
 		return v.Elem(), bindForm(v.Elem(), ev.Form)
 	case t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct:
 		v := reflect.New(t.Elem())
+		if len(ev.Data) > 0 {
+			return v, jsonPayload(v.Interface(), ev)
+		}
 		return v, bindForm(v.Elem(), ev.Form)
 	}
 	s := ev.Value
@@ -87,6 +94,14 @@ func payload(t reflect.Type, ev ui.Event) (reflect.Value, error) {
 		return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err)}
 	}
 	return v, nil
+}
+
+// jsonPayload binds an island emit's JSON argument (ev.Data) into ptr (a *T).
+func jsonPayload(ptr any, ev ui.Event) error {
+	if err := json.Unmarshal(ev.Data, ptr); err != nil {
+		return publicErr{fmt.Errorf("live: %s event payload: %w", ev.Type, err)}
+	}
+	return nil
 }
 
 func setScalar(v reflect.Value, s string) error {

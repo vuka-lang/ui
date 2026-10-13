@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/url"
@@ -189,11 +190,12 @@ func EventName(attr string) string { return strings.ToLower(strings.TrimPrefix(a
 // the target element's value (for a checkbox, "true" or "false"); Key the key
 // of a keyboard event; Form the fields of the form a submit event comes from.
 type Event struct {
-	Target string     `json:"target"`
-	Type   string     `json:"event,omitempty"`
-	Value  string     `json:"value,omitempty"`
-	Key    string     `json:"key,omitempty"`
-	Form   url.Values `json:"form,omitempty"`
+	Target string          `json:"target"`
+	Type   string          `json:"event,omitempty"`
+	Value  string          `json:"value,omitempty"`
+	Key    string          `json:"key,omitempty"`
+	Form   url.Values      `json:"form,omitempty"`
+	Data   json.RawMessage `json:"data,omitempty"` // an island emit's payload (arbitrary JSON)
 }
 
 // LiveHost renders stateful components and registers event handlers for a

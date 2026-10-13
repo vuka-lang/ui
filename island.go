@@ -88,6 +88,12 @@ type islandConfig struct {
 	slot     Node
 	fallback Node
 	ssr      bool
+	emits    []islandEmit
+}
+
+type islandEmit struct {
+	name    string
+	handler any
 }
 
 // Load hydrates the island immediately on page load (client:load).
@@ -127,6 +133,31 @@ func Slot(n Node) IslandOpt { return func(c *islandConfig) { c.slot = n } }
 // Fallback sets what shows until the island hydrates (and the SSR target under
 // SSR). Distinct from the component's Slot.
 func Fallback(n Node) IslandOpt { return func(c *islandConfig) { c.fallback = n } }
+
+// Emit binds one of the island component's emits to a live-view handler: the
+// transpiler emits it for an on<Emit> attribute on the tag. When the mounted
+// component emits name, the handler runs on the server with the emit's payload
+// (a struct/*T handler param is bound from the emitted JSON). handler is an
+// On-style value (a func, usually a view method).
+func Emit(name string, handler any) IslandOpt {
+	return func(c *islandConfig) { c.emits = append(c.emits, islandEmit{name, handler}) }
+}
+
+// emitAttr normalizes an emit name to the lower-case alphanumerics used as the
+// data-vk-emit-<suffix> attribute key; the client adapter normalizes the Vue
+// emit name the same way to find it.
+func emitAttr(name string) string {
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'A' && r <= 'Z':
+			b.WriteRune(r - 'A' + 'a')
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
 
 // Template marks a named region slot inside a <ui.Island> wrapper — e.g.
 // <ui.Template fallback>…</ui.Template> gives the island's pre-hydration
@@ -216,6 +247,14 @@ func MountIsland(props any, opts ...IslandOpt) Node {
 	}
 	if cfg.ssr {
 		attrs = append(attrs, Attr{"data-vk-ssr", true})
+	}
+	for _, e := range cfg.emits {
+		// An "on<name>" attr with an On(handler) value renders as
+		// data-vk-on-<name> with a cN:idx handler id (the live render's event
+		// mechanism). The name isn't a DOM event, so nothing fires it from the
+		// page; the island's client adapter reads the id and fires it on the
+		// component's matching emit (via ctx.emit → the live socket).
+		attrs = append(attrs, Attr{"on" + emitAttr(e.name), On(e.handler)})
 	}
 
 	var kids []Node
