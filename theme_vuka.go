@@ -222,7 +222,14 @@ const Styles = `:root{
   .vk-datatable__bar{flex-direction:column;align-items:stretch}
   .vk-datatable__bar-right{margin-left:0}
   .vk-tile-grid{grid-template-columns:1fr}
-}`
+}
+.vk-img{background-color:#e2e8f0;background-image:linear-gradient(90deg,transparent,rgb(255 255 255/.6),transparent);background-size:200% 100%;background-repeat:no-repeat;animation:vk-img-shimmer 1.3s ease infinite}
+.vk-img--plain{background:none;animation:none}
+@keyframes vk-img-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.vk-img-wrap{position:relative;overflow:hidden}
+.vk-img-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to top,rgb(0 0 0/.6),rgb(0 0 0/.08),transparent)}
+.vk-img-overlay{position:absolute;inset:0}
+@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}`
 
 // StyleTag is a <style> element holding Styles, to place in a page's head so
 // the components are themed:
@@ -230,4 +237,4 @@ const Styles = `:root{
 //	func layout(page ui.Node) ui.Node {
 //		return ui.El("html", nil, ui.El("head", nil, ui.StyleTag()), ui.El("body", nil, page))
 //	}
-func StyleTag() Node { return FT(0xf79e2de859ee41ef, "Es(h)", func(__d []any) Node { return F(0xf79e2de859ee41ef, "Es(h)", El("style", []Attr{{Name: "data-vk-ui", Value: true}, }, Child(__d[0]), ), ) }, /*line theme.vuka:230:50*/RawHTML(Styles), )/*line theme.vuka:230:74*/ }
+func StyleTag() Node { return FT(0xf79e2de859ee41ef, "Es(h)", func(__d []any) Node { return F(0xf79e2de859ee41ef, "Es(h)", El("style", []Attr{{Name: "data-vk-ui", Value: true}, }, Child(__d[0]), ), ) }, /*line theme.vuka:237:50*/RawHTML(Styles), )/*line theme.vuka:237:74*/ }
