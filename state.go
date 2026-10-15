@@ -393,6 +393,23 @@ func (b Binding) node() Node {
 	return El("vk-t", []Attr{{Name: "data-vk-b", Value: bindJSON{b}}}, Text(b.Init))
 }
 
+// BindAttr is an attribute named name that reads state s: rendered with
+// its value, and kept up to date by the browser, as a JSX attribute reading
+// a state is. It is for attribute lists built in Go — a component's
+// []ui.Attr — where the compiler doesn't lower reads; an expression of
+// states goes through ui.Derived:
+//
+//	<components.Button attrs={[]ui.Attr{
+//		ui.BindAttr("aria-expanded", open),
+//		ui.BindAttr("data-busy", ui.Derived(saving && !failed)),
+//	}} />
+//
+// An aria-* attribute writes a bool as "true" or "false"; any other bool
+// attribute is there while true.
+func BindAttr(name string, s AnyState) Attr {
+	return Attr{Name: name, Value: Bind(s.stateOf().v, `{"$":0}`, s)}
+}
+
 // bindJSON is a binding's expression as an attribute value, written once
 // the render's context is known.
 type bindJSON struct{ b Binding }

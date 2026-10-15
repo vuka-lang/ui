@@ -141,6 +141,31 @@ func TestBindings(t *testing.T) {
 	}
 }
 
+func TestBindAttr(t *testing.T) {
+	open := ui.NewState("open", false)
+	tab := ui.NewState("tab", "env")
+	busy := ui.NewDerived(!open.Get() && tab.Get() == "env", `["&&",["!",{"$":0}],["==",{"$":1},"env"]]`, open, tab)
+	out, _ := page(t, ui.El("button", []ui.Attr{
+		ui.BindAttr("aria-expanded", open),
+		ui.BindAttr("hidden", open),
+		ui.BindAttr("title", tab),
+		ui.BindAttr("data-busy", busy),
+	}))
+	for _, want := range []string{
+		`aria-expanded="false" data-vk-b-aria-expanded="{&#34;i&#34;:false,&#34;s&#34;:&#34;c0:open:1&#34;}"`,
+		`data-vk-b-hidden="{&#34;i&#34;:false,&#34;s&#34;:&#34;c0:open:1&#34;}"`,
+		`title="env" data-vk-b-title="{&#34;i&#34;:&#34;env&#34;,&#34;s&#34;:&#34;c0:tab:1&#34;}"`,
+		`data-busy data-vk-b-data-busy="[&#34;&amp;&amp;&#34;,[&#34;!&#34;,{&#34;i&#34;:false,&#34;s&#34;:&#34;c0:open:1&#34;}],[&#34;==&#34;,{&#34;i&#34;:&#34;env&#34;,&#34;s&#34;:&#34;c0:tab:1&#34;},&#34;env&#34;]]"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %s in\n%s", html.UnescapeString(want), html.UnescapeString(out))
+		}
+	}
+	if strings.Contains(out, " hidden ") || strings.Contains(out, "<button hidden") {
+		t.Errorf("a false state rendered hidden: %s", out)
+	}
+}
+
 func TestBindingRefusals(t *testing.T) {
 	open := ui.NewState("o", false)
 	for _, name := range []string{"onclick", "srcdoc", "ref", "key"} {
