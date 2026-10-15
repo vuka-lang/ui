@@ -583,6 +583,10 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		}
 		parent.children[place] = in
 		s.byID[in.id] = in
+	case ui.IsIsland(typ):
+		// A page backed by its island: its exported fields are its own —
+		// the props it sends its component — set from the URL at mount, not
+		// by the page's render.
 	default:
 		same = sameProps(in.comp, n.Props)
 		copyProps(in.comp, n.Props)

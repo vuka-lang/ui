@@ -110,6 +110,12 @@ type islandConfig struct {
 	emits    []islandEmit
 	funcs    []islandEmit // function props: a handler or a JS chain per prop name
 	states   []islandState
+
+	// A page backed by its island (island_page.go).
+	methods          []islandEmit // live: each method's handler
+	methodNames      []string
+	callURL, callSig string // stateless: where its methods are called
+	err              *IslandError
 }
 
 type islandState struct {
@@ -225,6 +231,7 @@ var (
 	timeType     = reflect.TypeFor[time.Time]()
 	anyStateType = reflect.TypeFor[AnyState]()
 	jsChainType  = reflect.TypeFor[JSChain]()
+	liveType     = reflect.TypeFor[Live]()
 )
 
 // An island's props travel as JSON in data-vk-props. Values JSON can't carry
@@ -258,7 +265,7 @@ func islandFields(v any) (fields []islandField, funcs []islandEmit, ok bool) {
 	rt := rv.Type()
 	for i := 0; i < rt.NumField(); i++ {
 		f := rt.Field(i)
-		if !f.IsExported() {
+		if !f.IsExported() || f.Anonymous && f.Type == liveType {
 			continue
 		}
 		name, opts, _ := strings.Cut(f.Tag.Get("json"), ",")
@@ -537,6 +544,27 @@ func MountIsland(site string, props any, opts ...IslandOpt) Node {
 	}
 	if cfg.once {
 		attrs = append(attrs, Attr{"data-vk-once", true})
+	}
+	if cfg.methodNames != nil {
+		j, _ := marshal(cfg.methodNames)
+		attrs = append(attrs, Attr{"data-vk-methods", string(j)})
+	}
+	for _, m := range cfg.methods {
+		attrs = append(attrs, Attr{"onm-" + strings.ToLower(m.name), On(m.handler)})
+	}
+	if cfg.callURL != "" {
+		attrs = append(attrs, Attr{"data-vk-call", cfg.callURL}, Attr{"data-vk-sig", cfg.callSig})
+	}
+	if cfg.err != nil {
+		j, _ := marshal(cfg.err)
+		attrs = append(attrs, Attr{"data-vk-err", string(j)})
+	}
+	if u := urlFields(reflect.TypeOf(props)); u != nil {
+		j, _ := marshal(u)
+		attrs = append(attrs, Attr{"data-vk-url", string(j)})
+	}
+	if Viewer != nil {
+		attrs = append(attrs, Attr{"data-vk-viewer", viewerJSON{}})
 	}
 	for _, f := range pj.funcs {
 		// A function prop's handler (data-vk-on-<prop>) or commands
