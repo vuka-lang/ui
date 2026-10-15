@@ -1,6 +1,7 @@
 package live
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -89,6 +90,12 @@ func payload(t reflect.Type, ev ui.Event) (reflect.Value, error) {
 	if ev.Key != "" && strings.HasPrefix(ev.Type, "key") {
 		s = ev.Key
 	}
+	if len(ev.Data) > 0 && s == "" { // an island's function prop called with a scalar
+		var err error
+		if s, err = scalarData(ev.Data); err != nil {
+			return reflect.New(t).Elem(), publicErr{fmt.Errorf("live: %s event payload: %w", ev.Type, err)}
+		}
+	}
 	v := reflect.New(t).Elem()
 	if err := setScalar(v, s); err != nil {
 		return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err)}
@@ -102,6 +109,28 @@ func jsonPayload(ptr any, ev ui.Event) error {
 		return publicErr{fmt.Errorf("live: %s event payload: %w", ev.Type, err)}
 	}
 	return nil
+}
+
+// scalarData is a JSON scalar (an island function's argument) as the text an
+// event's value would be.
+func scalarData(data []byte) (string, error) {
+	d := json.NewDecoder(bytes.NewReader(data))
+	d.UseNumber()
+	var x any
+	if err := d.Decode(&x); err != nil {
+		return "", err
+	}
+	switch x := x.(type) {
+	case nil:
+		return "", nil
+	case string:
+		return x, nil
+	case json.Number:
+		return x.String(), nil
+	case bool:
+		return strconv.FormatBool(x), nil
+	}
+	return "", fmt.Errorf("an object or a list isn't a %s; take a struct", "scalar")
 }
 
 func setScalar(v reflect.Value, s string) error {

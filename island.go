@@ -1,13 +1,18 @@
 package ui
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"path"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/vuka-lang/vuka"
 )
@@ -50,6 +55,19 @@ func Island(componentPath string, strategy ...string) func(*vuka.Type) {
 	}
 }
 
+// RegisterIsland registers T as the island whose component is
+// componentPath: what the compiler writes for a .vuka file's import of a
+// component file (import Counter "./islands/Counter.vue"), T being the
+// props type it generates from the component.
+func RegisterIsland[T any](componentPath string, strategy ...string) {
+	t := reflect.TypeFor[T]()
+	info := &islandInfo{Name: t.Name(), Path: componentPath, Framework: frameworkOf(componentPath)}
+	if len(strategy) > 0 {
+		info.Strategy = strategy[0]
+	}
+	islandReg.Store(t, info)
+}
+
 func shortName(qualified string) string {
 	if i := strings.LastIndex(qualified, "."); i >= 0 {
 		return qualified[i+1:]
@@ -88,7 +106,15 @@ type islandConfig struct {
 	slot     Node
 	fallback Node
 	ssr      bool
+	once     bool
 	emits    []islandEmit
+	funcs    []islandEmit // function props: a handler or a JS chain per prop name
+	states   []islandState
+}
+
+type islandState struct {
+	prop  string
+	state AnyState
 }
 
 type islandEmit struct {
@@ -134,6 +160,34 @@ func Slot(n Node) IslandOpt { return func(c *islandConfig) { c.slot = n } }
 // SSR). Distinct from the component's Slot.
 func Fallback(n Node) IslandOpt { return func(c *islandConfig) { c.fallback = n } }
 
+// Once keeps the island's props as first rendered: a live re-render whose
+// props changed doesn't update the mounted component (the once attribute on
+// a tag). Without it an island is live: changed props reach the component's
+// update, with no remount.
+func Once() IslandOpt { return func(c *islandConfig) { c.once = true } }
+
+// Callback passes a function prop: prop is its wire name (onSelect), fn a
+// live view method or other handler (calling the function in the browser
+// pushes it, with the function's first argument as its payload) or a JS
+// chain (calling it runs the commands). The compiler writes it for an
+// attribute of a function-typed prop: <Chart onSelect={p.Zoom}/>.
+func Callback(prop string, fn any) IslandOpt {
+	return func(c *islandConfig) { c.funcs = append(c.funcs, islandEmit{prop, fn}) }
+}
+
+// StateProp passes a client state as a prop: the component gets its value,
+// is updated when it changes, and its writes (a Vue model's update:<prop>, a
+// React set<Prop>, a Svelte $bindable) set the state — and whatever reads
+// it on the page. A ui.Derived is passed one way. The compiler writes it for
+// a ui.State attribute of an island tag: <Counter count={n}/>.
+func StateProp[T any](prop string, s State[T]) IslandOpt {
+	return func(c *islandConfig) { c.states = append(c.states, islandState{prop, s}) }
+}
+
+// Ptr is a pointer to v: what the compiler writes for a value given to an
+// optional island prop (a pointer field).
+func Ptr[T any](v T) *T { return &v }
+
 // Emit binds one of the island component's emits to a live-view handler: the
 // transpiler emits it for an on<Emit> attribute on the tag. When the mounted
 // component emits name, the handler runs on the server with the emit's payload
@@ -166,25 +220,48 @@ func emitAttr(name string) string {
 // renders nothing.
 func Template(...any) Node { return Fragment() }
 
-var nodeType = reflect.TypeFor[Node]()
+var (
+	nodeType     = reflect.TypeFor[Node]()
+	timeType     = reflect.TypeFor[time.Time]()
+	anyStateType = reflect.TypeFor[AnyState]()
+	jsChainType  = reflect.TypeFor[JSChain]()
+)
 
-// islandProps serializes an island's props to JSON, as data-vk-props. It omits
-// what isn't a prop: unexported fields, json:"-" fields, and Node-typed fields
-// (the slot, conventionally a Children ui.Node) — those are handed to the
-// component as the slot, not serialized. A non-struct marshals as is.
-func islandProps(v any) ([]byte, error) {
+// An island's props travel as JSON in data-vk-props. Values JSON can't carry
+// are tagged objects the runtime turns back into what the component gets:
+//
+//	{"$vk":"date","v":"2026-10-15T09:00:00Z"}     a time.Time → a Date
+//	{"$vk":"fn","e":"onselect"}                   a function prop: the host's
+//	                                              data-vk-on-onselect (a live
+//	                                              handler) or data-vk-js-onselect
+//	                                              (commands) runs when it is called
+//	{"$vk":"state","s":key,"i":init,"p":[path]}   a ui.State: its value, kept
+//	                                              current, and written back
+//	{"$vk":"state","x":expr}                      a ui.Derived: read only
+
+// islandField is one serialized prop of an island's struct.
+type islandField struct {
+	name  string
+	value reflect.Value
+}
+
+// islandFields is the props of an island's struct: what isn't a prop is left
+// out — unexported fields, json:"-" fields, Node-typed fields (the slot,
+// conventionally a Children ui.Node, handed to the component as the slot)
+// and omitempty fields that are empty. Function fields (and JS chains) are
+// returned apart, as the function props they are.
+func islandFields(v any) (fields []islandField, funcs []islandEmit, ok bool) {
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	if !rv.IsValid() || rv.Kind() != reflect.Struct {
-		return json.Marshal(v)
+		return nil, nil, false
 	}
 	rt := rv.Type()
-	out := make(map[string]any, rt.NumField())
 	for i := 0; i < rt.NumField(); i++ {
 		f := rt.Field(i)
 		if !f.IsExported() {
 			continue
 		}
-		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+		name, opts, _ := strings.Cut(f.Tag.Get("json"), ",")
 		if name == "-" {
 			continue
 		}
@@ -194,13 +271,213 @@ func islandProps(v any) ([]byte, error) {
 		if name == "" {
 			name = f.Name
 		}
-		v := rv.Field(i).Interface()
+		fv := rv.Field(i)
+		if f.Type.Kind() == reflect.Interface && !fv.IsNil() {
+			fv = fv.Elem()
+		}
+		switch {
+		case fv.Kind() == reflect.Func:
+			if !fv.IsNil() {
+				funcs = append(funcs, islandEmit{name, fv.Interface()})
+			}
+			continue
+		case fv.IsValid() && fv.Type().Implements(jsChainType) && !fv.Type().Implements(anyStateType):
+			funcs = append(funcs, islandEmit{name, fv.Interface()})
+			continue
+		}
+		if st, ok := fv.Interface().(AnyState); ok && fv.Kind() != reflect.Interface && st.stateOf().c == nil {
+			continue // a zero ui.State: not given
+		}
+		if strings.Contains(","+opts+",", ",omitempty,") && emptyValue(fv) {
+			continue
+		}
+		fields = append(fields, islandField{name, fv})
+	}
+	return fields, funcs, true
+}
+
+func emptyValue(v reflect.Value) bool {
+	if !v.IsValid() {
+		return true
+	}
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Pointer, reflect.Interface:
+		return v.IsNil()
+	}
+	return v.IsZero() && v.Kind() != reflect.Struct
+}
+
+// islandPropsJSON is an island's data-vk-props, written when the render's
+// context is known: a state's key is the render's.
+type islandPropsJSON struct {
+	props  any
+	fields []islandField
+	funcs  []islandEmit
+	states []islandState
+	plain  bool // props isn't a struct: marshaled as is
+}
+
+func (p islandPropsJSON) Render(ctx context.Context, w io.Writer) error {
+	j, err := p.json(ctx)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(j)
+	return err
+}
+
+func (p islandPropsJSON) json(ctx context.Context) ([]byte, error) {
+	if p.plain {
+		return marshal(p.props)
+	}
+	out := make(map[string]any, len(p.fields)+len(p.funcs)+len(p.states))
+	js := false
+	for _, f := range p.fields {
+		v := f.value.Interface()
 		if av, ok := v.(assignValuer); ok { // a *Assign[T] live prop → its value
 			v = av.assignValue()
 		}
-		out[name] = v
+		if s, ok := v.(AnyState); ok {
+			r, err := stateProp(ctx, s)
+			if err != nil {
+				return nil, fmt.Errorf("ui: island prop %s: %w", f.name, err)
+			}
+			out[f.name], js = r, true
+			continue
+		}
+		t, err := tagDates(v)
+		if err != nil {
+			return nil, fmt.Errorf("ui: island prop %s: %w", f.name, err)
+		}
+		out[f.name] = t
 	}
-	return json.Marshal(out)
+	for _, f := range p.funcs {
+		out[f.name] = map[string]string{"$vk": "fn", "e": emitAttr(f.name)}
+		if _, ok := f.handler.(JSChain); ok {
+			js = true
+		}
+	}
+	for _, s := range p.states {
+		r, err := stateProp(ctx, s.state)
+		if err != nil {
+			return nil, fmt.Errorf("ui: island prop %s: %w", s.prop, err)
+		}
+		out[s.prop], js = r, true
+	}
+	if js {
+		if pr, ok := liveHost(ctx).(*pageProbe); ok {
+			pr.info.JS = true
+		}
+	}
+	return marshal(out)
+}
+
+// stateProp is a state prop's tagged reference: the state's key, initial
+// value and path, or a derived state's expression (read only).
+func stateProp(ctx context.Context, s AnyState) (any, error) {
+	sv := s.stateOf()
+	r, err := sv.ref(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	if sv.c.derived != nil {
+		return map[string]any{"$vk": "state", "x": r}, nil
+	}
+	m := r.(map[string]any)
+	m["$vk"] = "state"
+	return m, nil
+}
+
+// tagDates is v ready for JSON with each time.Time in it tagged as a date.
+// A value whose type holds no time.Time is returned as is.
+func tagDates(v any) (any, error) {
+	if v == nil || !holdsTime(reflect.TypeOf(v)) {
+		return v, nil
+	}
+	j, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var x any
+	d := json.NewDecoder(bytes.NewReader(j))
+	d.UseNumber()
+	if err := d.Decode(&x); err != nil {
+		return nil, err
+	}
+	return dateTags(reflect.TypeOf(v), x), nil
+}
+
+var holdsTimeOf sync.Map // reflect.Type → bool
+
+// holdsTime reports whether a value of t may hold a time.Time.
+func holdsTime(t reflect.Type) bool {
+	if b, ok := holdsTimeOf.Load(t); ok {
+		return b.(bool)
+	}
+	holdsTimeOf.Store(t, false) // a recursive type's own reference
+	b := false
+	switch t.Kind() {
+	case reflect.Struct:
+		if t == timeType {
+			b = true
+			break
+		}
+		for i := 0; i < t.NumField() && !b; i++ {
+			b = t.Field(i).IsExported() && holdsTime(t.Field(i).Type)
+		}
+	case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Map:
+		b = holdsTime(t.Elem())
+	}
+	holdsTimeOf.Store(t, b)
+	return b
+}
+
+// dateTags walks x, a value of t decoded from its JSON, tagging the dates.
+func dateTags(t reflect.Type, x any) any {
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if x == nil || !holdsTime(t) {
+		return x
+	}
+	switch t.Kind() {
+	case reflect.Struct:
+		if t == timeType {
+			return map[string]any{"$vk": "date", "v": x}
+		}
+		m, ok := x.(map[string]any)
+		if !ok {
+			return x
+		}
+		for i := 0; i < t.NumField(); i++ {
+			f := t.Field(i)
+			if !f.IsExported() {
+				continue
+			}
+			name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+			if name == "" {
+				name = f.Name
+			}
+			if v, ok := m[name]; ok {
+				m[name] = dateTags(f.Type, v)
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		if l, ok := x.([]any); ok {
+			for i := range l {
+				l[i] = dateTags(t.Elem(), l[i])
+			}
+		}
+	case reflect.Map:
+		if m, ok := x.(map[string]any); ok {
+			for k := range m {
+				m[k] = dateTags(t.Elem(), m[k])
+			}
+		}
+	}
+	return x
 }
 
 var islandSeq atomic.Uint64
@@ -251,11 +528,20 @@ func MountIsland(site string, props any, opts ...IslandOpt) Node {
 			attrs = append(attrs, Attr{"data-vk-rootmargin", cfg.arg})
 		}
 	}
-	if j, err := islandProps(props); err == nil {
-		attrs = append(attrs, Attr{"data-vk-props", string(j)})
-	}
+	pj := islandPropsJSON{props: props, states: cfg.states}
+	fields, funcs, ok := islandFields(props)
+	pj.fields, pj.funcs, pj.plain = fields, append(funcs, cfg.funcs...), !ok
+	attrs = append(attrs, Attr{"data-vk-props", pj})
 	if cfg.ssr {
 		attrs = append(attrs, Attr{"data-vk-ssr", true})
+	}
+	if cfg.once {
+		attrs = append(attrs, Attr{"data-vk-once", true})
+	}
+	for _, f := range pj.funcs {
+		// A function prop's handler (data-vk-on-<prop>) or commands
+		// (data-vk-js-<prop>); the prop's tagged value names it.
+		attrs = append(attrs, Attr{"on" + emitAttr(f.name), On(f.handler)})
 	}
 	for _, e := range cfg.emits {
 		// An "on<name>" attr with an On(handler) value renders as
