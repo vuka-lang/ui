@@ -1558,6 +1558,16 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 				if x == This {
 					continue
 				}
+			case stateView:
+				r, err := x.ref(ctx, nil)
+				if err != nil {
+					return nil, fmt.Errorf("%s: %w", o.name, err)
+				}
+				m := r.(map[string]any)
+				kvs = []jsArg{{"s", m["s"]}, {"i", m["i"]}}
+				if p, ok := m["p"]; ok {
+					kvs = append(kvs, jsArg{"p", p})
+				}
 			case *push:
 				if err := CheckHandler(x.fn); err != nil {
 					return nil, fmt.Errorf("ui: JS Push %w", err)

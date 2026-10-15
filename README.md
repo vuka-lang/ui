@@ -11,7 +11,8 @@ declares `const VukaJSX = 1`, Vuka's JSX target contract).
   browser runs on an event (`JS`, `Ref`, `Live.PushJS`), and a payload for a
   component's scripts (`Live.PushEvent`); links a live page
   follows over its connection (`Link`, `JS.Patch`/`Navigate`,
-  `Live.PushPatch`/`PushNavigate`).
+  `Live.PushPatch`/`PushNavigate`); client state the browser keeps and
+  JSX reads (`State`, `Derived`, `Class`, `Show`, `Bind`).
 - `ui/live` — sessions that keep stateful components alive for a connected
   browser, and the wire protocol transports speak.
 - `ui/term` — renders a node tree as terminal text.

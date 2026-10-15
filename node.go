@@ -124,6 +124,8 @@ func Child(x any) Node {
 	switch v := x.(type) {
 	case nil:
 		return Group(nil)
+	case Binding:
+		return v.node()
 	case Node:
 		return v
 	case string:

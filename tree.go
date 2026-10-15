@@ -344,6 +344,7 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 		return b.value(ctx, n.frame())
 	case *ComponentNode:
 		if th, ok := liveHost(ctx).(TreeHost); ok && n != nil {
+			KeyStates(ctx, n.Props)
 			id, err := th.ComponentRef(ctx, n)
 			if id == "" || err != nil {
 				return "", err

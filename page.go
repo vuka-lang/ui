@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -38,7 +39,20 @@ func RenderPage(ctx context.Context, n Node, w io.Writer) (info PageInfo, err er
 
 // pageProbe is RenderPage's LiveHost: it renders nothing live, noting
 // what it meets.
-type pageProbe struct{ info PageInfo }
+type pageProbe struct {
+	info   PageInfo
+	states map[string]int
+}
+
+// StateKey names a state as a live session names those of its page (c0),
+// so the page's states keep their keys when a session renders it again.
+func (p *pageProbe) StateKey(_ context.Context, site string) string {
+	if p.states == nil {
+		p.states = map[string]int{}
+	}
+	p.states[site]++
+	return "c0:" + site + ":" + strconv.Itoa(p.states[site])
+}
 
 var errPageLive = errors.New("ui: the page is live")
 

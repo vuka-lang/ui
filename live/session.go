@@ -504,6 +504,14 @@ func (sc *scope) Handler(_ context.Context, fn any) string {
 	return sc.in.id + ":" + strconv.Itoa(len(sc.in.handlers)-1)
 }
 
+// StateKey names a state the instance renders: its id, the state's site,
+// and how many of the site's states it rendered before in this render.
+func (sc *scope) StateKey(_ context.Context, site string) string {
+	occ := "\x00state " + site
+	sc.in.occ[occ]++
+	return sc.in.id + ":" + site + ":" + strconv.Itoa(sc.in.occ[occ])
+}
+
 func (sc *scope) Keyed(ctx context.Context, key any) context.Context {
 	return ui.WithLiveHost(ctx, &scope{sc.in, sc.keys + keyText(key) + "/"})
 }

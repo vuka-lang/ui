@@ -108,6 +108,7 @@ func Component(site string, key any, props Stateful) Node {
 
 func (n *ComponentNode) Render(ctx context.Context, w io.Writer) error {
 	if h := liveHost(ctx); h != nil {
+		KeyStates(ctx, n.Props)
 		return h.Component(ctx, n, w)
 	}
 	c, err := n.static(ctx)

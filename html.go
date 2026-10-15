@@ -264,6 +264,9 @@ func (h *HTMLRenderer) attr(e *Element, a Attr) error { return h.attrNamed(e.Tag
 // holding one is compiled as not fast.
 func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 	name := a.Name
+	if b, ok := a.Value.(Binding); ok {
+		return h.bindAttr(tag, e, name, b)
+	}
 	if eh, ok := a.Value.(EventHandler); ok {
 		if ch, ok := eh.Fn.(JSChain); ok {
 			return h.jsAttr(name, ch)
@@ -357,6 +360,9 @@ func attrValue(ctx context.Context, tag, name string, v any) (string, uint8, err
 	}
 	switch {
 	case name == "class":
+		if c, ok := v.(Class); ok {
+			v = map[string]bool(c)
+		}
 		return templ.Classes(v).String(), attrEscaped, nil
 	case name == "style":
 		if s, ok := v.(Style); ok {

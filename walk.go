@@ -63,6 +63,8 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		return Walk(ctx, c.Render(), r)
 	case TextNode:
 		return r.Text(string(n))
+	case Binding:
+		return Walk(ctx, n.node(), r)
 	case RawHTML:
 		return r.Raw(string(n))
 	case *Frame:
