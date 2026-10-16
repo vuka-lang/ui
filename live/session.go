@@ -332,6 +332,48 @@ func (s *Session) Info(topic string, msg any) (Patch, error) {
 	return p, err
 }
 
+// Deferred starts the deferred loads of the pages backed by their islands
+// the session holds (ui.StartDeferred), each once: the transport runs each
+// (Run, with a context ending when the page does) once the page has joined,
+// and hands it to Loaded.
+func (s *Session) Deferred() []*ui.DeferredLoad {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []*ui.DeferredLoad
+	for _, in := range s.order() {
+		if in.comp != nil {
+			out = append(out, ui.StartDeferred(in.comp)...)
+		}
+	}
+	return out
+}
+
+// Loaded gives its page what the deferred load d loaded (or its error,
+// as the session's error text says, for the component to read), renders
+// the page again, and returns what changed.
+func (s *Session) Loaded(d *ui.DeferredLoad) (Patch, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return Patch{}, errors.New("live: the session is closed")
+	}
+	d.Apply(s.errorTextFn())
+	return s.patch()
+}
+
+func (s *Session) errorTextFn() func(error) string {
+	text := s.errText
+	return func(err error) string {
+		if m, ok := PublicMessage(err); ok {
+			return m
+		}
+		if text == nil {
+			return "error"
+		}
+		return text(err)
+	}
+}
+
 // Topics is every topic an instance subscribes to, sorted: what the transport
 // routes to Info. It changes as instances come and go.
 func (s *Session) Topics() []string {

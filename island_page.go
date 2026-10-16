@@ -70,7 +70,7 @@ func IslandMethods(t reflect.Type) []IslandMethod {
 	var out []IslandMethod
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
-		if lifecycle[m.Name] || liveMethods[m.Name] || strings.HasPrefix(m.Name, "Update__") {
+		if lifecycle[m.Name] || liveMethods[m.Name] || strings.HasPrefix(m.Name, "Update__") || isLoader(t, m.Name) {
 			continue
 		}
 		mt := m.Type
@@ -228,9 +228,17 @@ func IslandPage(x any, opts ...IslandOpt) Node {
 		}
 		o = append(o, func(c *islandConfig) { c.methods = append(c.methods, islandEmit{"_set", set}) })
 	}
+	var loads *Loads
+	if s, ok := x.(Stateful); ok && probe.callURL == "" {
+		loads = liveLoads(s)
+	}
 	o = append(o, func(c *islandConfig) {
 		c.methodNames = names
 		c.fields = fieldsJSON(fields)
+		c.deferred = true
+		if loads != nil {
+			c.loads = loads
+		}
 		if e, ok := pageErrors.Load(x); ok {
 			c.err = e.(*IslandError)
 		}
@@ -298,9 +306,17 @@ func urlFields(t reflect.Type) map[string]string {
 }
 
 // PropsJSON is props (an island's struct) as its data-vk-props holds it;
-// package web signs a stateless page's.
-func PropsJSON(ctx context.Context, props any) ([]byte, error) {
+// package web signs a stateless page's. Its deferred fields not loaded
+// (WithLoads; without it, none) are left out, as IslandPage leaves them.
+func PropsJSON(ctx context.Context, props any, opts ...IslandOpt) ([]byte, error) {
+	var cfg islandConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
 	fields, funcs, ok := islandFields(props)
+	if ok {
+		fields = withoutPending(fields, cfg.loads, reflect.TypeOf(props))
+	}
 	return islandPropsJSON{props: props, fields: fields, funcs: funcs, plain: !ok}.json(ctx)
 }
 

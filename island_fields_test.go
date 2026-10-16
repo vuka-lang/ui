@@ -85,7 +85,7 @@ func TestCheckIsland(t *testing.T) {
 		{reflect.TypeFor[bindReserved](), "live.pending is live's own"},
 		{reflect.TypeFor[twoQ](), "fields Q and Q2 are both live.q"},
 		{reflect.TypeFor[methodFieldClash](), "the method Rows and the field List are both live.rows"},
-		{reflect.TypeFor[badChanged](), "Changed is Changed() or Changed(ctx"},
+		{reflect.TypeFor[badChanged](), "Changed is Changed(), Changed(ctx"},
 	} {
 		err := CheckIsland(c.t)
 		if err == nil || !strings.Contains(err.Error(), c.want) {

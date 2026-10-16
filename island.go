@@ -260,6 +260,8 @@ type islandConfig struct {
 	fields           string // data-vk-fields
 	callURL, callSig string // stateless: where its methods are called
 	err              *IslandError
+	loads            *Loads // its deferred fields' state
+	deferred         bool   // a page: its deferred fields not loaded are left out
 }
 
 type islandState struct {
@@ -439,12 +441,27 @@ func islandFields(v any) (fields []islandField, funcs []islandEmit, ok bool) {
 		if st, ok := fv.Interface().(AnyState); ok && fv.Kind() != reflect.Interface && st.stateOf().c == nil {
 			continue // a zero ui.State: not given
 		}
-		if strings.Contains(","+opts+",", ",omitempty,") && emptyValue(fv) {
+		if _, d := f.Tag.Lookup("defer"); !d && strings.Contains(","+opts+",", ",omitempty,") && emptyValue(fv) {
 			continue
 		}
 		fields = append(fields, islandField{name, fv})
 	}
 	return fields, funcs, true
+}
+
+// withoutPending is fields without t's deferred fields l hasn't loaded.
+func withoutPending(fields []islandField, l *Loads, t reflect.Type) []islandField {
+	p := l.pending(t)
+	if len(p) == 0 {
+		return fields
+	}
+	out := fields[:0:0]
+	for _, f := range fields {
+		if !p[f.name] {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 func emptyValue(v reflect.Value) bool {
@@ -681,8 +698,17 @@ func MountIsland(site string, props any, opts ...IslandOpt) Node {
 	}
 	pj := islandPropsJSON{props: props, states: cfg.states}
 	fields, funcs, ok := islandFields(props)
+	if cfg.deferred {
+		fields = withoutPending(fields, cfg.loads, reflect.TypeOf(props))
+	}
 	pj.fields, pj.funcs, pj.plain = fields, append(funcs, cfg.funcs...), !ok
 	attrs = append(attrs, Attr{"data-vk-props", pj})
+	if cfg.deferred {
+		if d := cfg.loads.JSON(reflect.TypeOf(props)); d != nil {
+			j, _ := marshal(d)
+			attrs = append(attrs, Attr{"data-vk-defer", string(j)})
+		}
+	}
 	if cfg.ssr {
 		attrs = append(attrs, Attr{"data-vk-ssr", true})
 	}

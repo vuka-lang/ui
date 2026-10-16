@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ type IslandField struct {
 	Type     reflect.Type
 	Bind     bool          // bind: the component may set it
 	Debounce time.Duration // how long a set waits for more before it is sent
+	Defer    string        // defer: the group it loads in after the first render; "" when it doesn't
 	rules    []rule
 }
 
@@ -90,6 +92,21 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 			return nil, err
 		}
 		h.rules = rules
+		if d, ok := f.Tag.Lookup("defer"); ok && d != "-" {
+			if d == "" {
+				d = f.Name
+			}
+			if !isIdent(d) {
+				return nil, fmt.Errorf("%s.%s: defer:%q: a group is a name (defer:\"stats\"), its loader Load<Name>", t.Name(), f.Name, d)
+			}
+			if hasBind {
+				return nil, fmt.Errorf("%s.%s: a deferred field is the server's to load: drop bind: or defer:", t.Name(), f.Name)
+			}
+			if q, _, _ := strings.Cut(f.Tag.Get("url"), ","); q != "" && q != "-" {
+				return nil, fmt.Errorf("%s.%s: a deferred field is the server's to load: drop url: or defer:", t.Name(), f.Name)
+			}
+			h.Defer = strings.ToUpper(d[:1]) + d[1:]
+		}
 		if hasBind {
 			n, opts, _ := strings.Cut(bind, ",")
 			if n != "" && n != h.Handle && n != h.Wire {
@@ -117,6 +134,15 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 		out = append(out, h)
 	}
 	return out, nil
+}
+
+func isIdent(s string) bool {
+	for i, r := range s {
+		if !(r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || i > 0 && r >= '0' && r <= '9') {
+			return false
+		}
+	}
+	return s != ""
 }
 
 func parseDebounce(v string) (time.Duration, error) {
@@ -162,14 +188,47 @@ func CheckIsland(t reflect.Type) error {
 		}
 	}
 	if m, ok := t.MethodByName("Changed"); ok {
-		mt := m.Type
-		in := mt.NumIn() == 1 || mt.NumIn() == 2 && mt.In(1) == ctxType
-		out := mt.NumOut() == 0 || mt.NumOut() == 1 && mt.Out(0) == errType
-		if !in || !out {
-			return fmt.Errorf("%s.Changed is Changed() or Changed(ctx context.Context), returning nothing or an error", t.Elem().Name())
+		if _, ok := changedArgs(m.Type); !ok {
+			return fmt.Errorf("%s.Changed is Changed(), Changed(ctx context.Context) or Changed(ctx context.Context, changed ui.Changed), returning nothing or an error", t.Elem().Name())
 		}
 	}
+	if _, err := deferGroups(t); err != nil {
+		return err
+	}
 	return nil
+}
+
+// Changed is what a set of the component changed, as Changed(ctx, changed
+// ui.Changed) gets it: the bound fields the set holds.
+type Changed struct{ names, also []string }
+
+// Has reports whether the set holds the field name: its wire name (its json
+// name, else its Go name, as Names has it), its handle (live.q: q) or its Go
+// name (Q).
+func (c Changed) Has(name string) bool {
+	return slices.Contains(c.names, name) || slices.Contains(c.also, name)
+}
+
+// Names are the wire names of the fields the set holds, sorted.
+func (c Changed) Names() []string { return slices.Clone(c.names) }
+
+var changedType = reflect.TypeFor[Changed]()
+
+// changedArgs are the arguments Changed takes after its receiver — a
+// context.Context, then a Changed, each optional — as "c" and "n".
+func changedArgs(mt reflect.Type) (string, bool) {
+	var args string
+	for i := 1; i < mt.NumIn(); i++ {
+		switch {
+		case mt.In(i) == ctxType && args == "":
+			args += "c"
+		case mt.In(i) == changedType && !strings.Contains(args, "n"):
+			args += "n"
+		default:
+			return "", false
+		}
+	}
+	return args, mt.NumOut() == 0 || mt.NumOut() == 1 && mt.Out(0) == errType
 }
 
 // setError is a refused or invalid set, as the component's live.error
@@ -208,6 +267,7 @@ func SetBound(ctx context.Context, x reflect.Value, data json.RawMessage) error 
 		byWire[f.Wire] = f
 	}
 	vals := make(map[int]reflect.Value, len(m))
+	var changed Changed
 	bad := Invalid{}
 	for k, raw := range m {
 		f, ok := byWire[k]
@@ -222,24 +282,33 @@ func SetBound(ctx context.Context, x reflect.Value, data json.RawMessage) error 
 			return err
 		}
 		vals[f.Index] = v.Elem()
+		changed.names = append(changed.names, f.Wire)
+		changed.also = append(changed.also, f.Handle, x.Type().Elem().Field(f.Index).Name)
 	}
+	slices.Sort(changed.names)
 	if len(bad) > 0 {
 		return bad
 	}
 	for i, v := range vals {
 		x.Elem().Field(i).Set(v)
 	}
-	return runChanged(ctx, x)
+	return runChanged(ctx, x, changed)
 }
 
-func runChanged(ctx context.Context, x reflect.Value) error {
+func runChanged(ctx context.Context, x reflect.Value, changed Changed) error {
 	m := x.MethodByName("Changed")
 	if !m.IsValid() {
 		return nil
 	}
+	mm, _ := x.Type().MethodByName("Changed")
+	args, _ := changedArgs(mm.Type)
 	var in []reflect.Value
-	if m.Type().NumIn() == 1 {
-		in = append(in, reflect.ValueOf(ctx))
+	for _, a := range args {
+		if a == 'c' {
+			in = append(in, reflect.ValueOf(ctx))
+		} else {
+			in = append(in, reflect.ValueOf(changed))
+		}
 	}
 	out := m.Call(in)
 	if len(out) == 1 && !out[0].IsNil() {
@@ -256,6 +325,9 @@ func fieldsJSON(fields []IslandField) string {
 		e := map[string]any{"w": f.Wire}
 		if f.Bind {
 			e["d"] = f.Debounce.Milliseconds()
+		}
+		if f.Defer != "" {
+			e["p"] = 1
 		}
 		m[f.Handle] = e
 	}

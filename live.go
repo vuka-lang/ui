@@ -23,7 +23,10 @@ import (
 // component mounts and renders once, as plain HTML. Under a session (package
 // live) it is an instance that keeps its state between renders and answers
 // the events of the elements it renders.
-type Live struct{ inst LiveInstance }
+type Live struct {
+	inst  LiveInstance
+	loads *Loads // a page backed by its island: its deferred fields
+}
 
 // LiveInstance is a session's side of a component instance. Package live
 // implements it.
