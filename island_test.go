@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -17,7 +18,7 @@ type Chart struct {
 
 func registerChart(t *testing.T, strategy ...string) {
 	t.Helper()
-	Island("islands/Chart.vue", strategy...)(vuka.TypeOf[Chart]("dashboard.Chart"))
+	Island(append([]string{"islands/Chart.vue"}, strategy...)...)(vuka.TypeOf[Chart]("dashboard.Chart"))
 }
 
 func renderIsland(t *testing.T, n Node) string {
@@ -129,5 +130,25 @@ func TestIslandUnregistered(t *testing.T) {
 	html := renderIsland(t, MountIsland("p#1", orphan{}))
 	if !strings.Contains(html, "data-vk-error") {
 		t.Errorf("unregistered island should render an error host:\n%s", html)
+	}
+}
+
+type Bare struct {
+	N int `json:"n"`
+}
+
+// A bare @ui.Island registers the type by name (the vuka command infers the
+// file); "" with a strategy keeps the inference and sets the default.
+func TestIslandBare(t *testing.T) {
+	Island()(vuka.TypeOf[Bare]("dashboard.Bare"))
+	if s := renderIsland(t, MountIsland("s", Bare{N: 1})); !strings.Contains(s, `data-vk-island="Bare"`) || !strings.Contains(s, `data-vk-client="visible"`) {
+		t.Fatalf("bare: %s", s)
+	}
+	Island("", "load")(vuka.TypeOf[Bare]("dashboard.Bare"))
+	if s := renderIsland(t, MountIsland("s", Bare{N: 1})); !strings.Contains(s, `data-vk-client="load"`) {
+		t.Fatalf("strategy with inference: %s", s)
+	}
+	if info := lookupIsland(reflect.TypeFor[Bare]()); info.Path != "" {
+		t.Fatalf("path: %q", info.Path)
 	}
 }

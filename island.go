@@ -36,20 +36,22 @@ type islandInfo struct {
 
 var islandReg sync.Map // reflect.Type (the props struct) -> *islandInfo
 
-// Island is the @ui.Island type decorator. @ui.Island("islands/Chart.vue")
-// above a struct type registers that type as an island whose props are its
-// exported fields; an optional strategy sets the default used when a tag gives
-// no client:* directive. The framework is inferred from the file extension
-// (.vue, .tsx/.jsx, .svelte, else vanilla .ts/.js).
-func Island(componentPath string, strategy ...string) func(*vuka.Type) {
+// Island is the @ui.Island type decorator. Above a struct type it registers
+// that type as an island whose props are its exported fields. Written bare,
+// the vuka command finds the component as islands/[<module>/]<Type>.<ext>
+// under the frontend root; @ui.Island("islands/Chart.vue") names it instead.
+// A second argument sets the default strategy used when a tag gives no
+// client:* directive: @ui.Island("", "load") keeps the inferred path. The
+// framework is inferred from the file extension (.vue, .tsx/.jsx, .svelte,
+// else vanilla .ts/.js).
+func Island(args ...string) func(*vuka.Type) {
 	return func(t *vuka.Type) {
-		info := &islandInfo{
-			Name:      shortName(t.Name),
-			Path:      componentPath,
-			Framework: frameworkOf(componentPath),
+		info := &islandInfo{Name: shortName(t.Name)}
+		if len(args) > 0 && args[0] != "" {
+			info.Path, info.Framework = args[0], frameworkOf(args[0])
 		}
-		if len(strategy) > 0 {
-			info.Strategy = strategy[0]
+		if len(args) > 1 {
+			info.Strategy = args[1]
 		}
 		islandReg.Store(t.Reflect, info)
 	}
