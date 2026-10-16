@@ -137,6 +137,9 @@ func CheckIsland(t reflect.Type) error {
 	if t.Kind() != reflect.Pointer {
 		t = reflect.PointerTo(t)
 	}
+	if info := lookupIsland(t.Elem()); info != nil && info.err != nil {
+		return info.err
+	}
 	fields, err := IslandFields(t)
 	if err != nil {
 		return err

@@ -25,13 +25,15 @@ import (
 // docs/design/islands.md.
 
 // islandInfo is a registered island: the component file, the framework
-// inferred from its extension, and the default hydration strategy (empty when
-// the decorator set none).
+// inferred from its extension, the default hydration strategy (empty when
+// the decorator set none), and the layout its page is rendered in.
 type islandInfo struct {
 	Name      string
 	Path      string
 	Framework string
 	Strategy  string
+	layouts   []LayoutFunc
+	err       error
 }
 
 var islandReg sync.Map // reflect.Type (the props struct) -> *islandInfo
@@ -40,21 +42,160 @@ var islandReg sync.Map // reflect.Type (the props struct) -> *islandInfo
 // that type as an island whose props are its exported fields. Written bare,
 // the vuka command finds the component as islands/[<module>/]<Type>.<ext>
 // under the frontend root; @ui.Island("islands/Chart.vue") names it instead.
-// A second argument sets the default strategy used when a tag gives no
-// client:* directive: @ui.Island("", "load") keeps the inferred path. The
-// framework is inferred from the file extension (.vue, .tsx/.jsx, .svelte,
-// else vanilla .ts/.js).
-func Island(args ...string) func(*vuka.Type) {
+// The framework is inferred from the file extension (.vue, .tsx/.jsx,
+// .svelte, else vanilla .ts/.js).
+//
+// After the path come options: Strategy, the default hydration strategy
+// used when a tag gives no client:* directive, and Layout, the layout of
+// the page the type backs when it is routed as one (@web.Live, @web.Get):
+//
+//	@ui.Island(ui.Layout(layouts.Page("Orders")))
+//	@ui.Island("islands/Chart.vue", ui.Strategy("load"))
+//
+// A second string is a strategy too: @ui.Island("", "load").
+func Island(args ...any) func(*vuka.Type) {
 	return func(t *vuka.Type) {
 		info := &islandInfo{Name: shortName(t.Name)}
-		if len(args) > 0 && args[0] != "" {
-			info.Path, info.Framework = args[0], frameworkOf(args[0])
-		}
-		if len(args) > 1 {
-			info.Strategy = args[1]
+		strs := 0
+		for _, a := range args {
+			switch a := a.(type) {
+			case string:
+				switch strs {
+				case 0:
+					if a != "" {
+						info.Path, info.Framework = a, frameworkOf(a)
+					}
+				case 1:
+					info.Strategy = a
+				default:
+					info.fail(fmt.Errorf("@ui.Island takes a path and a strategy, then options: %q is a third string", a))
+				}
+				strs++
+			case IslandOption:
+				if a != nil {
+					a.islandOption(info)
+				}
+			default:
+				info.fail(fmt.Errorf("@ui.Island takes a path, a strategy and options (ui.Layout, ui.Strategy), not a %T", a))
+			}
 		}
 		islandReg.Store(t.Reflect, info)
 	}
+}
+
+func (i *islandInfo) fail(err error) {
+	if i.err == nil {
+		i.err = err
+	}
+}
+
+// IslandOption is an option of @ui.Island: Layout or Strategy.
+type IslandOption interface{ islandOption(*islandInfo) }
+
+type islandOptionFunc func(*islandInfo)
+
+func (f islandOptionFunc) islandOption(i *islandInfo) { f(i) }
+
+// Strategy sets an island's default hydration strategy, used when a tag
+// gives no client:* directive: "load", "idle", "visible" (the default),
+// "media" or "only".
+func Strategy(s string) IslandOption {
+	return islandOptionFunc(func(i *islandInfo) { i.Strategy = s })
+}
+
+// LayoutFunc is a layout reading the request: the signed-in user, the
+// path (from ctx, as a page's code reads them), the page's title
+// (PageTitle).
+type LayoutFunc func(ctx context.Context, page Node) Node
+
+// Layout is the layout of the page an @ui.Island type backs, when it is
+// routed as one (@web.Live, @web.Get): the page is layout(component).
+// Placed in another page, the island ignores it. A layout is a
+// func(page ui.Node) ui.Node or a func(ctx context.Context, page ui.Node)
+// ui.Node — a LayoutFunc, which reads the request. Several nest, the first
+// outermost: Layout(document, shell) is document(shell(component)).
+//
+// It wins over the route's web.Layout and the app's web.LiveLayout.
+func Layout(layouts ...any) IslandOption {
+	fns := make([]LayoutFunc, 0, len(layouts))
+	var err error
+	for _, l := range layouts {
+		switch l := l.(type) {
+		case func(Node) Node:
+			if l != nil {
+				fns = append(fns, func(_ context.Context, page Node) Node { return l(page) })
+				continue
+			}
+		case func(context.Context, Node) Node:
+			if l != nil {
+				fns = append(fns, l)
+				continue
+			}
+		case LayoutFunc:
+			if l != nil {
+				fns = append(fns, l)
+				continue
+			}
+		}
+		if err == nil {
+			err = fmt.Errorf("ui.Layout takes func(page ui.Node) ui.Node or func(ctx context.Context, page ui.Node) ui.Node layouts, not %s", describeLayout(l))
+		}
+	}
+	return islandOptionFunc(func(i *islandInfo) {
+		if err != nil {
+			i.fail(err)
+			return
+		}
+		i.layouts = append(i.layouts, fns...)
+	})
+}
+
+func describeLayout(l any) string {
+	if l == nil {
+		return "nil"
+	}
+	if v := reflect.ValueOf(l); v.Kind() == reflect.Func && v.IsNil() {
+		return "a nil " + v.Type().String()
+	}
+	return "a " + reflect.TypeOf(l).String()
+}
+
+// IslandLayout is the layout @ui.Island's Layout gives the page t (an
+// island's struct, or a pointer to one) backs: nil when it gives none.
+func IslandLayout(t reflect.Type) LayoutFunc {
+	if t != nil && t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	info := lookupIsland(t)
+	if info == nil || len(info.layouts) == 0 {
+		return nil
+	}
+	ls := info.layouts
+	return func(ctx context.Context, page Node) Node {
+		for i := len(ls) - 1; i >= 0; i-- {
+			page = ls[i](ctx, page)
+		}
+		return page
+	}
+}
+
+type pageTitleKey struct{}
+
+// WithPageTitle is ctx carrying the title of the page being rendered.
+// Package web sets it for a page backed by a component: its Title(), else
+// the type's name.
+func WithPageTitle(ctx context.Context, title string) context.Context {
+	return context.WithValue(ctx, pageTitleKey{}, title)
+}
+
+// PageTitle is the title of the page being rendered, for a layout's
+// <title>: what WithPageTitle set, else "".
+func PageTitle(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	s, _ := ctx.Value(pageTitleKey{}).(string)
+	return s
 }
 
 // RegisterIsland registers T as the island whose component is

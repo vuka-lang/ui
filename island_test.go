@@ -18,7 +18,11 @@ type Chart struct {
 
 func registerChart(t *testing.T, strategy ...string) {
 	t.Helper()
-	Island(append([]string{"islands/Chart.vue"}, strategy...)...)(vuka.TypeOf[Chart]("dashboard.Chart"))
+	args := []any{"islands/Chart.vue"}
+	for _, s := range strategy {
+		args = append(args, s)
+	}
+	Island(args...)(vuka.TypeOf[Chart]("dashboard.Chart"))
 }
 
 func renderIsland(t *testing.T, n Node) string {
