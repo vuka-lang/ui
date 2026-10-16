@@ -91,7 +91,10 @@ func IslandMethods(t reflect.Type) []IslandMethod {
 }
 
 // Call calls the method on x (a pointer to the island's struct) with args
-// as the JSON array the component sent.
+// as the JSON array the component sent. Each argument is validated first
+// (Validate): a struct's fields are named by their own paths (years,
+// level.code), a slice's by index (0.code); any failing, the method doesn't
+// run and Call answers Invalid.
 func (m IslandMethod) Call(ctx context.Context, x reflect.Value, args json.RawMessage) error {
 	var raw []json.RawMessage
 	if len(args) > 0 && string(args) != "null" {
@@ -106,6 +109,7 @@ func (m IslandMethod) Call(ctx context.Context, x reflect.Value, args json.RawMe
 	if m.ctx {
 		in = append(in, reflect.ValueOf(ctx))
 	}
+	bad := Invalid{}
 	for i, t := range m.Args {
 		v := reflect.New(t)
 		if i < len(raw) {
@@ -113,7 +117,13 @@ func (m IslandMethod) Call(ctx context.Context, x reflect.Value, args json.RawMe
 				return publicError{fmt.Errorf("%s's argument %d: %v", m.Name, i+1, err)}
 			}
 		}
+		if err := walkValidate("", v.Elem(), nil, bad); err != nil {
+			return err
+		}
 		in = append(in, v.Elem())
+	}
+	if len(bad) > 0 {
+		return bad
 	}
 	out := m.Method.Func.Call(in)
 	if len(out) == 1 && !out[0].IsNil() {

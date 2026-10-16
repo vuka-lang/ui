@@ -21,6 +21,7 @@ type IslandField struct {
 	Type     reflect.Type
 	Bind     bool          // bind: the component may set it
 	Debounce time.Duration // how long a set waits for more before it is sent
+	rules    []rule
 }
 
 // DefaultDebounce is how long a bound field's set waits for more sets
@@ -81,6 +82,14 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 			name = f.Name
 		}
 		h := IslandField{Handle: strings.ToLower(name[:1]) + name[1:], Wire: name, Index: i, Type: f.Type}
+		rules, err := parseRules(f.Tag.Get("validate"))
+		if err != nil {
+			return nil, fmt.Errorf("%s.%s: %w", t.Name(), f.Name, err)
+		}
+		if err := CheckValidate(f.Type); err != nil {
+			return nil, err
+		}
+		h.rules = rules
 		if hasBind {
 			n, opts, _ := strings.Cut(bind, ",")
 			if n != "" && n != h.Handle && n != h.Wire {
@@ -140,6 +149,11 @@ func CheckIsland(t reflect.Type) error {
 		seen[f.Handle] = t.Elem().Field(f.Index).Name
 	}
 	for _, m := range IslandMethods(t) {
+		for _, a := range m.Args {
+			if err := CheckValidate(a); err != nil {
+				return fmt.Errorf("%s.%s: %w", t.Elem().Name(), m.Method.Name, err)
+			}
+		}
 		if f, ok := seen[m.Name]; ok {
 			return fmt.Errorf("%s: the method %s and the field %s are both live.%s: rename one (or give the field another json name)", t.Elem().Name(), m.Method.Name, f, m.Name)
 		}
@@ -174,7 +188,9 @@ func (e setError) FieldErrors() map[string]string {
 
 // SetBound sets x's (a pointer to the island's struct) bound fields from
 // data, the JSON object of wire names and values the component set, then
-// runs its Changed. A field that isn't bound is refused, and nothing is set.
+// runs its Changed. A field that isn't bound is refused, a value breaking
+// its field's validate: tag (or the tags of a struct it holds) is Invalid
+// under its wire name (q, address.city), and either way nothing is set.
 func SetBound(ctx context.Context, x reflect.Value, data json.RawMessage) error {
 	var m map[string]json.RawMessage
 	if err := json.Unmarshal(data, &m); err != nil || m == nil {
@@ -189,6 +205,7 @@ func SetBound(ctx context.Context, x reflect.Value, data json.RawMessage) error 
 		byWire[f.Wire] = f
 	}
 	vals := make(map[int]reflect.Value, len(m))
+	bad := Invalid{}
 	for k, raw := range m {
 		f, ok := byWire[k]
 		if !ok || !f.Bind {
@@ -198,7 +215,13 @@ func SetBound(ctx context.Context, x reflect.Value, data json.RawMessage) error 
 		if err := json.Unmarshal(raw, v.Interface()); err != nil {
 			return setError{status: http.StatusUnprocessableEntity, field: k, cause: "not a " + f.Type.String()}
 		}
+		if err := walkValidate(k, v.Elem(), f.rules, bad); err != nil {
+			return err
+		}
 		vals[f.Index] = v.Elem()
+	}
+	if len(bad) > 0 {
+		return bad
 	}
 	for i, v := range vals {
 		x.Elem().Field(i).Set(v)
