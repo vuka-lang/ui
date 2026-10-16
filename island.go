@@ -114,6 +114,7 @@ type islandConfig struct {
 	// A page backed by its island (island_page.go).
 	methods          []islandEmit // live: each method's handler
 	methodNames      []string
+	fields           string // data-vk-fields
 	callURL, callSig string // stateless: where its methods are called
 	err              *IslandError
 }
@@ -548,6 +549,9 @@ func MountIsland(site string, props any, opts ...IslandOpt) Node {
 	if cfg.methodNames != nil {
 		j, _ := marshal(cfg.methodNames)
 		attrs = append(attrs, Attr{"data-vk-methods", string(j)})
+	}
+	if cfg.fields != "" {
+		attrs = append(attrs, Attr{"data-vk-fields", cfg.fields})
 	}
 	for _, m := range cfg.methods {
 		attrs = append(attrs, Attr{"onm-" + strings.ToLower(m.name), On(m.handler)})

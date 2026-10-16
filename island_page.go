@@ -28,9 +28,10 @@ func IsIsland(t reflect.Type) bool {
 	return lookupIsland(t) != nil
 }
 
-// lifecycle are the methods a live component's session calls: never ones
-// the component calls.
-var lifecycle = map[string]bool{"Render": true, "Mount": true, "Update": true, "Info": true}
+// lifecycle are the methods a live component's session calls, and Changed
+// (run after the component sets bound fields): never ones the component
+// calls.
+var lifecycle = map[string]bool{"Render": true, "Mount": true, "Update": true, "Info": true, "Changed": true}
 
 var liveMethods = func() map[string]bool {
 	m := map[string]bool{}
@@ -163,8 +164,9 @@ var IsRedirect = func(error) bool { return false }
 
 // IslandPage is the markup of a page backed by its island: x (a pointer to
 // the @ui.Island struct) mounted on load, its methods bound for its
-// component — on a live page, each a handler the live session runs — and
-// the last failed call's error (data-vk-err).
+// component — on a live page, each a handler the live session runs, and one
+// for the component's sets of bound fields — its fields' handles
+// (data-vk-fields) and the last failed call's error (data-vk-err).
 func IslandPage(x any, opts ...IslandOpt) Node {
 	rv := reflect.ValueOf(x)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
@@ -196,8 +198,28 @@ func IslandPage(x any, opts ...IslandOpt) Node {
 		}
 		o = append(o, func(c *islandConfig) { c.methods = append(c.methods, islandEmit{m.Name, handler}) })
 	}
+	fields, err := IslandFields(rv.Type())
+	if err != nil {
+		return Try(nil, fmt.Errorf("ui: IslandPage: %w", err))
+	}
+	if probe.callURL == "" {
+		set := func(ctx context.Context, ev Event) error {
+			err := SetBound(ctx, rv, ev.Data)
+			if err != nil && IsRedirect(err) {
+				return err
+			}
+			if err != nil {
+				pageErrors.Store(x, ErrorOf(err))
+			} else {
+				pageErrors.Delete(x)
+			}
+			return nil
+		}
+		o = append(o, func(c *islandConfig) { c.methods = append(c.methods, islandEmit{"_set", set}) })
+	}
 	o = append(o, func(c *islandConfig) {
 		c.methodNames = names
+		c.fields = fieldsJSON(fields)
 		if e, ok := pageErrors.Load(x); ok {
 			c.err = e.(*IslandError)
 		}
