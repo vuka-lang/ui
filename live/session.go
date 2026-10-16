@@ -586,7 +586,11 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 	case ui.IsIsland(typ):
 		// A page backed by its island: its exported fields are its own —
 		// the props it sends its component — set from the URL at mount, not
-		// by the page's render.
+		// by the page's render. A patch's Update takes the new URL.
+		if upd {
+			_, err := callUpdate(s.ctx, in.comp, msg)
+			s.uerr = errors.Join(s.uerr, err)
+		}
 	default:
 		same = sameProps(in.comp, n.Props)
 		copyProps(in.comp, n.Props)

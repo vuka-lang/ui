@@ -190,3 +190,49 @@ func TestLink(t *testing.T) {
 		}
 	}
 }
+
+// Pane is a page backed by its island.
+type Pane struct {
+	ui.Live
+	Q       string `json:"q"`
+	Updates int    `json:"updates"`
+}
+
+type paneParams struct{ Q string }
+
+func (p *Pane) Update(q paneParams) error {
+	if q.Q == "x" {
+		return errors.New("no x")
+	}
+	p.Q, p.Updates = q.Q, p.Updates+1
+	return nil
+}
+func (p *Pane) Render() ui.Node { return ui.IslandPage(p) }
+
+// TestNavigationIslandPage: a patch keeps a page backed by its island
+// mounted, its Update taking the new URL; its error fails the patch.
+func TestNavigationIslandPage(t *testing.T) {
+	ui.RegisterIsland[Pane]("./Pane.vue")
+	router := func(u string) live.Route {
+		_, q, _ := strings.Cut(u, "?q=")
+		p := &Pane{Q: q}
+		return live.Route{Render: func(context.Context) ui.Node { return ui.Component("pane", nil, p) }, Updates: map[ui.Stateful]any{p: paneParams{q}}}
+	}
+	s := live.NewSession(context.Background(), router("/pane?q=a").Render)
+	s.SetRouter(router)
+	c, err := livetest.Join(s, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := c.Attr("vk-island", "data-vk-id")
+	if _, err := c.Patch("/pane?q=b"); err != nil {
+		t.Fatal(err)
+	}
+	p, _ := c.Attr("vk-island", "data-vk-props")
+	if again, _ := c.Attr("vk-island", "data-vk-id"); p != `{"q":"b","updates":1}` || again != id {
+		t.Fatalf("after a patch: props %s, id %s (was %s)", p, again, id)
+	}
+	if m, _ := c.Patch("/pane?q=x"); m.Error != "no x" {
+		t.Fatalf("Update's error: %+v", m)
+	}
+}
