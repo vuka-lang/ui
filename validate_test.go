@@ -53,6 +53,24 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+type vForm struct {
+	Email string `form:"mail" json:"email" validate:"required"`
+	Token string `form:"token" json:"-" validate:"required"`
+	Skip  string `form:"-" validate:"required"`
+	Level vLevel `form:"lvl"`
+}
+
+func TestValidateTags(t *testing.T) {
+	want := map[string]string{"mail": "required", "token": "required", "lvl.code": "required"}
+	if e := ErrorOf(ValidateTags(vForm{}, "form", "json")); !reflect.DeepEqual(e.Fields, want) {
+		t.Errorf("form names: %+v", e.Fields)
+	}
+	want = map[string]string{"email": "required", "Skip": "required", "Level.code": "required"}
+	if e := ErrorOf(Validate(vForm{})); !reflect.DeepEqual(e.Fields, want) {
+		t.Errorf("json names: %+v", e.Fields)
+	}
+}
+
 type vBadTag struct {
 	N int `validate:"min=x"`
 }

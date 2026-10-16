@@ -25,13 +25,20 @@ import (
 //	oneof=a b c     one of the values (a|b|c also works)
 //	email           an email address
 func Validate(v any) error {
-	return validateAt("", reflect.ValueOf(v), nil)
+	return validateAt(jsonNames, "", reflect.ValueOf(v), nil)
+}
+
+// ValidateTags is Validate naming each field by the first of tags it
+// carries, else its Go name, as a form binder does (ValidateTags(v,
+// "form", "json")); a tag of "-" leaves the field out.
+func ValidateTags(v any, tags ...string) error {
+	return validateAt(tags, "", reflect.ValueOf(v), nil)
 }
 
 // CheckValidate reports a validate tag of t, or of a struct it holds, that
 // isn't one of Validate's rules.
 func CheckValidate(t reflect.Type) error {
-	_, err := rulesOf(t)
+	_, err := rulesOf(t, jsonNames)
 	return err
 }
 
@@ -64,9 +71,9 @@ func (e Invalid) FieldErrors() map[string]string { return e }
 
 // validateAt validates v, found at path; rules are the tag of the field
 // holding it.
-func validateAt(path string, v reflect.Value, rules []rule) error {
+func validateAt(names []string, path string, v reflect.Value, rules []rule) error {
 	bad := Invalid{}
-	if err := walkValidate(path, v, rules, bad); err != nil {
+	if err := walkNamed(names, path, v, rules, bad); err != nil {
 		return err
 	}
 	if len(bad) == 0 {
@@ -75,7 +82,14 @@ func validateAt(path string, v reflect.Value, rules []rule) error {
 	return bad
 }
 
+var jsonNames = []string{"json"}
+
 func walkValidate(path string, v reflect.Value, rules []rule, bad Invalid) error {
+	return walkNamed(jsonNames, path, v, rules, bad)
+}
+
+// walkNamed walks v, names the tags naming its structs' fields.
+func walkNamed(names []string, path string, v reflect.Value, rules []rule, bad Invalid) error {
 	if !v.IsValid() {
 		return nil
 	}
@@ -101,7 +115,7 @@ func walkValidate(path string, v reflect.Value, rules []rule, bad Invalid) error
 	}
 	switch v.Kind() {
 	case reflect.Struct:
-		tr, err := rulesOf(v.Type())
+		tr, err := rulesOf(v.Type(), names)
 		if err != nil {
 			return err
 		}
@@ -110,7 +124,7 @@ func walkValidate(path string, v reflect.Value, rules []rule, bad Invalid) error
 			if err != nil {
 				continue
 			}
-			if err := walkValidate(joinPath(path, f.name), fv, f.rules, bad); err != nil {
+			if err := walkNamed(names, joinPath(path, f.name), fv, f.rules, bad); err != nil {
 				return err
 			}
 		}
@@ -119,7 +133,7 @@ func walkValidate(path string, v reflect.Value, rules []rule, bad Invalid) error
 			return nil
 		}
 		for i := 0; i < v.Len(); i++ {
-			if err := walkValidate(joinPath(path, strconv.Itoa(i)), v.Index(i), nil, bad); err != nil {
+			if err := walkNamed(names, joinPath(path, strconv.Itoa(i)), v.Index(i), nil, bad); err != nil {
 				return err
 			}
 		}
@@ -129,7 +143,7 @@ func walkValidate(path string, v reflect.Value, rules []rule, bad Invalid) error
 		}
 		iter := v.MapRange()
 		for iter.Next() {
-			if err := walkValidate(joinPath(path, fmt.Sprint(iter.Key().Interface())), iter.Value(), nil, bad); err != nil {
+			if err := walkNamed(names, joinPath(path, fmt.Sprint(iter.Key().Interface())), iter.Value(), nil, bad); err != nil {
 				return err
 			}
 		}
@@ -171,27 +185,33 @@ type typeRules struct {
 }
 
 var (
-	typeRulesOf sync.Map // reflect.Type → *typeRules, complete
+	typeRulesOf sync.Map // ruleKey → *typeRules, complete
 	rulesMu     sync.Mutex
 )
 
+type ruleKey struct {
+	t     reflect.Type
+	names string
+}
+
 // rulesOf are t's fields with rules or structs inside, t a struct (or a
 // pointer, slice, array or map of them); a type holding itself is fine.
-func rulesOf(t reflect.Type) (*typeRules, error) {
+func rulesOf(t reflect.Type, names []string) (*typeRules, error) {
 	t = baseType(t)
 	if t.Kind() != reflect.Struct {
 		return &typeRules{}, nil
 	}
-	if v, ok := typeRulesOf.Load(t); ok {
+	key := strings.Join(names, ",")
+	if v, ok := typeRulesOf.Load(ruleKey{t, key}); ok {
 		tr := v.(*typeRules)
 		return tr, tr.err
 	}
 	rulesMu.Lock()
 	defer rulesMu.Unlock()
 	building := map[reflect.Type]*typeRules{}
-	tr := buildRules(t, building)
+	tr := buildRules(t, names, key, building)
 	for bt, r := range building {
-		typeRulesOf.Store(bt, r)
+		typeRulesOf.Store(ruleKey{bt, key}, r)
 	}
 	return tr, tr.err
 }
@@ -203,8 +223,8 @@ func baseType(t reflect.Type) reflect.Type {
 	return t
 }
 
-func buildRules(t reflect.Type, building map[reflect.Type]*typeRules) *typeRules {
-	if v, ok := typeRulesOf.Load(t); ok {
+func buildRules(t reflect.Type, names []string, key string, building map[reflect.Type]*typeRules) *typeRules {
+	if v, ok := typeRulesOf.Load(ruleKey{t, key}); ok {
 		return v.(*typeRules)
 	}
 	if tr, ok := building[t]; ok {
@@ -216,12 +236,9 @@ func buildRules(t reflect.Type, building map[reflect.Type]*typeRules) *typeRules
 		if !f.IsExported() || f.Anonymous {
 			continue
 		}
-		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
-		if name == "-" {
-			continue
-		}
+		name := fieldName(f, names)
 		if name == "" {
-			name = f.Name
+			continue
 		}
 		rules, err := parseRules(f.Tag.Get("validate"))
 		if err != nil {
@@ -229,7 +246,7 @@ func buildRules(t reflect.Type, building map[reflect.Type]*typeRules) *typeRules
 			return tr
 		}
 		if ft := baseType(f.Type); ft.Kind() == reflect.Struct {
-			if inner := buildRules(ft, building); inner.err != nil {
+			if inner := buildRules(ft, names, key, building); inner.err != nil {
 				tr.err = inner.err
 				return tr
 			}
@@ -239,6 +256,21 @@ func buildRules(t reflect.Type, building map[reflect.Type]*typeRules) *typeRules
 		}
 	}
 	return tr
+}
+
+// fieldName is f's name by the first of names it carries, else its Go
+// name; "" for a field left out (-).
+func fieldName(f reflect.StructField, names []string) string {
+	for _, tag := range names {
+		switch n, _, _ := strings.Cut(f.Tag.Get(tag), ","); n {
+		case "-":
+			return ""
+		case "":
+		default:
+			return n
+		}
+	}
+	return f.Name
 }
 
 func parseRules(tag string) ([]rule, error) {
