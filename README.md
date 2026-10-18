@@ -31,6 +31,13 @@ func Hello(name string) ui.Node {
 
 Documentation: https://vuka-lang.github.io/vuka/ui/
 
+## Versions
+
+From v0.50.0, vuka, ui, web and the `vuka` command are released together
+under one version; require them at the same version (`vuka upgrade` moves an
+app between versions). See
+[Versions and compatibility](https://vuka-lang.github.io/vuka/project/versions).
+
 The code moved here from github.com/vuka-lang/vuka at commit 1af97d1 (v0.8.0);
 see that repository's history for its earlier changes.
 
