@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"sync"
+
+	"github.com/vuka-lang/vuka/diag"
 )
 
 // Deferred fields. A field of a page backed by its island tagged defer:""
@@ -70,13 +73,15 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 		name := "Load" + g.name
 		m, ok := t.MethodByName(name)
 		if !ok {
-			return nil, fmt.Errorf("%s.%s is deferred: its loader is a method %s(ctx context.Context) error", t.Elem().Name(), t.Elem().Field(g.fields[0].Index).Name, name)
+			return nil, diag.New("E0324", "%s.%s is deferred, and the group %s has no loader", t.Elem().Name(), t.Elem().Field(g.fields[0].Index).Name, g.name).
+				WithHelp("add the method\nfunc (%s *%s) %s(ctx context.Context) error", strings.ToLower(t.Elem().Name()[:1]), t.Elem().Name(), name)
 		}
 		mt := m.Type
 		in := mt.NumIn() == 1 || mt.NumIn() == 2 && mt.In(1) == ctxType
 		out := mt.NumOut() == 0 || mt.NumOut() == 1 && mt.Out(0) == errType
 		if !in || !out {
-			return nil, fmt.Errorf("%s.%s is %s() or %s(ctx context.Context), returning nothing or an error", t.Elem().Name(), name, name, name)
+			return nil, diag.New("E0325", "%s.%s is the loader of the deferred group %s, and it is %s", t.Elem().Name(), name, g.name, mt).
+				WithHelp("declare it %s() or %s(ctx context.Context), returning nothing or an error", name, name)
 		}
 		g.method, g.ctx = m, mt.NumIn() == 2
 	}

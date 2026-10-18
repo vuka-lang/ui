@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/vuka-lang/vuka"
+	"github.com/vuka-lang/vuka/diag"
 )
 
 // Islands are client components hydrated in the browser — a framework
@@ -68,7 +69,8 @@ func Island(args ...any) func(*vuka.Type) {
 				case 1:
 					info.Strategy = a
 				default:
-					info.fail(fmt.Errorf("@ui.Island takes a path and a strategy, then options: %q is a third string", a))
+					info.fail(diag.New("E0320", "@ui.Island on %s: %q is a third string", info.Name, a).
+						WithHelp("@ui.Island takes a path and a strategy, then options: ui.Layout(…), ui.Strategy(\"…\")"))
 				}
 				strs++
 			case IslandOption:
@@ -76,7 +78,8 @@ func Island(args ...any) func(*vuka.Type) {
 					a.islandOption(info)
 				}
 			default:
-				info.fail(fmt.Errorf("@ui.Island takes a path, a strategy and options (ui.Layout, ui.Strategy), not a %T", a))
+				info.fail(diag.New("E0320", "@ui.Island on %s: a %T isn't a path, a strategy or an option", info.Name, a).
+					WithHelp("@ui.Island takes a path and a strategy, then options: ui.Layout(…), ui.Strategy(\"…\")"))
 			}
 		}
 		islandReg.Store(t.Reflect, info)
@@ -138,7 +141,8 @@ func Layout(layouts ...any) IslandOption {
 			}
 		}
 		if err == nil {
-			err = fmt.Errorf("ui.Layout takes func(page ui.Node) ui.Node or func(ctx context.Context, page ui.Node) ui.Node layouts, not %s", describeLayout(l))
+			err = diag.New("E0321", "ui.Layout is given %s, which isn't a layout", describeLayout(l)).
+				WithHelp("a layout is a func(page ui.Node) ui.Node or a func(ctx context.Context, page ui.Node) ui.Node")
 		}
 	}
 	return islandOptionFunc(func(i *islandInfo) {

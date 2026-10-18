@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+
+	"github.com/vuka-lang/vuka/diag"
 )
 
 // Live, embedded by value in a struct whose pointer has a Render() Node method,
@@ -141,7 +143,7 @@ func (n *ComponentNode) static(ctx context.Context) (Stateful, error) {
 // Live, which has no instance to attach.
 func CheckStateful(c Stateful) error {
 	if c.vukaLive() == nil {
-		return fmt.Errorf("ui: %T embeds *ui.Live; embed ui.Live by value", c)
+		return diag.New("E0329", "%T embeds *ui.Live", c).WithHelp("embed ui.Live by value")
 	}
 	return nil
 }
@@ -168,7 +170,8 @@ func MountLive(ctx context.Context, c Stateful) error {
 		m.Mount()
 	default:
 		if m := reflect.ValueOf(c).MethodByName("Mount"); m.IsValid() {
-			return fmt.Errorf("ui: %T's Mount is %s; it takes nothing or a context.Context, and returns nothing or an error", c, m.Type())
+			return diag.New("E0329", "%T's Mount is %s", c, m.Type()).
+				WithHelp("Mount takes nothing or a context.Context, and returns nothing or an error; its dependencies are the struct's injected fields")
 		}
 	}
 	return nil

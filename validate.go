@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/mail"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"unicode/utf8"
+
+	"github.com/vuka-lang/vuka/diag"
 )
 
 // Validate checks v (a struct, a pointer to one, or a slice, array or map
@@ -242,7 +245,7 @@ func buildRules(t reflect.Type, names []string, key string, building map[reflect
 		}
 		rules, err := parseRules(f.Tag.Get("validate"))
 		if err != nil {
-			tr.err = fmt.Errorf("%s.%s: %w", t.Name(), f.Name, err)
+			tr.err = within(t.Name()+"."+f.Name, err)
 			return tr
 		}
 		if ft := baseType(f.Type); ft.Kind() == reflect.Struct {
@@ -286,21 +289,25 @@ func parseRules(tag string) ([]rule, error) {
 			continue
 		case "required", "omitempty", "email":
 			if param != "" {
-				return nil, fmt.Errorf("validate:%q: %s takes no value", tag, name)
+				return nil, diag.New("E0328", "validate:%q: %s takes no value", tag, name).WithHelp("write %s alone", name)
 			}
 		case "min", "max", "len":
 			n, err := strconv.ParseFloat(param, 64)
 			if err != nil {
-				return nil, fmt.Errorf("validate:%q: %s takes a number (%s=3)", tag, name, name)
+				return nil, diag.New("E0328", "validate:%q: %s takes a number", tag, name).WithHelp("write %s=3", name)
 			}
 			r.n = n
 		case "oneof":
 			r.set = strings.FieldsFunc(param, func(c rune) bool { return c == ' ' || c == '|' })
 			if len(r.set) == 0 {
-				return nil, fmt.Errorf("validate:%q: oneof takes values (oneof=a b c)", tag)
+				return nil, diag.New("E0328", "validate:%q: oneof takes values", tag).WithHelp("write oneof=a b c")
 			}
 		default:
-			return nil, fmt.Errorf("validate:%q: unknown rule %q (required, omitempty, min, max, len, oneof, email)", tag, name)
+			d := diag.New("E0328", "validate:%q: unknown rule %q", tag, name).WithHelp("the rules are required, omitempty, min, max, len, oneof and email")
+			if s := closestRule(name); s != "" {
+				d.Suggest = s
+			}
+			return nil, d
 		}
 		out = append(out, r)
 	}
@@ -386,4 +393,26 @@ func measure(v reflect.Value) (float64, string, bool) {
 		return v.Float(), "", true
 	}
 	return 0, "", false
+}
+
+// closestRule is the rule name a mistyped one most likely meant.
+func closestRule(name string) string {
+	for _, r := range []string{"required", "omitempty", "min", "max", "len", "oneof", "email"} {
+		if strings.Contains(r, name) || strings.Contains(name, r) {
+			return r
+		}
+	}
+	return ""
+}
+
+// within puts where an error is before its message, keeping a diagnostic's
+// code.
+func within(where string, err error) error {
+	var d *diag.Diagnostic
+	if errors.As(err, &d) {
+		c := *d
+		c.Message = where + ": " + c.Message
+		return &c
+	}
+	return fmt.Errorf("%s: %w", where, err)
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/vuka-lang/vuka"
+	"github.com/vuka-lang/vuka/diag"
 )
 
 type levelsPage struct {
@@ -77,19 +78,20 @@ func TestCheckIsland(t *testing.T) {
 	}
 	for _, c := range []struct {
 		t    reflect.Type
+		code diag.Code
 		want string
 	}{
-		{reflect.TypeFor[badBind](), `bind:"query" names the field live.q`},
-		{reflect.TypeFor[badOpt](), `unknown option "wait"`},
-		{reflect.TypeFor[bindSecret](), "bind: is for a prop"},
-		{reflect.TypeFor[bindReserved](), "live.pending is live's own"},
-		{reflect.TypeFor[twoQ](), "fields Q and Q2 are both live.q"},
-		{reflect.TypeFor[methodFieldClash](), "the method Rows and the field List are both live.rows"},
-		{reflect.TypeFor[badChanged](), "Changed is Changed(), Changed(ctx"},
+		{reflect.TypeFor[badBind](), "E0322", `bind:"query" names the field live.q`},
+		{reflect.TypeFor[badOpt](), "E0322", `unknown option "wait"`},
+		{reflect.TypeFor[bindSecret](), "E0322", "bind: is for a prop"},
+		{reflect.TypeFor[bindReserved](), "E0322", "live.pending is live's own"},
+		{reflect.TypeFor[twoQ](), "E0326", "fields Q and Q2 are both live.q"},
+		{reflect.TypeFor[methodFieldClash](), "E0326", "the method Rows and the field List are both live.rows"},
+		{reflect.TypeFor[badChanged](), "E0327", "= help: declare Changed(), Changed(ctx"},
 	} {
 		err := CheckIsland(c.t)
-		if err == nil || !strings.Contains(err.Error(), c.want) {
-			t.Errorf("%v: got %v, want %q", c.t, err, c.want)
+		if err == nil || diag.Of(err) != c.code || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%v: got %v, want %s %q", c.t, err, c.code, c.want)
 		}
 	}
 }

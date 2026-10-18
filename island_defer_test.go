@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vuka-lang/vuka"
+	"github.com/vuka-lang/vuka/diag"
 )
 
 type ordersPage struct {
@@ -95,16 +96,17 @@ func (p *deferBadLoader) LoadStats(n int) error { return nil }
 func TestCheckIslandDefer(t *testing.T) {
 	for _, c := range []struct {
 		t    reflect.Type
+		code diag.Code
 		want string
 	}{
-		{reflect.TypeFor[deferNoLoader](), "deferNoLoader.Stats is deferred: its loader is a method LoadStats(ctx context.Context) error"},
-		{reflect.TypeFor[deferBind](), "drop bind: or defer:"},
-		{reflect.TypeFor[deferBadName](), `defer:"two words": a group is a name`},
-		{reflect.TypeFor[deferBadLoader](), "LoadStats is LoadStats() or LoadStats(ctx context.Context)"},
+		{reflect.TypeFor[deferNoLoader](), "E0324", "deferNoLoader.Stats is deferred, and the group Stats has no loader\n  = help: add the method\n          func (d *deferNoLoader) LoadStats(ctx context.Context) error"},
+		{reflect.TypeFor[deferBind](), "E0323", "= help: drop bind: or defer:"},
+		{reflect.TypeFor[deferBadName](), "E0323", `defer:"two words": a group is a name`},
+		{reflect.TypeFor[deferBadLoader](), "E0325", "deferBadLoader.LoadStats is the loader of the deferred group Stats, and it is func(*ui.deferBadLoader, int) error\n  = help: declare it LoadStats() or LoadStats(ctx context.Context)"},
 	} {
 		err := CheckIsland(c.t)
-		if err == nil || !strings.Contains(err.Error(), c.want) {
-			t.Errorf("%v: got %v, want %q", c.t, err, c.want)
+		if err == nil || diag.Of(err) != c.code || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%v: got %v, want %s %q", c.t, err, c.code, c.want)
 		}
 	}
 }

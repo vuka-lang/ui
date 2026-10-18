@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vuka-lang/vuka/diag"
 )
 
 // IslandField is a prop of a page-backed island as its component reads it
@@ -76,7 +78,8 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 			f.Type.Kind() != reflect.Func && !f.Type.Implements(jsChainType) && !f.Type.Implements(anyStateType)
 		if !prop {
 			if hasBind {
-				return nil, fmt.Errorf("%s.%s: bind: is for a prop the component sets (an exported field of a JSON value)", t.Name(), f.Name)
+				return nil, diag.New("E0322", "%s.%s: bind: is for a prop the component sets (an exported field of a JSON value)", t.Name(), f.Name).
+					WithHelp("drop bind:, or make %s an exported field of a plain value", f.Name)
 			}
 			continue
 		}
@@ -86,7 +89,7 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 		h := IslandField{Handle: strings.ToLower(name[:1]) + name[1:], Wire: name, Index: i, Type: f.Type}
 		rules, err := parseRules(f.Tag.Get("validate"))
 		if err != nil {
-			return nil, fmt.Errorf("%s.%s: %w", t.Name(), f.Name, err)
+			return nil, within(t.Name()+"."+f.Name, err)
 		}
 		if err := CheckValidate(f.Type); err != nil {
 			return nil, err
@@ -97,23 +100,26 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 				d = f.Name
 			}
 			if !isIdent(d) {
-				return nil, fmt.Errorf("%s.%s: defer:%q: a group is a name (defer:\"stats\"), its loader Load<Name>", t.Name(), f.Name, d)
+				return nil, diag.New("E0323", "%s.%s: defer:%q: a group is a name", t.Name(), f.Name, d).
+					WithHelp("name the group: defer:\"stats\", loaded by LoadStats")
 			}
 			if hasBind {
-				return nil, fmt.Errorf("%s.%s: a deferred field is the server's to load: drop bind: or defer:", t.Name(), f.Name)
+				return nil, diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop bind: or defer:")
 			}
 			if q, _, _ := strings.Cut(f.Tag.Get("url"), ","); q != "" && q != "-" {
-				return nil, fmt.Errorf("%s.%s: a deferred field is the server's to load: drop url: or defer:", t.Name(), f.Name)
+				return nil, diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop url: or defer:")
 			}
 			h.Defer = strings.ToUpper(d[:1]) + d[1:]
 		}
 		if hasBind {
 			n, opts, _ := strings.Cut(bind, ",")
 			if n != "" && n != h.Handle && n != h.Wire {
-				return nil, fmt.Errorf("%s.%s: bind:%q names the field live.%s: bind:%q", t.Name(), f.Name, n, h.Handle, h.Handle)
+				return nil, diag.New("E0322", "%s.%s: bind:%q names the field live.%s", t.Name(), f.Name, n, h.Handle).
+					WithSuggest(strconv.Quote(h.Handle)).WithHelp("write bind:%q, or leave the name out: bind:\"\"", h.Handle)
 			}
 			if reservedHandles[h.Handle] {
-				return nil, fmt.Errorf("%s.%s: live.%s is live's own: give the field another json name to bind it", t.Name(), f.Name, h.Handle)
+				return nil, diag.New("E0322", "%s.%s: live.%s is live's own", t.Name(), f.Name, h.Handle).
+					WithHelp("give the field another json name to bind it")
 			}
 			h.Bind, h.Debounce = true, DefaultDebounce
 			for _, o := range strings.Split(opts, ",") {
@@ -123,11 +129,12 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 				case "debounce":
 					d, err := parseDebounce(v)
 					if err != nil {
-						return nil, fmt.Errorf("%s.%s: bind:%q: debounce is milliseconds (500) or a duration (1s)", t.Name(), f.Name, bind)
+						return nil, diag.New("E0322", "%s.%s: bind:%q: bad debounce %q", t.Name(), f.Name, bind, v).
+							WithHelp("debounce is milliseconds (debounce=500) or a duration (debounce=1s)")
 					}
 					h.Debounce = d
 				default:
-					return nil, fmt.Errorf("%s.%s: bind:%q: unknown option %q (debounce=500)", t.Name(), f.Name, bind, k)
+					return nil, diag.New("E0322", "%s.%s: bind:%q: unknown option %q", t.Name(), f.Name, bind, k).WithSuggest("debounce=500")
 				}
 			}
 		}
@@ -173,23 +180,26 @@ func CheckIsland(t reflect.Type) error {
 	seen := map[string]string{}
 	for _, f := range fields {
 		if other, ok := seen[f.Handle]; ok {
-			return fmt.Errorf("%s: fields %s and %s are both live.%s", t.Elem().Name(), other, t.Elem().Field(f.Index).Name, f.Handle)
+			return diag.New("E0326", "%s: fields %s and %s are both live.%s", t.Elem().Name(), other, t.Elem().Field(f.Index).Name, f.Handle).
+				WithHelp("give one of them another json name")
 		}
 		seen[f.Handle] = t.Elem().Field(f.Index).Name
 	}
 	for _, m := range IslandMethods(t) {
 		for _, a := range m.Args {
 			if err := CheckValidate(a); err != nil {
-				return fmt.Errorf("%s.%s: %w", t.Elem().Name(), m.Method.Name, err)
+				return within(t.Elem().Name()+"."+m.Method.Name, err)
 			}
 		}
 		if f, ok := seen[m.Name]; ok {
-			return fmt.Errorf("%s: the method %s and the field %s are both live.%s: rename one (or give the field another json name)", t.Elem().Name(), m.Method.Name, f, m.Name)
+			return diag.New("E0326", "%s: the method %s and the field %s are both live.%s", t.Elem().Name(), m.Method.Name, f, m.Name).
+				WithHelp("rename one, or give the field another json name")
 		}
 	}
 	if m, ok := t.MethodByName("Changed"); ok {
 		if _, ok := changedArgs(m.Type); !ok {
-			return fmt.Errorf("%s.Changed is Changed(), Changed(ctx context.Context) or Changed(ctx context.Context, changed ui.Changed), returning nothing or an error", t.Elem().Name())
+			return diag.New("E0327", "%s.Changed is %s", t.Elem().Name(), m.Type).
+				WithHelp("declare Changed(), Changed(ctx context.Context) or Changed(ctx context.Context, changed ui.Changed), returning nothing or an error")
 		}
 	}
 	if _, err := deferGroups(t); err != nil {
