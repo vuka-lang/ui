@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.27.x"
+
+jobs:
+  test:
+    name: vet, race tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: vuka-ui
+      # The demos' generated files are checked against the vuka command.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: vuka-lang/vuka
+          path: vuka
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            vuka-ui/go.sum
+            vuka/cmd/vuka/go.sum
+      - name: The vuka command
+        working-directory: vuka/cmd/vuka
+        run: |
+          go build -o "$RUNNER_TEMP/vuka" .
+          echo "VUKA=$RUNNER_TEMP/vuka" >> "$GITHUB_ENV"
+      - name: gofmt
+        working-directory: vuka-ui
+        run: |
+          bad=$(git ls-files '*.go' | grep -v -e '/testdata/' -e '_vuka\.go$' -e '_vuka_test\.go$' | xargs gofmt -l)
+          if [ -n "$bad" ]; then echo "not gofmt'd:"; echo "$bad"; exit 1; fi
+      - run: go vet ./...
+        working-directory: vuka-ui
+      - run: go test -race ./...
+        working-directory: vuka-ui
+
+  fuzz:
+    name: fuzz FuzzTreePatch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - run: go test -run '^$' -fuzz '^FuzzTreePatch$' -fuzztime 30s ./live
+      - name: Keep the failing input
+        if: failure()
+        run: git ls-files --others --exclude-standard | grep '/testdata/fuzz/' | xargs -r tail -n +1
