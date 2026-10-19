@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/vuka-lang/vuka/diag"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -48,7 +49,7 @@ func TestBootErrorRenders(t *testing.T) {
 	want := `error[E0324]: deferRendered.CV is deferred, and the group Profile has no loader
   = help: add the method
           func (d *deferRendered) LoadProfile(ctx context.Context) error
-  = note: vuka explain E0324 (https://vuka-lang.github.io/vuka/errors/E0324)`
+  = note: vuka explain E0324 (` + diag.DocsURL + `E0324)`
 	if err == nil || err.Error() != want {
 		t.Fatalf("got:\n%v\nwant:\n%s", err, want)
 	}
