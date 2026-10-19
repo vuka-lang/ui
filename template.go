@@ -100,8 +100,8 @@ func htmlParse(src string) (*tmpl, error) {
 	e := htmlBySrc[src]
 	if e == nil {
 		e = &htmlEntry{src: src}
-		file, line := caller(4)
-		e.t, e.err = parseTemplate(src, file, line)
+		file, place, line := caller(4)
+		e.t, e.err = parseTemplate(src, file, place, line)
 		if len(htmlBySrc) < htmlCached {
 			htmlBySrc[src] = e
 		}
@@ -114,13 +114,23 @@ func htmlParse(src string) (*tmpl, error) {
 }
 
 // caller is where the function skip frames up was called: its directory
-// and file, and its line.
-func caller(skip int) (string, int) {
-	_, file, line, ok := runtime.Caller(skip)
+// and file, for messages; its package and file, the place its templates'
+// sites name, the same wherever the module is checked out; and its line.
+func caller(skip int) (file, place string, line int) {
+	pc, path, line, ok := runtime.Caller(skip)
 	if !ok {
-		return "template", 1
+		return "template", "template", 1
 	}
-	return filepath.Base(filepath.Dir(file)) + "/" + filepath.Base(file), line
+	base := filepath.Base(path)
+	place = base
+	if fn := runtime.FuncForPC(pc); fn != nil {
+		name := fn.Name()
+		slash := strings.LastIndexByte(name, '/')
+		if dot := strings.IndexByte(name[slash+1:], '.'); dot >= 0 {
+			place = name[:slash+1+dot] + "/" + base
+		}
+	}
+	return filepath.Base(filepath.Dir(path)) + "/" + base, place, line
 }
 
 var (
@@ -128,10 +138,10 @@ var (
 	sites   = map[string]int{}
 )
 
-// siteOf is a template's site, file:line, with .2, .3… for the templates
+// siteOf is a template's site, place:line, with .2, .3… for the templates
 // after the first declared on the line.
-func siteOf(file string, line int) string {
-	site := file + ":" + strconv.Itoa(line)
+func siteOf(place string, line int) string {
+	site := place + ":" + strconv.Itoa(line)
 	sitesMu.Lock()
 	defer sitesMu.Unlock()
 	sites[site]++
@@ -689,8 +699,9 @@ type tparser struct {
 	sh     *strings.Builder
 }
 
-// parseTemplate parses src, which starts on line of file.
-func parseTemplate(src, file string, line int) (t *tmpl, err error) {
+// parseTemplate parses src, which starts on line of file, its site the
+// line of place.
+func parseTemplate(src, file, place string, line int) (t *tmpl, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			e, ok := r.(tmplError)
@@ -701,7 +712,7 @@ func parseTemplate(src, file string, line int) (t *tmpl, err error) {
 		}
 	}()
 	p := &tparser{src: src, file: file, line: line}
-	site := siteOf(file, line)
+	site := siteOf(place, line)
 	t = p.template(site, func() []tnode {
 		ns := p.nodes("")
 		if p.i < len(p.src) {
