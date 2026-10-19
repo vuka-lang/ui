@@ -6,3 +6,5 @@ github.com/vuka-lang/vuka v0.16.0 h1:IalEDs8UJDht8O7kLAY9fptoIdJRQyfWjaxrmpz/d34
 github.com/vuka-lang/vuka v0.16.0/go.mod h1:X+ml+FftmyBqmfBxh4mMOUVaUZS3preV80KzmYpGlpE=
 github.com/vuka-lang/vuka v0.32.1-0.20261018220625-a9d037d539b2 h1:65r0eA5WV/j3XL3S2EoHbF+JLQU08ie6RIMIMgOdvFQ=
 github.com/vuka-lang/vuka v0.32.1-0.20261018220625-a9d037d539b2/go.mod h1:X+ml+FftmyBqmfBxh4mMOUVaUZS3preV80KzmYpGlpE=
+github.com/vuka-lang/vuka v0.50.0 h1:5Ip4RRYVmGjnAHkfjTdzXsCYKQeCnKCQg7fnjsTp9Qs=
+github.com/vuka-lang/vuka v0.50.0/go.mod h1:X+ml+FftmyBqmfBxh4mMOUVaUZS3preV80KzmYpGlpE=
