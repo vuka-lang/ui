@@ -595,7 +595,7 @@ func sortedKeys(a templ.Attributes) []string {
 }
 
 // bindState is a binding reading s as it is.
-func bindState(s AnyState) Binding { return Bind(s.stateOf().v, `{"$":0}`, s) }
+func bindState(s AnyState) Binding { return BindExpr(s.stateOf().v, `{"$":0}`, s) }
 
 // tmplError is a template's parse error.
 type tmplError string

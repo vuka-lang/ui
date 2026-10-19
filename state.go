@@ -112,7 +112,7 @@ func callSite() string {
 func Derived[T any](value T) State[T] { return NewDerived(value, `{"$":0}`, value) }
 
 // NewDerived is a derived state: value is what it renders with, expr and
-// deps its expression, as Bind takes them.
+// deps its expression, as BindExpr takes them.
 func NewDerived[T any](value T, expr string, deps ...any) State[T] {
 	return State[T]{c: &stateCell{init: value, typ: reflect.TypeFor[T](), derived: &Binding{value, expr, deps}}, v: value}
 }
@@ -310,7 +310,7 @@ func jsonPath(t reflect.Type, path []string) ([]string, error) {
 
 // Binding is a JSX expression that reads states: an attribute's value
 // (hidden={!open}), a child ({count}), a ui.Show's when. The compiler
-// writes it as Bind; the page renders it with the value Init, and the
+// writes it as BindExpr; the page renders it with the value Init, and the
 // browser evaluates it again whenever a state it reads changes.
 type Binding struct {
 	Init any    // its value, as rendered
@@ -318,15 +318,15 @@ type Binding struct {
 	Deps []any  // the states it reads, and the server's values it uses
 }
 
-// Bind is a binding of an expression of states, as the compiler writes
-// hidden={!open}: Bind(!open.Get(), `["!",{"$":0}]`, open).
+// BindExpr is a binding of an expression of states, as the compiler writes
+// hidden={!open}: BindExpr(!open.Get(), `["!",{"$":0}]`, open).
 //
 // The expression is JSON: a literal (a string, number, bool or null), a
 // dep {"$": i} — a state, with "p" naming a field path, or a value of the
 // server's — or an operation ["op", operands…]: "!", "neg", "&&", "||",
 // "==", "!=", "<", "<=", ">", ">=", "+", "-", "len", or "class" over an
 // object of class names and expressions.
-func Bind(init any, expr string, deps ...any) Binding { return Binding{init, expr, deps} }
+func BindExpr(init any, expr string, deps ...any) Binding { return Binding{init, expr, deps} }
 
 var parsedExprs sync.Map // expression text → its parsed JSON
 
@@ -441,7 +441,7 @@ func (b Binding) node() Node {
 // An aria-* attribute writes a bool as "true" or "false"; any other bool
 // attribute is there while true.
 func BindAttr(name string, s AnyState) Attr {
-	return Attr{Name: name, Value: Bind(s.stateOf().v, `{"$":0}`, s)}
+	return Attr{Name: name, Value: BindExpr(s.stateOf().v, `{"$":0}`, s)}
 }
 
 // bindJSON is a binding's expression as an attribute value, written once
@@ -549,7 +549,7 @@ func whenOf(w any) (open bool, attr Node, err error) {
 			return false, nil, fmt.Errorf("ui: Show's when is a ui.State[%s], not a bool", sv.t)
 		}
 		b, _ := sv.v.(bool)
-		return b, bindJSON{Bind(b, `{"$":0}`, w)}, nil
+		return b, bindJSON{BindExpr(b, `{"$":0}`, w)}, nil
 	}
 	return false, nil, fmt.Errorf("ui: Show's when is %T; it takes a bool, a ui.State[bool] or an expression of states", w)
 }

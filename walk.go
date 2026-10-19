@@ -188,7 +188,7 @@ func (r recording) replay(ctx context.Context, to Renderer) error {
 }
 
 // withSets is e with the attributes of its attribute sets (a template's
-// <input {{0}}>) in their place, for a Renderer that isn't HTML's.
+// <input {attrs...}>) in their place, for a Renderer that isn't HTML's.
 func withSets(e *Element) *Element {
 	i := slices.IndexFunc(e.Attrs, func(a Attr) bool { _, ok := a.Value.(attrSet); return ok })
 	if i < 0 {

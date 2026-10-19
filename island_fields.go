@@ -65,9 +65,17 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 	if t.Kind() != reflect.Struct {
 		return nil, nil
 	}
+	if err := schemaErr(t); err != nil {
+		return nil, err
+	}
+	schema := liveSchemaOf(t)
 	var out []IslandField
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
+		var so FieldOptions
+		if schema != nil {
+			so = schema.fields[i]
+		}
 		bind, hasBind := f.Tag.Lookup("bind")
 		if hasBind && bind == "-" {
 			hasBind = false
@@ -77,9 +85,13 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 			f.Type != nodeType && !(f.Type.Kind() == reflect.Interface && f.Type.Implements(nodeType)) &&
 			f.Type.Kind() != reflect.Func && !f.Type.Implements(jsChainType) && !f.Type.Implements(anyStateType)
 		if !prop {
-			if hasBind {
-				return nil, diag.New("E0322", "%s.%s: bind: is for a prop the component sets (an exported field of a JSON value)", t.Name(), f.Name).
-					WithHelp("drop bind:, or make %s an exported field of a plain value", f.Name)
+			if hasBind || so.Bind {
+				what := "ui.Bind"
+				if hasBind {
+					what = "bind:"
+				}
+				return nil, diag.New("E0322", "%s.%s: %s is for a prop the component sets (an exported field of a JSON value)", t.Name(), f.Name, what).
+					WithHelp("drop %s, or make %s an exported field of a plain value", what, f.Name)
 			}
 			continue
 		}
@@ -91,56 +103,83 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 		if err != nil {
 			return nil, within(t.Name()+"."+f.Name, err)
 		}
+		for _, spec := range so.Validate {
+			r, err := parseRules(spec)
+			if err != nil {
+				return nil, within(t.Name()+"."+f.Name, err)
+			}
+			rules = append(rules, r...)
+		}
 		if err := CheckValidate(f.Type); err != nil {
 			return nil, err
 		}
 		h.rules = rules
-		if d, ok := f.Tag.Lookup("defer"); ok && d != "-" {
+		d, hasDefer := f.Tag.Lookup("defer")
+		if so.Defer != "" {
+			d, hasDefer = so.Defer, true
+		}
+		if hasDefer && d != "-" {
 			if d == "" {
 				d = f.Name
 			}
 			if !isIdent(d) {
-				return nil, diag.New("E0323", "%s.%s: defer:%q: a group is a name", t.Name(), f.Name, d).
-					WithHelp("name the group: defer:\"stats\", loaded by LoadStats")
-			}
-			if hasBind {
-				return nil, diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop bind: or defer:")
-			}
-			if q, _, _ := strings.Cut(f.Tag.Get("url"), ","); q != "" && q != "-" {
-				return nil, diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop url: or defer:")
-			}
-			h.Defer = strings.ToUpper(d[:1]) + d[1:]
-		}
-		if hasBind {
-			n, opts, _ := strings.Cut(bind, ",")
-			if n != "" && n != h.Handle && n != h.Wire {
-				return nil, diag.New("E0322", "%s.%s: bind:%q names the field live.%s", t.Name(), f.Name, n, h.Handle).
-					WithSuggest(strconv.Quote(h.Handle)).WithHelp("write bind:%q, or leave the name out: bind:\"\"", h.Handle)
-			}
-			if reservedHandles[h.Handle] {
-				return nil, diag.New("E0322", "%s.%s: live.%s is live's own", t.Name(), f.Name, h.Handle).
-					WithHelp("give the field another json name to bind it")
-			}
-			h.Bind, h.Debounce = true, DefaultDebounce
-			for _, o := range strings.Split(opts, ",") {
-				k, v, _ := strings.Cut(strings.TrimSpace(o), "=")
-				switch k {
-				case "":
-				case "debounce":
-					d, err := parseDebounce(v)
-					if err != nil {
-						return nil, diag.New("E0322", "%s.%s: bind:%q: bad debounce %q", t.Name(), f.Name, bind, v).
-							WithHelp("debounce is milliseconds (debounce=500) or a duration (debounce=1s)")
-					}
-					h.Debounce = d
-				default:
-					return nil, diag.New("E0322", "%s.%s: bind:%q: unknown option %q", t.Name(), f.Name, bind, k).WithSuggest("debounce=500")
+				what := fmt.Sprintf("ui.Defer(%q)", d)
+				if so.Defer == "" {
+					what = fmt.Sprintf("defer:%q", d)
 				}
+				return nil, diag.New("E0323", "%s.%s: %s: a group is a name", t.Name(), f.Name, what).
+					WithHelp("name the group: ui.Defer(\"stats\"), loaded by l.Loads(\"stats\", …)")
+			}
+			url, _, _ := strings.Cut(f.Tag.Get("url"), ",")
+			switch {
+			case hasBind || so.Bind:
+				return nil, diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop Bind or Defer")
+			case so.URL != "" || url != "" && url != "-":
+				return nil, diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop URL or Defer")
+			}
+			h.Defer = groupName(d)
+		}
+		if (hasBind || so.Bind) && reservedHandles[h.Handle] {
+			return nil, diag.New("E0322", "%s.%s: live.%s is live's own", t.Name(), f.Name, h.Handle).
+				WithHelp("give the field another json name to bind it")
+		}
+		if so.Bind {
+			h.Bind, h.Debounce = true, so.Debounce
+		} else if hasBind {
+			if err := bindTag(t, f, bind, &h); err != nil {
+				return nil, err
 			}
 		}
 		out = append(out, h)
 	}
 	return out, nil
+}
+
+// bindTag reads a bind:"name,debounce=500" tag, the form of earlier
+// releases.
+func bindTag(t reflect.Type, f reflect.StructField, bind string, h *IslandField) error {
+	n, opts, _ := strings.Cut(bind, ",")
+	if n != "" && n != h.Handle && n != h.Wire {
+		return diag.New("E0322", "%s.%s: bind:%q names the field live.%s", t.Name(), f.Name, n, h.Handle).
+			WithSuggest(strconv.Quote(h.Handle)).WithHelp("write bind:%q, or leave the name out: bind:\"\"", h.Handle)
+	}
+	h.Bind, h.Debounce = true, DefaultDebounce
+	for _, o := range strings.Split(opts, ",") {
+		k, v, _ := strings.Cut(strings.TrimSpace(o), "=")
+		switch k {
+		case "":
+		case "debounce":
+			d, err := parseDebounce(v)
+			if err != nil {
+				return diag.New("E0322", "%s.%s: bind:%q: bad debounce %q", t.Name(), f.Name, bind, v).
+					WithHelp("debounce is milliseconds (debounce=500) or a duration (debounce=1s)")
+			}
+			h.Debounce = d
+		default:
+			return diag.New("E0322", "%s.%s: bind:%q: unknown option %q", t.Name(), f.Name, bind, k).WithSuggest("debounce=500")
+		}
+	}
+	return nil
 }
 
 func isIdent(s string) bool {
@@ -164,8 +203,9 @@ func parseDebounce(v string) (time.Duration, error) {
 }
 
 // CheckIsland reports what a page backed by t (a pointer to its island's
-// struct) can't be: a bind: tag that doesn't fit, a method and a field (or
-// two fields) of one wire name, a Changed that isn't Changed([ctx]) [error].
+// struct) can't be: a mistake in its LiveSchema, a Bind that doesn't fit, a
+// method and a field (or two fields) of one wire name, a Changed method
+// that isn't Changed([ctx]) [error].
 func CheckIsland(t reflect.Type) error {
 	if t.Kind() != reflect.Pointer {
 		t = reflect.PointerTo(t)
@@ -196,7 +236,7 @@ func CheckIsland(t reflect.Type) error {
 				WithHelp("rename one, or give the field another json name")
 		}
 	}
-	if m, ok := t.MethodByName("Changed"); ok {
+	if m, ok := t.MethodByName("Changed"); ok && !hasOnChange(t) {
 		if _, ok := changedArgs(m.Type); !ok {
 			return diag.New("E0327", "%s.Changed is %s", t.Elem().Name(), m.Type).
 				WithHelp("declare Changed(), Changed(ctx context.Context) or Changed(ctx context.Context, changed ui.Changed), returning nothing or an error")
@@ -208,8 +248,8 @@ func CheckIsland(t reflect.Type) error {
 	return nil
 }
 
-// Changed is what a set of the component changed, as Changed(ctx, changed
-// ui.Changed) gets it: the bound fields the set holds.
+// Changed is what a set of the component changed, as the page's OnChange
+// hook gets it: the bound fields the set holds.
 type Changed struct{ names, also []string }
 
 // Has reports whether the set holds the field name: its wire name (its json
@@ -260,9 +300,10 @@ func (e setError) FieldErrors() map[string]string {
 
 // SetBound sets x's (a pointer to the island's struct) bound fields from
 // data, the JSON object of wire names and values the component set, then
-// runs its Changed. A field that isn't bound is refused, a value breaking
-// its field's validate: tag (or the tags of a struct it holds) is Invalid
-// under its wire name (q, address.city), and either way nothing is set.
+// runs its OnChange hook (or, from earlier releases, its Changed method).
+// A field that isn't bound is refused, a value breaking its field's rules
+// (or the validate: tags of a struct it holds) is Invalid under its wire
+// name (q, address.city), and either way nothing is set.
 func SetBound(ctx context.Context, x reflect.Value, data json.RawMessage) error {
 	var m map[string]json.RawMessage
 	if err := json.Unmarshal(data, &m); err != nil || m == nil {
@@ -306,6 +347,9 @@ func SetBound(ctx context.Context, x reflect.Value, data json.RawMessage) error 
 }
 
 func runChanged(ctx context.Context, x reflect.Value, changed Changed) error {
+	if hasOnChange(x.Type()) {
+		return liveHooks(x).onChange(ctx, changed)
+	}
 	m := x.MethodByName("Changed")
 	if !m.IsValid() {
 		return nil
@@ -343,4 +387,10 @@ func fieldsJSON(fields []IslandField) string {
 	}
 	j, _ := json.Marshal(m)
 	return string(j)
+}
+
+// hasOnChange reports whether t's LiveSchema sets an OnChange hook.
+func hasOnChange(t reflect.Type) bool {
+	s := liveSchemaOf(t)
+	return s != nil && s.onChange != nil
 }

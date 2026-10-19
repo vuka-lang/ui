@@ -99,8 +99,8 @@ func TestCheckIslandDefer(t *testing.T) {
 		code diag.Code
 		want string
 	}{
-		{reflect.TypeFor[deferNoLoader](), "E0324", "deferNoLoader.Stats is deferred, and the group Stats has no loader\n  = help: add the method\n          func (d *deferNoLoader) LoadStats(ctx context.Context) error"},
-		{reflect.TypeFor[deferBind](), "E0323", "= help: drop bind: or defer:"},
+		{reflect.TypeFor[deferNoLoader](), "E0324", "deferNoLoader.Stats is deferred, and the group Stats has no loader\n  = help: give the group a loader in the page's LiveSchema:\n          l.Loads(\"stats\", d.loadStats)"},
+		{reflect.TypeFor[deferBind](), "E0323", "= help: drop Bind or Defer"},
 		{reflect.TypeFor[deferBadName](), "E0323", `defer:"two words": a group is a name`},
 		{reflect.TypeFor[deferBadLoader](), "E0325", "deferBadLoader.LoadStats is the loader of the deferred group Stats, and it is func(*ui.deferBadLoader, int) error\n  = help: declare it LoadStats() or LoadStats(ctx context.Context)"},
 	} {

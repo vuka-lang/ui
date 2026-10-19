@@ -13,8 +13,8 @@ import (
 // !open && tab == "env" is:
 //
 //	ready := open.Not().And(tab.Eq("env"))
-//	<button disabled="{{0}}">       // ui.At[string](f, "Q").Eq("").Or(busy)
-//	<span>{{0}}</span>              // n.Plus(1)
+//	<button disabled={empty}>       // empty := ui.At[string](f, "Q").Eq("").Or(busy)
+//	<span>{next}</span>             // next := n.Plus(1)
 //
 // An operand is a value of the state's type or a state of it; a number
 // converts to a number state's type. The server renders the value the
@@ -142,7 +142,7 @@ func At[T, S any](s State[S], path string) State[T] {
 // Classes is a class attribute whose names may be switched by states: each
 // value a bool or a bool state (ui.Class holds bools only).
 //
-//	class="{{0}}"   // ui.Classes{"menu": true, "is-open": open}
+//	class={cls}   // cls := ui.Classes{"menu": true, "is-open": open}
 type Classes map[string]any
 
 // binding is the class attribute: its names as rendered, and the browser's
@@ -177,7 +177,7 @@ func (c Classes) binding() Binding {
 		}
 	}
 	b.WriteString(`}]`)
-	return Bind(init, b.String(), deps...)
+	return BindExpr(init, b.String(), deps...)
 }
 
 const (

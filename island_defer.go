@@ -11,17 +11,19 @@ import (
 	"github.com/vuka-lang/vuka/diag"
 )
 
-// Deferred fields. A field of a page backed by its island tagged defer:""
-// isn't in the page's first render: its group's loader, the method
-// Load<Group>(ctx) error, runs after it — on a live page once it joins, on
-// a stateless one when its component asks — and the field reaches the
-// component as an update. The group is the tag's name (defer:"stats"), else
-// the field's own: the fields of one group load together, by one loader, and
-// groups load concurrently. A loader runs on a copy of the page and sets its
-// group's fields; only those are taken from it.
+// Deferred fields. A field of a page backed by its island that its
+// LiveSchema defers (l.Field(&p.Stats, ui.Defer("stats"))) isn't in the
+// page's first render: its group's loader (l.Loads("stats", p.loadStats))
+// runs after it — on a live page once it joins, on a stateless one when its
+// component asks — and the field reaches the component as an update. The
+// fields of one group load together, by one loader, and groups load
+// concurrently. A loader runs on a copy of the page and sets its group's
+// fields; only those are taken from it. Earlier releases' form, the tag
+// defer:"stats" loaded by the method LoadStats(ctx) error, still works.
 
 type deferGroup struct {
 	name   string
+	hook   bool // loaded by the LiveSchema's Loads; else by method, Load<Group>
 	method reflect.Method
 	ctx    bool
 	fields []IslandField
@@ -68,13 +70,18 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 		}
 		groups[i].fields = append(groups[i].fields, f)
 	}
+	schema := liveSchemaOf(t)
 	for i := range groups {
 		g := &groups[i]
+		if schema != nil && schema.loads[g.name] != nil {
+			g.hook = true
+			continue
+		}
 		name := "Load" + g.name
 		m, ok := t.MethodByName(name)
 		if !ok {
 			return nil, diag.New("E0324", "%s.%s is deferred, and the group %s has no loader", t.Elem().Name(), t.Elem().Field(g.fields[0].Index).Name, g.name).
-				WithHelp("add the method\nfunc (%s *%s) %s(ctx context.Context) error", strings.ToLower(t.Elem().Name()[:1]), t.Elem().Name(), name)
+				WithHelp("give the group a loader in the page's LiveSchema:\nl.Loads(%q, %s.load%s)", strings.ToLower(g.name[:1])+g.name[1:], strings.ToLower(t.Elem().Name()[:1]), g.name)
 		}
 		mt := m.Type
 		in := mt.NumIn() == 1 || mt.NumIn() == 2 && mt.In(1) == ctxType
@@ -93,7 +100,7 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 func isLoader(t reflect.Type, name string) bool {
 	groups, _ := deferGroups(t)
 	for _, g := range groups {
-		if g.method.Name == name {
+		if !g.hook && g.method.Name == name {
 			return true
 		}
 	}
@@ -214,9 +221,12 @@ func (d *DeferredLoad) Run(ctx context.Context) error {
 	d.err = func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				err = fmt.Errorf("%s.%s panicked: %v", d.page.Type().Elem().Name(), d.g.method.Name, r)
+				err = fmt.Errorf("%s's loader of %s panicked: %v", d.page.Type().Elem().Name(), d.g.name, r)
 			}
 		}()
+		if d.g.hook {
+			return liveHooks(d.copy).loads[d.g.name](ctx)
+		}
 		out := d.copy.MethodByName(d.g.method.Name).Call(in)
 		if len(out) == 1 && !out[0].IsNil() {
 			return out[0].Interface().(error)

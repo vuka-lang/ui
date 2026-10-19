@@ -13,8 +13,21 @@ import (
 )
 
 // TestDiagnosticCodes: every code ui's checks report has a page in vuka's
-// catalogue, which `vuka explain` prints.
+// catalogue, which `vuka explain` prints: the catalogue of the vuka checked
+// out beside this module (CI's, or $VUKA_DIR), where a new code's page lands
+// before a release carries it, else the required version's.
 func TestDiagnosticCodes(t *testing.T) {
+	dir := os.Getenv("VUKA_DIR")
+	if dir == "" {
+		dir = filepath.Join("..", "vuka")
+	}
+	page := func(code string) bool {
+		if _, err := os.Stat(filepath.Join(dir, "docs", "errors", code+".md")); err == nil {
+			return true
+		}
+		_, ok := docs.Lookup(code)
+		return ok
+	}
 	files, _ := filepath.Glob("*.go")
 	more, _ := filepath.Glob("live/*.go")
 	codes := regexp.MustCompile(`"([EW]\d{4})"`)
@@ -29,7 +42,7 @@ func TestDiagnosticCodes(t *testing.T) {
 		}
 		for _, m := range codes.FindAllSubmatch(b, -1) {
 			n++
-			if _, ok := docs.Lookup(string(m[1])); !ok {
+			if !page(string(m[1])) {
 				t.Errorf("%s: %s has no page in vuka's docs/errors", f, m[1])
 			}
 		}
@@ -47,8 +60,8 @@ type deferRendered struct {
 func TestBootErrorRenders(t *testing.T) {
 	err := CheckIsland(reflect.TypeFor[deferRendered]())
 	want := `error[E0324]: deferRendered.CV is deferred, and the group Profile has no loader
-  = help: add the method
-          func (d *deferRendered) LoadProfile(ctx context.Context) error
+  = help: give the group a loader in the page's LiveSchema:
+          l.Loads("profile", d.loadProfile)
   = note: vuka explain E0324 (` + diag.DocsURL + `E0324)`
 	if err == nil || err.Error() != want {
 		t.Fatalf("got:\n%v\nwant:\n%s", err, want)
