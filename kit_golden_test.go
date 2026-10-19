@@ -304,3 +304,17 @@ func TestKitGolden(t *testing.T) {
 		t.Fatalf("kit.golden differs in length: got %d lines, want %d", len(gl), len(wl))
 	}
 }
+
+// BenchmarkKit renders every case of TestKitGolden once per iteration.
+func BenchmarkKit(b *testing.B) {
+	cs := kitCases()
+	ctx := context.Background()
+	b.ReportAllocs()
+	for b.Loop() {
+		for _, c := range cs {
+			if _, err := ui.String(ctx, c.node()); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
