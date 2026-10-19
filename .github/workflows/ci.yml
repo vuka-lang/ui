@@ -35,9 +35,16 @@ jobs:
           cache-dependency-path: |
             vuka-ui/go.sum
             vuka/cmd/vuka/go.sum
+      # A change made together with vuka's has a branch of the same name there.
+      - name: The vuka branch of this change, if any
+        working-directory: vuka
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: git fetch --depth=1 origin "$BRANCH" && git checkout FETCH_HEAD || true
       - name: The vuka command
         working-directory: vuka/cmd/vuka
         run: |
+          go mod edit -replace github.com/vuka-lang/vuka=../..
           go build -o "$RUNNER_TEMP/vuka" .
           echo "VUKA=$RUNNER_TEMP/vuka" >> "$GITHUB_ENV"
       - name: gofmt
