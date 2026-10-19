@@ -69,16 +69,16 @@ func (t *Table) Render() ui.Node {
 	var texts []ui.Node
 //line demo.vuka:53
 	for i := range t.N {
-		var text []ui.Node
+		var plainRow []ui.Node
 //line demo.vuka:54
 		if t.Plain {
 //line demo.vuka:54
-			text = append(text, ui.Key(i, &PlainRow{ID: i, Name: "row " + strconv.Itoa(i)}))
+			plainRow = append(plainRow, ui.Key(i, &PlainRow{ID: i, Name: "row " + strconv.Itoa(i)}))
 		} else {
 //line demo.vuka:54
-			text = append(text, ui.Key(i, &Row{ID: i, Name: "row " + strconv.Itoa(i)}))
+			plainRow = append(plainRow, ui.Key(i, &Row{ID: i, Name: "row " + strconv.Itoa(i)}))
 		}
-		texts = append(texts, ui.HTML(`{text}`, text))
+		texts = append(texts, ui.HTML(`{plainRow}`, plainRow))
 	}
 //line demo.vuka:51
 	return ui.HTML(`
@@ -103,9 +103,7 @@ func (t *CellTable) Mount() { t.cells = make([]int, t.N) }
 func (t *CellTable) Bump(i int) { t.cells[i]++ }
 
 func (t *CellTable) Render() ui.Node {
-//line demo.vuka:73
-	trs := make([]ui.Node, 0, len(t.cells))
-//line demo.vuka:73
+	var trs []ui.Node
 	for i, v := range t.cells {
 		trs = append(trs, ui.HTML(`
 <tr key={i}>
@@ -136,14 +134,14 @@ func (c *Counter) Render() ui.Node {
 // Counters is a page of n counters.
 func Counters(n int) func(context.Context) ui.Node {
 	return func(context.Context) ui.Node {
-		var texts []ui.Node
+		var counters []ui.Node
 //line demo.vuka:95
 		for i := range n {
 //line demo.vuka:95
-			texts = append(texts, ui.Key(i, &Counter{Label: "c" + strconv.Itoa(i)}))
+			counters = append(counters, ui.Key(i, &Counter{Label: "c" + strconv.Itoa(i)}))
 		}
 //line demo.vuka:95
-		return ui.HTML(`<main>{texts}</main>`, texts)
+		return ui.HTML(`<main>{counters}</main>`, counters)
 	}
 }
 
@@ -225,8 +223,7 @@ func (b *Board) Remove(id int) {
 }
 
 func (b *Board) Render() ui.Node {
-//line demo.vuka:183
-	lis := make([]ui.Node, 0, len(b.items))
+	var lis []ui.Node
 //line demo.vuka:183
 	for _, it := range b.items {
 		lis = append(lis, ui.HTML(`
@@ -235,8 +232,7 @@ func (b *Board) Render() ui.Node {
   <button onClick={func() { b.Remove(it.ID) }}>x</button>
 </li>`, it.ID, it.Name, &Counter{Label: it.Name}, func() { b.Remove(it.ID) }))
 	}
-//line demo.vuka:187
-	lis2 := make([]ui.Node, 0, len(b.items))
+	var lis2 []ui.Node
 //line demo.vuka:187
 	for i, it := range b.items {
 //line demo.vuka:187
@@ -265,11 +261,10 @@ func (b *Board) Render() ui.Node {
 	} else {
 		panic("vuka: no case matched")
 	}
-//line demo.vuka:204
-	texts := make([]ui.Node, 0, len(b.items))
+	var counters []ui.Node
 //line demo.vuka:204
 	for _, it := range b.items {
-		texts = append(texts, ui.Key(it.ID, &Counter{Label: "k" + it.Name}))
+		counters = append(counters, ui.Key(it.ID, &Counter{Label: "k" + it.Name}))
 	}
 //line demo.vuka:177
 	return ui.HTML(`
@@ -283,7 +278,7 @@ func (b *Board) Render() ui.Node {
   {p}
   {b2}
   {ui.El("script", nil, ui.Child("var mode = '"+b.mode+"' </script>"))}
-  {texts}
+  {counters}
 </section>`,
 		"board "+b.mode,
 		b.note,
@@ -298,7 +293,7 @@ func (b *Board) Render() ui.Node {
 		p,
 		b2,
 		ui.El("script", nil, ui.Child("var mode = '"+b.mode+"' </script>")),
-		texts,
+		counters,
 	)
 }
 
