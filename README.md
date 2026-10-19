@@ -45,8 +45,8 @@ func (p *Orders) row(o Order) ui.Node {
 <tr key={o.ID} class="row" class:late={o.Late}>
   <td>{o.Ref}</td>
   <td class="tabular-nums">{money(o.Total)}</td>
-  <td><button onClick={p.Cancel(o.ID)}>Cancel</button></td>
-</tr>`, o.ID, o.Late, o.Ref, money(o.Total), p.Cancel(o.ID))
+  <td><button onClick={cancel}>Cancel</button></td>
+</tr>`, o.ID, o.Late, o.Ref, money(o.Total), func() { p.Cancel(o.ID) })
 }
 
 func (p *Orders) Render() ui.Node {
