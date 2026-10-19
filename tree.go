@@ -378,6 +378,11 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 			return nil, n.Err
 		}
 		return b.value(ctx, n.Node)
+	case ctxNode:
+		if n == nil {
+			return "", nil
+		}
+		return b.value(ctx, n(ctx))
 	}
 	if v, ok := n.(viewer); ok {
 		return b.value(ctx, v.View())

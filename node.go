@@ -163,6 +163,14 @@ var textNodeTab = func() unsafe.Pointer {
 // Fragment renders children in order, with no element around them.
 func Fragment(children ...Node) Node { return Group(children) }
 
+// Ctx is the node build makes of the context it is rendered with, there: a
+// tag of a component taking ctx first, <Admin title="x"/> for func Admin(ctx
+// context.Context, p AdminProps), is ui.Ctx(func(ctx context.Context) ui.Node
+// { return Admin(ctx, p) }). It renders, diffs and keys as that node does.
+func Ctx(build func(ctx context.Context) Node) Node { return ctxNode(build) }
+
+type ctxNode func(context.Context) Node
+
 // Nodes is the children a loop, if or match block produces.
 func Nodes(build func(add func(Node))) Node { return Builder(build) }
 
@@ -279,6 +287,7 @@ func (n Group) Render(ctx context.Context, w io.Writer) error    { return render
 func (n Builder) Render(ctx context.Context, w io.Writer) error  { return renderHTML(ctx, w, n) }
 func (n TryNode) Render(ctx context.Context, w io.Writer) error  { return renderHTML(ctx, w, n) }
 func (n Boundary) Render(ctx context.Context, w io.Writer) error { return renderHTML(ctx, w, n) }
+func (n ctxNode) Render(ctx context.Context, w io.Writer) error  { return renderHTML(ctx, w, n) }
 
 // String renders n as HTML into a string.
 func String(ctx context.Context, n Node) (string, error) {

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/live/livetest"
 )
 
 type Item struct {
@@ -63,5 +65,35 @@ func TestNested(t *testing.T) {
 	}
 	if !strings.Contains(c.html, "picked:x") || !strings.Contains(c.html, "y1") || !strings.Contains(c.html, "board 1") {
 		t.Fatalf("page after nested events: %s", c.html)
+	}
+}
+
+type userKey struct{}
+
+// TestCtx: a node ui.Ctx builds from the render's context is walked as the
+// node it builds, on the first render and over a session: a component in it
+// is live, with both protocols.
+func TestCtx(t *testing.T) {
+	ctx := context.WithValue(context.Background(), userKey{}, "ada")
+	page := func(context.Context) ui.Node {
+		return ui.Ctx(func(ctx context.Context) ui.Node {
+			name, _ := ctx.Value(userKey{}).(string)
+			return ui.El("main", nil, ui.Text(name), ui.Component("ctx:item", nil, &Item{Name: "x"}))
+		})
+	}
+	if html, err := ui.String(ctx, page(ctx)); err != nil || !strings.Contains(html, "<main>ada<li>x0") {
+		t.Fatalf("ui.Ctx renders the node it builds: %s %v", html, err)
+	}
+	for _, v := range []int{1, 2} {
+		c, err := livetest.Join(live.NewSession(ctx, page), v)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := c.Event(ui.Event{Target: c.Handlers()[0][1], Type: "click"}); err != nil {
+			t.Fatal(err)
+		}
+		if h := c.HTML(); !strings.Contains(h, "<main>ada<li") || !strings.Contains(h, "x1") {
+			t.Fatalf("v%d: a component inside ui.Ctx's node takes its event: %s", v, h)
+		}
 	}
 }
