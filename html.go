@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -257,6 +258,11 @@ func (h *HTMLRenderer) attrs(e *Element) error {
 // attr writes one of e's attributes, with its leading space.
 func (h *HTMLRenderer) attr(e *Element, a Attr) error { return h.attrNamed(e.Tag, e, a) }
 
+// isEventName reports whether an attribute is an event's: on and a letter.
+func isEventName(name string) bool {
+	return len(name) > 2 && (name[0] == 'o' || name[0] == 'O') && (name[1] == 'n' || name[1] == 'N')
+}
+
 // attrNamed writes attribute a on an element of the given tag, with its
 // leading space, exactly as attr does. e, when non-nil, is the element; only
 // its data-vk-key is read, for the key attribute. The lazy-frame fast path
@@ -272,8 +278,16 @@ func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 		}
 		return nil
 	}
+	if c, ok := a.Value.(Classes); ok {
+		a.Value = c.binding()
+	}
 	if b, ok := a.Value.(Binding); ok {
 		return h.bindAttr(tag, e, name, b)
+	}
+	if fn := a.Value; fn != nil && isEventName(name) {
+		if _, ok := fn.(JSChain); ok || reflect.TypeOf(fn).Kind() == reflect.Func {
+			a.Value = EventHandler{fn} // a template's on… hole holds the handler as given
+		}
 	}
 	if eh, ok := a.Value.(EventHandler); ok {
 		if ch, ok := eh.Fn.(JSChain); ok {

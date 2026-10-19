@@ -127,7 +127,6 @@ func TestTemplateParseErrors(t *testing.T) {
 		{"<p ={{0}}>", "has an attribute with no name"},
 		{"<p a{{0}}=1>", "a hole can't name an attribute"},
 		{"<p>{{1}}</p>", "{{0}} is missing"},
-		{"<style>a{color:{{0}}}</style>", "a hole can't be in <style>"},
 		{"<!-- {{0}} -->", "a hole can't be in a comment"},
 		{"<p onClick=\"a{{0}}\"></p>", "takes a handler"},
 		{"<p class=a{{0}}></p>", "quote a value"},
@@ -272,5 +271,18 @@ func TestTemplateSitesOnOneLine(t *testing.T) {
 	site := func(err error) string { return strings.SplitN(err.Error(), ": ", 3)[1] }
 	if errA == nil || errB == nil || site(errA) == site(errB) {
 		t.Fatalf("two templates on a line are two sites: %v / %v", errA, errB)
+	}
+}
+
+// TestTemplateRawHoles checks holes in script and style: written as the
+// element's content, as JSX's {…} there is.
+func TestTemplateRawHoles(t *testing.T) {
+	tm := ui.Template(`<style>{{0}}</style><script>{{1}}</script>`)
+	got, err := ui.String(context.Background(), tm.Render("a{}</style>", ui.RawHTML("var x = 1")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `<style>a{}<\/style></style><script>var x = 1</script>`; got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
 	}
 }
