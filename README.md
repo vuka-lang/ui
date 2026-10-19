@@ -84,6 +84,95 @@ hole:
 With the `vuka` command, markup goes in `.vuka.html` files beside the Go —
 templates with Go statements, compiled to the same calls.
 
+## Components
+
+The kit — `Button`, `Submit`, `Badge`, `Card`, `Alert`, `Modal`, `Tabs`,
+`Table`, `DataTable`, `Form` and its fields (`Field`, `Input`, `Password`,
+`Textarea`, `Select`, `Checkbox`), `Image`, `Tile`, `Toast` and
+`ToastContainer`, with the partials `Actions`, `Cancel`, `Icon`, `Spinner` and
+`TileGrid` — is styled by the `--ui-*` tokens `StyleTag` puts in a page. Each
+component is a struct whose fields are its props. In markup it is a tag, its
+attributes camelCase, its children the `Children` field and
+`<slot:x>` the `X` field:
+
+```html
+<ui.Card title={ui.Text("Members")} noPad>
+  <slot:header><ui.Button variant={ui.Primary} on={Invite}>Invite</ui.Button></slot:header>
+  <ui.Table columns={cols} rows={Members} rowKey={func(m Member) any { return m.ID }}/>
+</ui.Card>
+```
+
+In Go it is a struct literal and its `Render`:
+
+```go
+ui.Card{Title: ui.Text("Members"), NoPad: true, Children: table}.Render()
+```
+
+The kit is written the way an app's components are: `card.go` declares the
+type, `card.vuka.html` is its `Render`.
+
+```go
+// card.go
+type Card struct {
+	Title    Node
+	Header   Node
+	NoPad    bool
+	Class    string
+	Children Node
+}
+```
+
+```html
+<!-- card.vuka.html -->
+func (c Card) Render()
+<div class={withClass("vk-card", c.Class)}>
+  if c.Title != nil || c.Header != nil {
+    <div class="vk-card__header">
+      <div class="vk-card__title">{c.Title}</div>
+      if c.Header != nil {
+        <div class="vk-card__header-actions">{c.Header}</div>
+      }
+    </div>
+  }
+  <div class="vk-card__body" class:vk-card__body--flush={c.NoPad}>{c.Children}</div>
+</div>
+```
+
+An app's template reads fields by bare name (`{Title}`); the kit's name
+their receiver, since in package ui many field names — `Icon`, `Value`,
+`Class`, `Ref`, `On`, `Page` — are also the package's own names, which a
+bare name would mean.
+
+The former props types are aliases of the components, deprecated:
+`ui.CardProps` is `ui.Card`, and so on for `AlertProps`, `BadgeProps`,
+`ButtonProps`, `DataTableProps[T]`, `FieldProps`, `FormProps`, `ImageProps`,
+`ModalProps`, `TableProps[T]`, `TabsProps`, `TileProps`,
+`ToastContainerProps` and `ToastProps`. A call of the former function,
+`ui.Card(ui.CardProps{…})`, is now `ui.Card{…}.Render()`; tags are
+unchanged.
+
+## Working on ui
+
+The `.vuka.html` files are compiled to the `x_html.go` beside them by the
+`vuka` command, and that Go is committed, so the module builds with plain
+`go build` and `go test`. After changing a template, regenerate:
+
+```sh
+go generate ./...
+```
+
+The command is pinned in `tools.mod`, a development-only module file (with
+`vukavet`): `go tool -modfile=tools.mod vuka gen -inplace ./...`. CI runs
+`go generate` and fails when the committed Go differs. A change needing a
+transpiler change vuka hasn't merged pins that vuka commit instead, and
+moves back to vuka's main once it lands:
+
+```sh
+c=<commit>
+go get -modfile=tools.mod github.com/vuka-lang/vuka@$c \
+	github.com/vuka-lang/vuka/cmd/vuka@$c github.com/vuka-lang/vuka/cmd/vukavet@$c
+```
+
 ## Versions
 
 From v0.50.0, vuka, ui, web and the `vuka` command are released together

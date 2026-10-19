@@ -17,45 +17,37 @@ env:
 
 jobs:
   test:
-    name: vet, race tests
+    name: generated files, vet, race tests
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          path: vuka-ui
-      # The demos' generated files are checked against the vuka command.
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: vuka-lang/vuka
-          path: vuka
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: |
-            vuka-ui/go.sum
-            vuka/cmd/vuka/go.sum
-      # A change made together with vuka's has a branch of the same name there.
-      - name: The vuka branch of this change, if any
-        working-directory: vuka
-        env:
-          BRANCH: ${{ github.head_ref || github.ref_name }}
-        run: git fetch --depth=1 origin "$BRANCH" && git checkout FETCH_HEAD || true
+            go.sum
+            tools.sum
+      # The vuka command is the one tools.mod pins: the demos' tests run it,
+      # and its module's docs/errors has the diagnostic codes' pages.
       - name: The vuka command
-        working-directory: vuka/cmd/vuka
         run: |
-          go mod edit -replace github.com/vuka-lang/vuka=../..
-          go build -o "$RUNNER_TEMP/vuka" .
+          go build -modfile=tools.mod -o "$RUNNER_TEMP/vuka" github.com/vuka-lang/vuka/cmd/vuka
           echo "VUKA=$RUNNER_TEMP/vuka" >> "$GITHUB_ENV"
-      - name: gofmt
-        working-directory: vuka-ui
+          echo "VUKA_DIR=$(go list -modfile=tools.mod -m -f '{{.Dir}}' github.com/vuka-lang/vuka)" >> "$GITHUB_ENV"
+      - name: The generated Go is what go generate writes
         run: |
-          bad=$(git ls-files '*.go' | grep -v -e '/testdata/' -e '_vuka\.go$' -e '_vuka_test\.go$' | xargs gofmt -l)
+          go generate ./...
+          git diff --exit-code
+          if [ -n "$(git status --porcelain)" ]; then git status --porcelain; exit 1; fi
+      - name: gofmt
+        run: |
+          bad=$(git ls-files '*.go' | grep -v -e '/testdata/' -e '_vuka\.go$' -e '_vuka_test\.go$' -e '_html\.go$' | xargs gofmt -l)
           if [ -n "$bad" ]; then echo "not gofmt'd:"; echo "$bad"; exit 1; fi
       - run: go vet ./...
-        working-directory: vuka-ui
+      - name: vukavet
+        run: go tool -modfile=tools.mod vukavet -test=false ./...
       - run: go test -race ./...
-        working-directory: vuka-ui
 
   fuzz:
     name: fuzz FuzzTreePatch
