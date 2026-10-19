@@ -276,7 +276,10 @@ var (
 )
 
 func pushable(c ui.Stateful, name string) any {
-	if c == nil || name == "Render" || name == "Mount" || name == "Update" || strings.HasPrefix(name, "Update__") || ui.IsHook(c, name) {
+	if c == nil || name == "Render" || name == "Mount" || ui.IsHook(c, name) {
+		return nil
+	}
+	if m, ok := reflect.TypeOf(c).MethodByName(name); ok && ui.IsUpdate(m) {
 		return nil
 	}
 	v := reflect.ValueOf(c)

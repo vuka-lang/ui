@@ -234,7 +234,7 @@ func lookup(form url.Values, name string) []string {
 }
 
 // callUpdate delivers msg to c's Update method taking its type: Update itself,
-// or one of its overloads (Vuka names them Update__T), each taking an optional
+// or one of its overloads (UpdateT, ui.IsUpdate), each taking an optional
 // context.Context and one message, returning nothing or an error. A method
 // taking msg's type exactly wins over one it is only assignable to; of those,
 // one taking a non-empty interface wins over one taking any.
@@ -273,7 +273,7 @@ func updateMethod(c ui.Stateful, msg any) (reflect.Value, error) {
 	var exact, assignable, catchAll []reflect.Value
 	for i := 0; i < v.NumMethod(); i++ {
 		m := v.Type().Method(i)
-		if m.Name != "Update" && !strings.HasPrefix(m.Name, "Update__") {
+		if !ui.IsUpdate(m) {
 			continue
 		}
 		ft := m.Type
