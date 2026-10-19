@@ -31,6 +31,19 @@ func Hello(name string) ui.Node {
 
 Documentation: https://vuka-lang.github.io/vuka/ui/
 
+## Live patches without render tracking
+
+JSX and `ui.Template` build frames: a component's markup splits into
+statics, sent once per connection, and dynamics, of which a live session
+sends only those that changed. A component built from nodes by hand
+(`ui.El`, `ui.Text`, a `ui.NodeFunc`, templ without vuka's instrumentation)
+has no frames, and needs nothing else: the session diffs its whole output —
+a token patch of the markup when that is small, else the markup — and the
+browser ends with the same page. The node type decides, so the tracked path
+pays no check. On the demo pages' random-event tests a v2 connection
+carries 1.7–2.2× the bytes without frames; one click in a 100-counter page
+is 168 bytes instead of 63 (`go test -bench Fallback ./live`).
+
 ## Versions
 
 From v0.50.0, vuka, ui, web and the `vuka` command are released together
