@@ -58,7 +58,8 @@ type Markup struct {
 //     ui.State (its value, kept current by the browser), a stateful
 //     component (&Counter{…}, or ui.Key(k, &Counter{…})), an island's props
 //     (Chart{…}, or ui.Mount(Chart{…}, opts…));
-//   - text, inside title, textarea or script: a string or number;
+//   - text, inside title or textarea: a string or number; inside script
+//     or style, a child, written as the element's content;
 //   - an attribute's value, class="{{0}}": what a JSX attribute takes — a
 //     string, number, bool (false omits it, true writes it bare), nil, a
 //     ui.Class, ui.Classes or ui.Style on class and style, a ui.State (an
@@ -70,8 +71,8 @@ type Markup struct {
 //
 // The markup is strict: every element is closed (<br> and the other void
 // elements need not be, and <x/> closes any), names are letters, digits and
-// - _ : . and holes can't name a tag or an attribute, or sit in a style
-// element or a comment. Text follows JSX: lines are trimmed where they meet
+// - _ : . and holes can't name a tag or an attribute, or sit in a
+// comment. Text follows JSX: lines are trimmed where they meet
 // a line break and blank lines dropped, so indentation adds nothing; inside
 // pre, textarea, script and style it is kept as written. Entities in text
 // and attribute values are decoded and escaped again on output. A mistake is
@@ -763,11 +764,12 @@ func (p *tparser) raw(sh *strings.Builder, tag string) []tnode {
 	for p.i < end {
 		at := p.i
 		if n, ok := p.hole(); ok {
-			if tag == "style" {
-				p.failAt(at, "a hole can't be in <style>; set a class or a style attribute instead")
-			}
 			flush(at)
-			out = append(out, tnode{slot: p.slot(tslot{kind: kText, hole: n, where: "text in <" + tag + ">"})})
+			kind := uint8(kText)
+			if tag == "script" || tag == "style" {
+				kind = kChild // written in the element's mode, as JSX's {…} is
+			}
+			out = append(out, tnode{slot: p.slot(tslot{kind: kind, hole: n, where: "text in <" + tag + ">"})})
 			sh.WriteByte('h')
 			start = p.i
 			continue
