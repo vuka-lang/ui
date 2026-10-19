@@ -116,8 +116,8 @@ func TestTemplNavigate(t *testing.T) {
 		}
 	}
 	t.Logf("navigate bytes (/books, /inbox, /books again): opaque %v, recorded %v", got["opaque"], got["recorded"])
-	sum := func(xs []int) int { return xs[0] + xs[1] + xs[2] }
-	if o, r := got["opaque"], got["recorded"]; sum(r)*2 > sum(o) || r[0]*2 > o[0] || r[2]*4 > o[2] {
+	// Back on a page it has seen, an opaque page is one kept string too.
+	if o, r := got["opaque"], got["recorded"]; r[0]*2 > o[0] || o[2] > 128 {
 		t.Fatalf("recorded trees save little: opaque %v, recorded %v", o, r)
 	}
 }

@@ -22,3 +22,7 @@ func verifyDefault() bool {
 	}
 	return testing.Testing()
 }
+
+// wholeTrees renders every instance as one piece of markup, as a component
+// built from nodes with no frames renders: for the fallback's tests.
+var wholeTrees bool
