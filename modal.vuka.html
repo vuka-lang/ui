@@ -1,0 +1,30 @@
+func (m Modal) Render()
+<div ref={m.ref()} class="vk-modal-root" style={m.hidden()}>
+  <div class="vk-modal-backdrop" {on("onClick", m.dismiss())...}></div>
+  <div class={m.classes()} role="dialog" aria-modal="true" tabindex="-1" {on("onKeyDown", m.escape())...}>
+    if m.Icon != nil || m.Title != nil || m.Subtitle != "" || !m.Closed {
+      <div class="vk-modal__header">
+        if m.Icon != nil {
+          <span class="vk-modal__icon">{m.Icon}</span>
+        }
+        if m.Title != nil || m.Subtitle != "" {
+          <div class="vk-modal__heading">
+            if m.Title != nil {
+              <h2 class="vk-modal__title">{m.Title}</h2>
+            }
+            if m.Subtitle != "" {
+              <p class="vk-modal__subtitle">{m.Subtitle}</p>
+            }
+          </div>
+        }
+        if !m.Closed {
+          <button type="button" class="vk-modal__close" aria-label="Close" onClick={m.close()}>{Icon("x")}</button>
+        }
+      </div>
+    }
+    <div class="vk-modal__body">{m.Children}</div>
+    if m.Footer != nil {
+      <div class="vk-modal__footer">{m.Footer}</div>
+    }
+  </div>
+</div>

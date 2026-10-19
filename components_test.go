@@ -78,7 +78,7 @@ type modalHost struct{ ui.Live }
 func (m *modalHost) Render() ui.Node {
 	return ui.El("div", nil,
 		ui.El("button", []ui.Attr{{Name: "id", Value: "open"}, on(ui.OpenModal("edit"))}, txt("Open")),
-		ui.Modal(ui.ModalProps{Ref: "edit", Title: txt("Edit"), Children: txt("body")}),
+		ui.Modal{Ref: "edit", Title: txt("Edit"), Children: txt("body")}.Render(),
 	)
 }
 
@@ -119,7 +119,7 @@ func (m *liveModalHost) Close() { m.open.Set(false) }
 func (m *liveModalHost) Render() ui.Node {
 	return ui.El("div", nil,
 		ui.El("button", []ui.Attr{{Name: "id", Value: "open"}, onh(m.Open)}, txt("Open")),
-		ui.Modal(ui.ModalProps{Ref: "edit", Open: m.open.Get(), OnClose: m.Close, Children: txt("body")}),
+		ui.Modal{Ref: "edit", Open: m.open.Get(), OnClose: m.Close, Children: txt("body")}.Render(),
 	)
 }
 
@@ -150,7 +150,7 @@ func TestModalServerOwned(t *testing.T) {
 type alertHost struct{ ui.Live }
 
 func (a *alertHost) Render() ui.Node {
-	return ui.El("div", nil, ui.Alert(ui.AlertProps{Variant: ui.AlertSuccess, Title: "Saved", Dismissible: true, Children: txt("All good")}))
+	return ui.El("div", nil, ui.Alert{Variant: ui.AlertSuccess, Title: "Saved", Dismissible: true, Children: txt("All good")}.Render())
 }
 
 func TestAlertDismiss(t *testing.T) {
@@ -178,9 +178,9 @@ type toastHost struct{ ui.Live }
 func (h *toastHost) Render() ui.Node {
 	return ui.El("div", nil,
 		ui.El("button", []ui.Attr{{Name: "id", Value: "show"}, on(ui.ShowToast("saved"))}, txt("Notify")),
-		ui.ToastContainer(ui.ToastContainerProps{Children: ui.Fragment(
-			styleHidden(ui.Toast(ui.ToastProps{ID: "saved", Variant: ui.AlertSuccess, Title: "Saved", Children: txt("Done")})),
-		)}),
+		ui.ToastContainer{Children: ui.Fragment(
+			styleHidden(ui.Toast{ID: "saved", Variant: ui.AlertSuccess, Title: "Saved", Children: txt("Done")}.Render()),
+		)}.Render(),
 	)
 }
 
@@ -214,14 +214,14 @@ func TestToastShowDismiss(t *testing.T) {
 // --- Table (presentational) -----------------------------------------------
 
 func TestTableRenders(t *testing.T) {
-	node := ui.Table(ui.TableProps[book]{
+	node := ui.Table[book]{
 		Columns: []ui.Column[book]{
 			{Header: txt("Title"), Cell: func(b book) ui.Node { return txt(b.Title) }},
 			{Header: txt("Author"), Cell: func(b book) ui.Node { return txt(b.Author) }, Align: "right"},
 		},
 		Rows:   catalog[:2],
 		RowKey: func(b book) any { return b.ID },
-	})
+	}.Render()
 	html, err := ui.String(context.Background(), node)
 	if err != nil {
 		t.Fatal(err)
@@ -231,9 +231,9 @@ func TestTableRenders(t *testing.T) {
 			t.Fatalf("missing %q in %s", want, html)
 		}
 	}
-	empty, _ := ui.String(context.Background(), ui.Table(ui.TableProps[book]{
+	empty, _ := ui.String(context.Background(), ui.Table[book]{
 		Columns: []ui.Column[book]{{Header: txt("Title"), Cell: func(b book) ui.Node { return txt(b.Title) }}},
-	}))
+	}.Render())
 	if !strings.Contains(empty, "vk-table__empty") {
 		t.Fatalf("no empty state: %s", empty)
 	}
@@ -317,7 +317,7 @@ func (h *booksHost) Render() ui.Node {
 		end = total
 	}
 	pg := ui.NewPage(rows[start:end], total, page, pageSize)
-	return ui.DataTable(ui.DataTableProps[book]{
+	return ui.DataTable[book]{
 		Columns: []ui.Column[book]{
 			{Header: txt("Title"), Cell: func(b book) ui.Node { return txt(b.Title) }, Sort: "title"},
 			{Header: txt("Author"), Cell: func(b book) ui.Node { return txt(b.Author) }, Sort: "author"},
@@ -330,7 +330,7 @@ func (h *booksHost) Render() ui.Node {
 		OnSearch: h.Search,
 		OnSort:   h.SortBy,
 		RowKey:   func(b book) any { return b.ID },
-	})
+	}.Render()
 }
 
 func TestDataTablePagingSearchSort(t *testing.T) {

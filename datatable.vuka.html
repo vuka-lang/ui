@@ -1,0 +1,71 @@
+func (d DataTable[T]) Render()
+<div class={withClass("vk-datatable", d.Class)}>
+  if d.OnSearch != nil || d.Tabs != nil || d.Toolbar != nil {
+    <div class="vk-datatable__bar">
+      <div class="vk-datatable__bar-left">
+        {d.Tabs}
+        if d.OnSearch != nil {
+          <div class="vk-datatable__searchbox">
+            {Icon("search", "vk-datatable__searchicon")}
+            <input type="search" class="vk-datatable__search" name="q" placeholder={d.placeholder()} aria-label="Search" value={d.Search} {on("onInput", d.OnSearch)...}/>
+          </div>
+        }
+      </div>
+      if d.Toolbar != nil {
+        <div class="vk-datatable__bar-right">{d.Toolbar}</div>
+      }
+    </div>
+  }
+  {d.table().Render()}
+  <div class="vk-datatable__foot">
+    <div class="vk-datatable__count">
+      if d.Page.Total > 0 {
+        Showing {d.Page.From()}–{d.Page.To()} of {d.Page.Total}
+      } else {
+        No results
+      }
+      if d.OnSize != nil && len(d.Sizes) > 0 {
+        <label class="vk-datatable__size">
+          {"Per page "}
+          <select aria-label="Rows per page" {on("onChange", d.OnSize)...}>
+            for _, n := range d.Sizes {
+              <option value={n} selected={n == d.Page.Size}>{n}</option>
+            }
+          </select>
+        </label>
+      }
+    </div>
+    {pager(d.Page, d.Window, d.OnPage)}
+  </div>
+</div>
+
+// sortHeader is a sortable column's header: a button calling onSort with its
+// key, marked when its column is the sorted one.
+func sortHeader[T any](c Column[T], sort, dir string, onSort any)
+<button type="button" class="vk-sort" aria-sort={sortAria(c.Sort == sort, dir)} onClick={JS.Push(onSort, Value(c.Sort))}>
+  {c.Header}
+  if c.Sort != sort {
+    {Icon("caret-up-down", "vk-sort__ind")}
+  } else if dir == "desc" {
+    {Icon("caret-down", "vk-sort__ind vk-sort__ind--active")}
+  } else {
+    {Icon("caret-up", "vk-sort__ind vk-sort__ind--active")}
+  }
+</button>
+
+// pager is a page's numbered buttons between previous and next.
+func pager[T any](page Page[T], window int, onPage any)
+if page.Pages <= 1 {
+  <div class="vk-pager"></div>
+} else {
+  <nav class="vk-pager" aria-label="Pagination">
+    {pagerButton("‹", "Previous page", page.Page-1, page.HasPrev, false, onPage)}
+    for _, n := range page.Window(pagerWindow(window)) {
+      {pagerButton(strconv.Itoa(n), "Page "+strconv.Itoa(n), n, true, n == page.Page, onPage)}
+    }
+    {pagerButton("›", "Next page", page.Page+1, page.HasNext, false, onPage)}
+  </nav>
+}
+
+func pagerButton(label, aria string, target int, enabled, current bool, onPage any)
+<button type="button" aria-label={aria} aria-current={when(current, "page")} disabled={!enabled || onPage == nil} {pageTo(onPage, target, enabled)...}>{label}</button>

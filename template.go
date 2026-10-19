@@ -51,7 +51,7 @@ import (
 //
 // A label appearing twice is one value. Blocks are Go producing nodes —
 // ui.Each, ui.If, a []ui.Node — and components their calls, each in a
-// hole: {rows}, {ui.Card(ui.CardProps{Title: t})}. {/* … */} is a comment.
+// hole: {rows}, {ui.Card{Title: t}.Render()}. {/* … */} is a comment.
 //
 // The markup is strict: every element is closed (<br> and the other void
 // elements need not be, and <x/> closes any), names are letters, digits and

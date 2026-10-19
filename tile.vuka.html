@@ -1,0 +1,10 @@
+func (t Tile) Render()
+<div class={withClass("vk-tile", t.Class)}>
+  if t.Icon != "" {
+    <span class={t.badgeClass()}>{Icon(t.Icon)}</span>
+  }
+  <div class="vk-tile__body">
+    <div class="vk-tile__value">{tileValue(t.Value)}</div>
+    <div class="vk-tile__label">{t.Label}</div>
+  </div>
+</div>

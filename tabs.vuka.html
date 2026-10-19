@@ -1,0 +1,22 @@
+func (t Tabs) Render()
+<div class={withClass("vk-tabs", t.Class)} role="tablist">
+  for _, tab := range t.Tabs {
+    {tab.node()}
+  }
+</div>
+
+func (t Tab) node()
+if t.Href != "" {
+  <a class={t.classes()} href={t.Href} data-vk-link={t.link()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)}>{t.label()}</a>
+} else {
+  <button type="button" class={t.classes()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)} {on("onClick", t.On)...}>{t.label()}</button>
+}
+
+func (t Tab) label()
+if t.Icon != "" {
+  <span class="vk-tab__icon">{Icon(t.Icon)}</span>
+}
+<span class="vk-tab__label">{t.Label}</span>
+if t.Count != nil {
+  <span class="vk-tab__count">{*t.Count}</span>
+}

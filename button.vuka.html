@@ -1,0 +1,27 @@
+func (b Button) Render()
+if b.Href != "" {
+  <a class={b.classes()} href={b.Href} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} data-vk-link={b.Nav} aria-disabled={when(b.Loading || b.Disabled, "true")} {b.Attrs...}>
+    {b.content()}
+  </a>
+} else {
+  <button class={b.classes()} type={b.typ()} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} form={nonEmpty(b.Form)} disabled={b.Disabled || b.Loading} aria-busy={when(b.Loading, "true")} {on("onClick", b.On)...} {b.Attrs...}>
+    {b.content()}
+  </button>
+}
+
+// content is the button's icon (or spinner) and label.
+func (b Button) content()
+lead := b.lead()
+if lead != nil {
+  <span class="vk-btn__icon">{lead}</span>
+}
+if b.Children != nil && !b.IconOnly {
+  <span class="vk-btn__label">{b.Children}</span>
+} else {
+  {b.Children}
+}
+
+// Spinner is the busy indicator Button and the form controls use: a spinning
+// ring drawn in CSS, so it needs no script.
+func Spinner()
+<span class="vk-spinner" aria-hidden="true"></span>
