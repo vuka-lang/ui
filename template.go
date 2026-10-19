@@ -61,7 +61,8 @@ type Markup struct {
 //   - text, inside title, textarea or script: a string or number;
 //   - an attribute's value, class="{{0}}": what a JSX attribute takes — a
 //     string, number, bool (false omits it, true writes it bare), nil, a
-//     ui.Class or ui.Style on class and style, a ui.State; an on… attribute
+//     ui.Class, ui.Classes or ui.Style on class and style, a ui.State (an
+//     expression of states too: open.Not()); an on… attribute
 //     takes a handler (a func, ui.On(…), JS commands);
 //   - part of a value, href="/orders/{{0}}": a string or number;
 //   - an attribute set, <input {{0}}>: a ui.Attr, []ui.Attr or
@@ -305,7 +306,7 @@ func (m *Markup) check(s *tslot, v any) (any, bool, error) {
 			return nil, false, m.wrong(s, s.hole, v, attrsWhy)
 		case EventHandler, JSChain:
 			return nil, false, m.wrong(s, s.hole, v, handlerWhy)
-		case Class, Style:
+		case Class, Classes, Style:
 			return nil, false, m.wrong(s, s.hole, v, "an attribute's value")
 		case *ComponentNode:
 			if x != nil && x.Site == "" {
@@ -342,7 +343,7 @@ func (m *Markup) check(s *tslot, v any) (any, bool, error) {
 		switch v.(type) {
 		case nil, string, int, int64, float64, bool, error, TextNode:
 			return v, false, nil
-		case Node, Stateful, AnyState, Attr, []Attr, templ.Attributes, EventHandler, JSChain, Class, Style:
+		case Node, Stateful, AnyState, Attr, []Attr, templ.Attributes, EventHandler, JSChain, Class, Classes, Style:
 			return nil, false, m.wrong(s, s.hole, v, "not text")
 		}
 		if reflect.TypeOf(v).Kind() == reflect.Func {
@@ -373,6 +374,11 @@ func (m *Markup) check(s *tslot, v any) (any, bool, error) {
 				return nil, false, m.wrong(s, s.hole, v, "a class: only class takes one")
 			}
 			return v, false, nil
+		case Classes:
+			if !s.class {
+				return nil, false, m.wrong(s, s.hole, v, "a class: only class takes one")
+			}
+			return x.binding(), true, nil
 		case Style:
 			if !s.styled {
 				return nil, false, m.wrong(s, s.hole, v, "a style: only style takes one")

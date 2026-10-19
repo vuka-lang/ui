@@ -11,12 +11,14 @@ import (
 	"github.com/a-h/templ"
 )
 
-// VukaJSX marks the package as a JSX target implementing version 1 of Vuka's
-// contract: a .vuka file importing ui lowers its JSX to El, Text, Child,
-// Fragment, Nodes and Try; on… attributes to On; tags naming a Stateful type
-// to Component; and children of components that read them from their context
-// (templ components) go through WithChildren.
-const VukaJSX = 1
+// VukaJSX marks the package as a JSX target implementing version 2 of Vuka's
+// contract: a .vuka file importing ui lowers each piece of its JSX to a
+// Template and its Render, blocks to Each and If, tags naming a Stateful type
+// to &T{…} (Key with a key), islands to their props (Mount with options),
+// ui.State to UseState, and reads of states to State's methods; children of
+// components that read them from their context (templ components) go
+// through WithChildren.
+const VukaJSX = 2
 
 // Node is anything that renders HTML: what a JSX expression evaluates to. It is
 // templ.Component itself, so Vuka components are templ components and templ

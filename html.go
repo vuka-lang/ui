@@ -272,6 +272,9 @@ func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 		}
 		return nil
 	}
+	if c, ok := a.Value.(Classes); ok {
+		a.Value = c.binding()
+	}
 	if b, ok := a.Value.(Binding); ok {
 		return h.bindAttr(tag, e, name, b)
 	}
