@@ -266,8 +266,8 @@ func isEventName(name string) bool {
 // attrNamed writes attribute a on an element of the given tag, with its
 // leading space, exactly as attr does. e, when non-nil, is the element; only
 // its data-vk-key is read, for the key attribute. The lazy-frame fast path
-// (lazyFrame.fastHTML) passes a nil e and never a key attribute — a frame
-// holding one is compiled as not fast.
+// (lazyFrame.fastHTML) passes a nil e, and a key attribute only where no
+// live render writes it.
 func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 	name := a.Name
 	if set, ok := a.Value.(attrSet); ok {

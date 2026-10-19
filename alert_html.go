@@ -10,14 +10,14 @@ import (
 
 //line alert.vuka.html:1
 func (a Alert) View() Node {
-	var div []Node
+	var div Node
 	if a.Title != "" {
-		div = append(div, HTML(`<div class="vk-alert__title">{a.Title}</div>`, a.Title))
+		div = HTML(`<div class="vk-alert__title">{a.Title}</div>`, a.Title)
 	}
-	var button []Node
+	var button Node
 //line alert.vuka.html:8
 	if a.Dismissible {
-		button = append(button, HTML(`<button type="button" class="vk-alert__close" aria-label="Dismiss" onClick={JS.Hide(Closest(".vk-alert"))}>×</button>`, JS.Hide(Closest(".vk-alert"))))
+		button = HTML(`<button type="button" class="vk-alert__close" aria-label="Dismiss" onClick={JS.Hide(Closest(".vk-alert"))}>×</button>`, JS.Hide(Closest(".vk-alert")))
 	}
 //line alert.vuka.html:1
 	return HTML(`

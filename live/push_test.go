@@ -154,3 +154,48 @@ func TestPushSet(t *testing.T) {
 		t.Fatalf("_set: %+v", m)
 	}
 }
+
+type BoundSearch struct {
+	ui.Live
+	Q     string
+	Limit int
+	other string
+}
+
+func (s *BoundSearch) LiveSchema(l *ui.LiveSchema) {
+	l.Field(&s.Q, ui.Bind{})
+	l.Field(&s.Limit, ui.Bind{})
+}
+
+func (s *BoundSearch) Render() ui.Node {
+	return ui.HTML(`<p><input {ui.BindValue(s, &s.Q)...}/><input {ui.BindValue(s, &s.Limit)...}/>{s.Q}/{s.Limit}</p>`,
+		ui.BindValue(s, &s.Q), ui.BindValue(s, &s.Limit), s.Q, s.Limit)
+}
+
+// bind:value's input sets its bound field: the page renders again with
+// what was typed, a number field taking a number.
+func TestBindValue(t *testing.T) {
+	page := &BoundSearch{Limit: 3}
+	s := live.NewSession(context.Background(), func(context.Context) ui.Node { return ui.Component("b", nil, page) })
+	m := s.Handle(live.ClientMessage{Type: live.Join, V: 2, Ref: 1})
+	if b := string(treeJSON(m.Trees)); !strings.Contains(b, `value=\"3\"`) || !strings.Contains(b, `debounce`) {
+		t.Fatalf("join: %s", b)
+	}
+	ref := 1
+	input := func(h, v string) live.ServerMessage {
+		ref++
+		return s.Handle(live.ClientMessage{Type: live.EventMsg, Ref: ref, Event: ui.Event{Target: "c1:" + h, Type: "input", Value: v}})
+	}
+	if m := input("0", "go"); m.Type != live.PatchMsg || !strings.Contains(string(treeJSON(m.Trees)), `"go"`) || page.Q != "go" {
+		t.Fatalf("Q: %+v", m)
+	}
+	if m := input("1", "7"); m.Type != live.PatchMsg || !strings.Contains(string(treeJSON(m.Trees)), `"7"`) || page.Limit != 7 {
+		t.Fatalf("Limit: %+v", m)
+	}
+	if m := input("1", "x"); m.Error == "" {
+		t.Fatalf("Limit x: %+v", m)
+	}
+	if _, err := ui.String(context.Background(), ui.HTML(`<input {a...}/>`, ui.BindValue(page, &page.other))); err == nil {
+		t.Error("an unbound field took bind:value")
+	}
+}

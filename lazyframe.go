@@ -77,7 +77,9 @@ type ftPlan struct {
 	statics []string
 	slots   []ftSlot
 	fast    bool
+	keyed   bool     // a key attribute: data-vk-key, which only a live render writes
 	sites   []string // a template's slots' sites, where a block in one places its items
+	sets    []bool   // a template's attribute set slots, a []Attr in one its attributes
 }
 
 // ftPlans caches one plan per fingerprint, like staticsCache: frames that share
@@ -108,7 +110,7 @@ func isTreeHost(h LiveHost) bool {
 func (n *lazyFrame) walk(ctx context.Context, r Renderer) error {
 	h, isHTML := r.(*HTMLRenderer)
 	p := n.plan()
-	if !isHTML || !p.fast || isTreeHost(liveHost(ctx)) {
+	if !isHTML || !p.fast || p.keyed && liveHost(ctx) != nil || isTreeHost(liveHost(ctx)) {
 		return Walk(ctx, n.frame(), r)
 	}
 	return n.fastHTML(ctx, h, p)
@@ -122,7 +124,13 @@ func (n *lazyFrame) fastHTML(ctx context.Context, h *HTMLRenderer, p *ftPlan) er
 	h.write(p.statics[0])
 	for i, d := range n.dyns {
 		s := p.slots[i]
-		if s.attr {
+		if set, ok := d.([]Attr); ok && s.attr && p.sets != nil && p.sets[i] {
+			for _, a := range set {
+				if err := h.attrNamed(s.tag, nil, a); err != nil {
+					return err
+				}
+			}
+		} else if s.attr {
 			if err := h.attrNamed(s.tag, nil, Attr{Name: s.name, Value: d}); err != nil {
 				return err
 			}
@@ -176,7 +184,7 @@ func compilePlan(f *Frame, shapeStr string) *ftPlan {
 		return notFast
 	}
 	c.statics = append(c.statics, c.sb.String())
-	return &ftPlan{statics: c.statics, slots: c.slots, fast: c.fast}
+	return &ftPlan{statics: c.statics, slots: c.slots, fast: c.fast, keyed: c.keyed}
 }
 
 // ftCompiler walks a sample frame once, writing its static markup into sb and
@@ -189,6 +197,7 @@ type ftCompiler struct {
 	statics []string
 	slots   []ftSlot
 	fast    bool
+	keyed   bool
 }
 
 // dyn closes the current static piece and records a dynamic; a dynamic reached
@@ -202,7 +211,7 @@ func (c *ftCompiler) dyn(s ftSlot) {
 		c.fast = false
 	}
 	if s.attr && s.name == "key" {
-		c.fast = false
+		c.keyed = true
 	}
 }
 
@@ -238,7 +247,7 @@ func (c *ftCompiler) elem(sh *shape, el *Element) error {
 	}
 	for i, a := range el.Attrs[:len(flags)] {
 		if a.Name == "key" {
-			c.fast = false // data-vk-key depends on the render, not the statics
+			c.keyed = true // data-vk-key depends on the render, not the statics
 		}
 		if flags[i] == 's' {
 			if err := c.h.attr(el, a); err != nil {

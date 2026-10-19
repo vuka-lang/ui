@@ -303,7 +303,11 @@ func (b *tbuild) kids(ns []tnode) []Node {
 			for j, a := range n.attrs {
 				attrs[j] = Attr{a.name, a.value}
 				if a.slot >= 0 {
-					attrs[j].Value = b.d[a.slot]
+					v := b.d[a.slot]
+					if x, ok := v.([]Attr); ok && b.t.slots[a.slot].kind == kSet {
+						v = attrSet(x)
+					}
+					attrs[j].Value = v
 				}
 			}
 			e := &b.elems[0]
@@ -506,7 +510,14 @@ func (t *tmpl) check(s *tslot, i int, v any) (any, bool, error) {
 		case Attr:
 			set = attrSet{x}
 		case []Attr:
-			set = attrSet(x)
+			// kept as given: the frame's build and the fast path read it as
+			// the slot's set
+			for _, a := range x {
+				if a.Name == "key" {
+					return nil, false, t.wrong(s, op, v, `holding key: write key={k} on the element`)
+				}
+			}
+			return v, false, nil
 		case templ.Attributes:
 			for _, k := range sortedKeys(x) {
 				set = append(set, Attr{k, x[k]})
@@ -576,6 +587,11 @@ func (t *tmpl) classes(s *tslot, args []any) (any, error) {
 		}
 		base = v
 	}
+	if b, ok := base.(string); ok || base == nil {
+		if cl, ok := t.plainClass(s, b, args); ok {
+			return cl, nil
+		}
+	}
 	switch b := base.(type) {
 	case nil:
 	case string:
@@ -614,6 +630,25 @@ func (t *tmpl) classes(s *tslot, args []any) (any, error) {
 		cl[k] = v.(bool)
 	}
 	return cl, nil
+}
+
+// plainClass is a class of a string and toggles none of which is a state:
+// one Class, built at once.
+func (t *tmpl) plainClass(s *tslot, base string, args []any) (Class, bool) {
+	for _, g := range s.toggles {
+		if _, ok := args[g.op.arg].(bool); !ok {
+			return nil, false
+		}
+	}
+	names := strings.Fields(base)
+	cl := make(Class, len(names)+len(s.toggles))
+	for _, n := range names {
+		cl[n] = true
+	}
+	for _, g := range s.toggles {
+		cl[g.name] = args[g.op.arg].(bool)
+	}
+	return cl, true
 }
 
 // attrSet is an attribute set hole's attributes, one attribute of the frame.
@@ -710,6 +745,14 @@ func (p *tparser) template(site string, body func() []tnode) *tmpl {
 		panic(tmplError(fmt.Sprintf("ui: template %s: %v", site, err)))
 	}
 	t.plan.sites = t.sites
+	for i := range t.slots {
+		if t.slots[i].kind == kSet {
+			if t.plan.sets == nil {
+				t.plan.sets = make([]bool, len(t.slots))
+			}
+			t.plan.sets[i] = true
+		}
+	}
 	t.pass = len(t.nodes) == 1 && t.nodes[0].static == nil && t.nodes[0].tag == "" && len(t.slots) == 1 && t.slots[0].kind == kChild
 	if len(t.slots) == 0 {
 		t.static = &lazyFrame{fp: t.fp, shape: t.shape, built: sample, p: t.plan}

@@ -111,25 +111,25 @@ func (b *tBoard) Render() ui.Node {
 	}
 	var numbered []ui.Node
 	for i, it := range b.items {
-		numbered = append(numbered, ui.HTML(`<li>{i}: {it.Name}</li>`, i, it.Name))
+		numbered = append(numbered, ui.HTML(`<li key={it.ID}>{i}: {it.Name}</li>`, it.ID, i, it.Name))
 	}
-	var state []ui.Node
+	var state ui.Node
 	switch {
 	case b.open:
-		state = append(state, ui.HTML(`<p onClick={b.Toggle}>open {b.note}</p>`, b.Toggle, b.note))
+		state = ui.HTML(`<p onClick={b.Toggle}>open {b.note}</p>`, b.Toggle, b.note)
 	case len(b.items) == 0:
-		state = append(state, ui.HTML(`<p>empty</p>`))
+		state = ui.HTML(`<p>empty</p>`)
 	default:
-		state = append(state, ui.HTML(`<p>closed</p>`))
+		state = ui.HTML(`<p>closed</p>`)
 	}
-	var mode []ui.Node
+	var mode ui.Node
 	switch b.mode {
 	case "big":
-		mode = append(mode, ui.HTML(`<b>BIG</b>`))
+		mode = ui.HTML(`<b>BIG</b>`)
 	case "note":
-		mode = append(mode, ui.HTML(`<input onInput={b.Note} value={b.note} />`, b.Note, b.note))
+		mode = ui.HTML(`<input onInput={b.Note} value={b.note} />`, b.Note, b.note)
 	default:
-		mode = append(mode, ui.El("i", nil, ui.Text("opaque "+b.mode), ui.Key(nil, &tCounter{Label: "inner"})))
+		mode = ui.El("i", nil, ui.Text("opaque "+b.mode), ui.Key(nil, &tCounter{Label: "inner"}))
 	}
 	var keyed []ui.Node
 	for _, it := range b.items {

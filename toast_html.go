@@ -12,14 +12,14 @@ import (
 func (t Toast) View() Node {
 //line toast.vuka.html:1
 	value2 := nonEmpty(t.ID)
-	var div []Node
+	var div Node
 	if t.Title != "" {
-		div = append(div, HTML(`<div class="vk-toast__title">{t.Title}</div>`, t.Title))
+		div = HTML(`<div class="vk-toast__title">{t.Title}</div>`, t.Title)
 	}
-	var button []Node
+	var button Node
 //line toast.vuka.html:8
 	if !t.Closed {
-		button = append(button, HTML(`<button type="button" class="vk-toast__close" aria-label="Dismiss" onClick={DismissToast()}>×</button>`, DismissToast()))
+		button = HTML(`<button type="button" class="vk-toast__close" aria-label="Dismiss" onClick={DismissToast()}>×</button>`, DismissToast())
 	}
 //line toast.vuka.html:1
 	return HTML(`

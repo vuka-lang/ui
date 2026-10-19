@@ -10,25 +10,25 @@ import (
 
 //line image.vuka.html:1
 func (im Image) View() Node {
-	var img2 []Node
+	var img2 Node
 //line image.vuka.html:2
 	if im.Overlay == nil {
-		img2 = append(img2, im.img())
+		img2 = im.img()
 	} else {
-		var div []Node
+		var div Node
 //line image.vuka.html:7
 		if im.Scrim {
-			div = append(div, HTML(`<div class="vk-img-scrim"/>`))
+			div = HTML(`<div class="vk-img-scrim"/>`)
 		}
-		img2 = append(img2, HTML(`
+		img2 = HTML(`
 <div class={withClass("vk-img-wrap", im.WrapClass)}>
   {im.img()}
   {div}
   <div class="vk-img-overlay">{im.Overlay}</div>
-</div>`, withClass("vk-img-wrap", im.WrapClass), im.img(), div, im.Overlay))
+</div>`, withClass("vk-img-wrap", im.WrapClass), im.img(), div, im.Overlay)
 	}
 //line image.vuka.html:1
-	return HTML(`{img2}`, img2)
+	return img2
 }
 
 //line image.vuka.html:12

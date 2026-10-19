@@ -22,35 +22,35 @@ func (t Tabs) View() Node {
 func (t Tabs) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }
 
 func (t Tab) node() Node {
-	var a2 []Node
+	var a2 Node
 //line tabs.vuka.html:9
 	if t.Href != "" {
-		a2 = append(a2, HTML(`<a class={t.classes()} href={t.Href} data-vk-link={t.link()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)}>{t.label()}</a>`,
+		a2 = HTML(`<a class={t.classes()} href={t.Href} data-vk-link={t.link()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)}>{t.label()}</a>`,
 			t.classes(),
 			t.Href,
 			t.link(),
 			t.selected(),
 			nonEmpty(t.ID),
 			t.label(),
-		))
+		)
 	} else {
 //line tabs.vuka.html:12
-		a2 = append(a2, HTML(`<button type="button" class={t.classes()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)} {on("onClick", t.On)...}>{t.label()}</button>`, t.classes(), t.selected(), nonEmpty(t.ID), on("onClick", t.On), t.label()))
+		a2 = HTML(`<button type="button" class={t.classes()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)} {on("onClick", t.On)...}>{t.label()}</button>`, t.classes(), t.selected(), nonEmpty(t.ID), on("onClick", t.On), t.label())
 	}
 //line tabs.vuka.html:8
-	return HTML(`{a2}`, a2)
+	return a2
 }
 
 //line tabs.vuka.html:15
 func (t Tab) label() Node {
-	var span2 []Node
+	var span2 Node
 //line tabs.vuka.html:16
 	if t.Icon != "" {
-		span2 = append(span2, HTML(`<span class="vk-tab__icon">{Icon(t.Icon)}</span>`, Icon(t.Icon)))
+		span2 = HTML(`<span class="vk-tab__icon">{Icon(t.Icon)}</span>`, Icon(t.Icon))
 	}
-	var span22 []Node
+	var span22 Node
 	if t.Count != nil {
-		span22 = append(span22, HTML(`<span class="vk-tab__count">{*t.Count}</span>`, *t.Count))
+		span22 = HTML(`<span class="vk-tab__count">{*t.Count}</span>`, *t.Count)
 	}
 //line tabs.vuka.html:15
 	return HTML(`

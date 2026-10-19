@@ -10,47 +10,47 @@ import (
 
 //line modal.vuka.html:1
 func (m Modal) View() Node {
-	var div []Node
+	var div Node
 //line modal.vuka.html:5
 	if m.Icon != nil || m.Title != nil || m.Subtitle != "" || !m.Closed {
-		var span2 []Node
+		var span2 Node
 		if m.Icon != nil {
-			span2 = append(span2, HTML(`<span class="vk-modal__icon">{m.Icon}</span>`, m.Icon))
+			span2 = HTML(`<span class="vk-modal__icon">{m.Icon}</span>`, m.Icon)
 		}
-		var div2 []Node
+		var div2 Node
 //line modal.vuka.html:10
 		if m.Title != nil || m.Subtitle != "" {
-			var h2 []Node
+			var h2 Node
 			if m.Title != nil {
-				h2 = append(h2, HTML(`<h2 class="vk-modal__title">{m.Title}</h2>`, m.Title))
+				h2 = HTML(`<h2 class="vk-modal__title">{m.Title}</h2>`, m.Title)
 			}
-			var p2 []Node
+			var p2 Node
 //line modal.vuka.html:15
 			if m.Subtitle != "" {
-				p2 = append(p2, HTML(`<p class="vk-modal__subtitle">{m.Subtitle}</p>`, m.Subtitle))
+				p2 = HTML(`<p class="vk-modal__subtitle">{m.Subtitle}</p>`, m.Subtitle)
 			}
-			div2 = append(div2, HTML(`
+			div2 = HTML(`
 <div class="vk-modal__heading">
   {h2}
   {p2}
-</div>`, h2, p2))
+</div>`, h2, p2)
 		}
-		var button []Node
+		var button Node
 //line modal.vuka.html:20
 		if !m.Closed {
-			button = append(button, HTML(`<button type="button" class="vk-modal__close" aria-label="Close" onClick={m.close()}>{Icon("x")}</button>`, m.close(), Icon("x")))
+			button = HTML(`<button type="button" class="vk-modal__close" aria-label="Close" onClick={m.close()}>{Icon("x")}</button>`, m.close(), Icon("x"))
 		}
-		div = append(div, HTML(`
+		div = HTML(`
 <div class="vk-modal__header">
   {span2}
   {div2}
   {button}
-</div>`, span2, div2, button))
+</div>`, span2, div2, button)
 	}
-	var div3 []Node
+	var div3 Node
 //line modal.vuka.html:26
 	if m.Footer != nil {
-		div3 = append(div3, HTML(`<div class="vk-modal__footer">{m.Footer}</div>`, m.Footer))
+		div3 = HTML(`<div class="vk-modal__footer">{m.Footer}</div>`, m.Footer)
 	}
 //line modal.vuka.html:1
 	return HTML(`

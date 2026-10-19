@@ -37,10 +37,10 @@ func Pets(pets []Pet, children ui.Node) ui.Node {
 //line jsx_test.vuka:28
 		petRows = append(petRows, PetRow(p))
 	}
-	var tr2 []ui.Node
+	var tr2 ui.Node
 //line jsx_test.vuka:29
 	if len(pets) == 0 {
-		tr2 = append(tr2, ui.HTML(`<tr><td>none</td></tr>`))
+		tr2 = ui.HTML(`<tr><td>none</td></tr>`)
 	}
 //line jsx_test.vuka:27
 	return ui.HTML(`

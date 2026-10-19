@@ -242,27 +242,25 @@ func (s *Session) handler(target string) any {
 	if !ok || in == nil {
 		return nil
 	}
-	h, err := strconv.Atoi(n)
-	if err != nil {
-		fn := pushable(in.comp, n)
-		if set, ok := fn.(func(context.Context, ui.Event) error); ok && n == "_set" && in.src != nil {
-			// what it sets are props: the tag's too, or its next render
-			// would set them back.
-			return func(ctx context.Context, ev ui.Event) error {
-				if err := set(ctx, ev); err != nil {
-					return err
-				}
-				in.set = true
-				copyProps(in.src, in.comp)
-				return nil
+	var fn any
+	if h, err := strconv.Atoi(n); err != nil {
+		fn = pushable(in.comp, n)
+	} else if h >= 0 && h < len(in.handlers) {
+		fn = in.handlers[h]
+	}
+	if set, ok := fn.(ui.Setter); ok && in.src != nil {
+		// what it sets are props: the tag's too, or its next render would
+		// set them back.
+		return func(ctx context.Context, ev ui.Event) error {
+			if err := set(ctx, ev); err != nil {
+				return err
 			}
+			in.set = true
+			copyProps(in.src, in.comp)
+			return nil
 		}
-		return fn
 	}
-	if h < 0 || h >= len(in.handlers) {
-		return nil
-	}
-	return in.handlers[h]
+	return fn
 }
 
 // AllowPush lets a component's scripts push its methods by name: typ is
@@ -311,7 +309,7 @@ func pushable(c ui.Stateful, name string) any {
 	if name == "_set" {
 		// a page script's live.<field>.set(v): its bind: fields, as an
 		// island page sets them.
-		return func(ctx context.Context, ev ui.Event) error { return ui.SetBound(ctx, v, ev.Data) }
+		return ui.Setter(func(ctx context.Context, ev ui.Event) error { return ui.SetBound(ctx, v, ev.Data) })
 	}
 	m := v.MethodByName(name)
 	if !m.IsValid() {
