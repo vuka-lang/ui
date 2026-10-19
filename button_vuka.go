@@ -90,12 +90,6 @@ func (p ButtonProps) classes() string {
 	return c
 }
 
-//line button.vuka:105
-var buttonSpan = Template(`<span class="vk-btn__icon">{{0}}</span>`)
-
-//line button.vuka:108
-var buttonSpan2 = Template(`<span class="vk-btn__label">{{0}}</span>`)
-
 // Button is a token-styled button, or a link when Href is set:
 //
 //	ui.Button(ui.ButtonProps{Variant: ui.Primary, Icon: ui.Icon("plus"), Children: ui.Text("New")})
@@ -104,8 +98,6 @@ var buttonSpan2 = Template(`<span class="vk-btn__label">{{0}}</span>`)
 //
 // A click handler (On) goes busy until its reply, so the spinner shows itself;
 // Loading forces it for a server-controlled state.
-//
-//line button.vuka:98
 func Button(p ButtonProps) Node {
 	lead := p.Icon
 	if p.Loading {
@@ -113,10 +105,10 @@ func Button(p ButtonProps) Node {
 	}
 	var kids []Node
 	if lead != nil {
-		kids = append(kids, buttonSpan.Render(lead))
+		kids = append(kids, HTML(`<span class="vk-btn__icon">{lead}</span>`, lead))
 	}
 	if p.Children != nil && !p.IconOnly {
-		kids = append(kids, buttonSpan2.Render(p.Children))
+		kids = append(kids, HTML(`<span class="vk-btn__label">{p.Children}</span>`, p.Children))
 	} else if p.Children != nil {
 		kids = append(kids, p.Children)
 	}
@@ -148,15 +140,10 @@ func Button(p ButtonProps) Node {
 	return El("button", attrs, kids...)
 }
 
-//line button.vuka:143
-var spinner = Template(`<span class="vk-spinner" aria-hidden="true"/>`)
-
 // Spinner is the busy indicator Button and the form controls use: a spinning
 // ring drawn in CSS, so it needs no script.
-//
-//line button.vuka:142
 func Spinner() Node {
-	return spinner.Render()
+	return HTML(`<span class="vk-spinner" aria-hidden="true"/>`)
 }
 
 func appendIf(attrs []Attr, cond bool, a Attr) []Attr {

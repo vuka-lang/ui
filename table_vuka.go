@@ -71,16 +71,6 @@ type TableProps[T any] struct {
 	Class string
 }
 
-//line table.vuka:101
-var tableTable = Template(`
-<table class="{{0}}">
-  <thead><tr>{{1}}</tr></thead>
-  {{2}}
-</table>`)
-
-//line table.vuka:102
-var table2 = Template(`<div class="vk-table-wrap">{{0}}</div>`)
-
 // Table renders rows of type T as an HTML table styled with the --ui-*
 // tokens. It is presentational — DataTable adds paging, search and sort:
 //
@@ -92,8 +82,6 @@ var table2 = Template(`<div class="vk-table-wrap">{{0}}</div>`)
 //		Rows:   books,
 //		RowKey: func(b Book) any { return b.ID },
 //	})
-//
-//line table.vuka:82
 func Table[T any](p TableProps[T]) Node {
 	class := "vk-table"
 	if p.Flush {
@@ -113,33 +101,28 @@ func Table[T any](p TableProps[T]) Node {
 		span++
 	}
 
-	table := tableTable.Render(class, headerCells(p), tableBody(p, span))
-	return table2.Render(table)
+	table := HTML(`
+<table class={class}>
+  <thead><tr>{headerCells(p)}</tr></thead>
+  {tableBody(p, span)}
+</table>`, class, headerCells(p), tableBody(p, span))
+//line table.vuka:102
+	return HTML(`<div class="vk-table-wrap">{table}</div>`, table)
 }
 
-//line table.vuka:108
-var headerCellsTh2 = Template(`<th class="vk-col--center vk-col--select" scope="col">{{0}}</th>`)
-
-//line table.vuka:111
-var headerCellsTh3 = Template(`<th class="vk-col--center vk-col--index" scope="col">{{0}}</th>`)
-
-//line table.vuka:117
-var headerCellsTh = Template(`<th class="vk-col--right" scope="col" aria-label="Actions"/>`)
-
-//line table.vuka:105
 func headerCells[T any](p TableProps[T]) []Node {
 	var cells []Node
 	if p.Selectable {
-		cells = append(cells, headerCellsTh2.Render(selectAll(p)))
+		cells = append(cells, HTML(`<th class="vk-col--center vk-col--select" scope="col">{selectAll(p)}</th>`, selectAll(p)))
 	}
 	if p.Index {
-		cells = append(cells, headerCellsTh3.Render(Text("#")))
+		cells = append(cells, HTML(`<th class="vk-col--center vk-col--index" scope="col">{Text("#")}</th>`, Text("#")))
 	}
 	for _, c := range p.Columns {
 		cells = append(cells, El("th", thAttrs(c), c.Header))
 	}
 	if p.RowActions != nil {
-		cells = append(cells, headerCellsTh.Render())
+		cells = append(cells, HTML(`<th class="vk-col--right" scope="col" aria-label="Actions"/>`))
 	}
 	return cells
 }
@@ -180,25 +163,9 @@ func colClass[T any](c Column[T]) string {
 	return class
 }
 
-//line table.vuka:160
-var tableBodyTbody = Template(`<tbody><tr><td colspan="{{0}}" class="vk-table__empty">{{1}}</td></tr></tbody>`)
-
-//line table.vuka:173
-var tableBodyTd3 = Template(`<td class="vk-col--center vk-col--index">{{0}}</td>`)
-
-//line table.vuka:176
-var tableBodyTd = Template(`<td class="{{0}}">{{1}}</td>`)
-
-//line table.vuka:179
-var tableBodyTd2 = Template(`<td class="vk-col--right vk-col--actions">{{0}}</td>`)
-
-//line table.vuka:183
-var tableBodyTbody2 = Template(`<tbody>{{0}}</tbody>`)
-
-//line table.vuka:158
 func tableBody[T any](p TableProps[T], span int) Node {
 	if len(p.Rows) == 0 {
-		return tableBodyTbody.Render(span, emptyState(p))
+		return HTML(`<tbody><tr><td colspan={span} class="vk-table__empty">{emptyState(p)}</td></tr></tbody>`, span, emptyState(p))
 	}
 	name := p.SelectName
 	if name == "" {
@@ -211,17 +178,17 @@ func tableBody[T any](p TableProps[T], span int) Node {
 			cells = append(cells, selectCell(p, row, name))
 		}
 		if p.Index {
-			cells = append(cells, tableBodyTd3.Render(Text(strconv.Itoa(p.IndexFrom+i+1))))
+			cells = append(cells, HTML(`<td class="vk-col--center vk-col--index">{Text(strconv.Itoa(p.IndexFrom + i + 1))}</td>`, Text(strconv.Itoa(p.IndexFrom+i+1))))
 		}
 		for _, c := range p.Columns {
-			cells = append(cells, tableBodyTd.Render(colClass(c), cellNode(c, row)))
+			cells = append(cells, HTML(`<td class={colClass(c)}>{cellNode(c, row)}</td>`, colClass(c), cellNode(c, row)))
 		}
 		if p.RowActions != nil {
-			cells = append(cells, tableBodyTd2.Render(p.RowActions(row)))
+			cells = append(cells, HTML(`<td class="vk-col--right vk-col--actions">{p.RowActions(row)}</td>`, p.RowActions(row)))
 		}
 		rows = append(rows, El("tr", rowAttrs(p, row), cells...))
 	}
-	return tableBodyTbody2.Render(rows)
+	return HTML(`<tbody>{rows}</tbody>`, rows)
 }
 
 func rowAttrs[T any](p TableProps[T], row T) []Attr {
@@ -248,14 +215,9 @@ func rowAttrs[T any](p TableProps[T], row T) []Attr {
 	return attrs
 }
 
-//line table.vuka:226
-var selectCellTd = Template(`<td class="vk-col--center vk-col--select">{{0}}</td>`)
-
 // selectCell renders a row's checkbox. A click on it is answered by the box's
 // own handler alone — the live runtime dispatches the nearest handler, so a
 // box inside a navigable row doesn't also trigger the row.
-//
-//line table.vuka:213
 func selectCell[T any](p TableProps[T], row T, name string) Node {
 	attrs := []Attr{{"type", "checkbox"}, {"class", "vk-check__box"}, {"aria-label", "Select row"}}
 	if p.RowKey != nil {
@@ -269,17 +231,9 @@ func selectCell[T any](p TableProps[T], row T, name string) Node {
 	} else {
 		attrs = append(attrs, Attr{"name", name})
 	}
-	return selectCellTd.Render(El("input", attrs))
+	return HTML(`<td class="vk-col--center vk-col--select">{El("input", attrs)}</td>`, El("input", attrs))
 }
 
-//line table.vuka:237
-var emptyStateDiv = Template(`
-<div class="vk-empty">
-  <span class="vk-empty__icon">{{0}}</span>
-  <span class="vk-empty__msg">{{1}}</span>
-</div>`)
-
-//line table.vuka:229
 func emptyState[T any](p TableProps[T]) Node {
 	msg := p.Empty
 	if msg == nil {
@@ -288,9 +242,14 @@ func emptyState[T any](p TableProps[T]) Node {
 	if p.EmptyIcon == nil {
 		return msg
 	}
-	return emptyStateDiv.Render(p.EmptyIcon, msg)
+	return HTML(`
+<div class="vk-empty">
+  <span class="vk-empty__icon">{p.EmptyIcon}</span>
+  <span class="vk-empty__msg">{msg}</span>
+</div>`, p.EmptyIcon, msg)
 }
 
+//line table.vuka:240
 func cellNode[T any](c Column[T], row T) Node {
 	if c.Cell == nil {
 		return nil

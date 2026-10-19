@@ -14,15 +14,10 @@ type BadgeProps struct {
 	Children Node
 }
 
-//line badge.vuka:29
-var badge2 = Template(`<span class="{{0}}">{{1}}</span>`)
-
 // Badge is a small status pill:
 //
 //	ui.Badge(ui.BadgeProps{Variant: ui.Success, Children: ui.Text("Signed")})
 //	ui.Badge(ui.BadgeProps{Variant: ui.Danger, Soft: true, Children: ui.Text("Failed")})
-//
-//line badge.vuka:18
 func Badge(p BadgeProps) Node {
 	class := "vk-badge"
 	if p.Variant != "" {
@@ -34,5 +29,5 @@ func Badge(p BadgeProps) Node {
 	if p.Class != "" {
 		class += " " + p.Class
 	}
-	return badge2.Render(class, p.Children)
+	return HTML(`<span class={class}>{p.Children}</span>`, class, p.Children)
 }

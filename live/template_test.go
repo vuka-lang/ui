@@ -25,9 +25,9 @@ type tCounter struct {
 
 func (c *tCounter) Inc() { c.n.Update(func(n int) int { return n + 1 }) }
 
-var counterT = ui.Template(`<span>{{0}}: {{1}} <button onClick="{{2}}">+</button></span>`)
-
-func (c *tCounter) Render() ui.Node { return counterT.Render(c.Label, c.n.Get(), c.Inc) }
+func (c *tCounter) Render() ui.Node {
+	return ui.HTML(`<span>{c.Label}: {c.n.Get()} <button onClick={c.Inc}>+</button></span>`, c.Label, c.n.Get(), c.Inc)
+}
 
 type item struct {
 	ID   int
@@ -103,69 +103,56 @@ func (b *tBoard) Remove(id int) {
 	}
 }
 
-var (
-	boardT = ui.Template(`
-<section className="board {{0}}">
-  <h2 title="{{1}}">{{2}} ({{3}})</h2>
-  {{4}}
-  <input onInput="{{5}}" value="{{6}}">
-  <button onClick="{{7}}">toggle</button>
-  <ul>{{8}}</ul>
-  <ol>{{9}}</ol>
-  {{10}}
-  {{11}}
-  <script>{{12}}</script>
-  {{13}}
-</section>`)
-	boardItemT = ui.Template(`<li key="{{0}}">{{1}} {{2}}<button onClick="{{3}}">x</button></li>`)
-	numberedT  = ui.Template(`<li>{{0}}: {{1}}</li>`)
-	openT      = ui.Template(`<p onClick="{{0}}">open {{1}}</p>`)
-	emptyT     = ui.Template(`<p>empty</p>`)
-	closedT    = ui.Template(`<p>closed</p>`)
-	bigT       = ui.Template(`<b>BIG</b>`)
-	noteT      = ui.Template(`<input onInput="{{0}}" value="{{1}}" />`)
-)
-
 func (b *tBoard) Render() ui.Node {
-	numbered := make([]ui.Node, len(b.items))
-	for i, it := range b.items {
-		numbered[i] = numberedT.Render(i, it.Name)
+	var items []ui.Node
+	for _, it := range b.items {
+		items = append(items, ui.HTML(`<li key={it.ID}>{it.Name} {counter}<button onClick={remove}>x</button></li>`,
+			it.ID, it.Name, &tCounter{Label: it.Name}, func() { b.Remove(it.ID) }))
 	}
-	var state ui.Node
+	var numbered []ui.Node
+	for i, it := range b.items {
+		numbered = append(numbered, ui.HTML(`<li>{i}: {it.Name}</li>`, i, it.Name))
+	}
+	var state []ui.Node
 	switch {
 	case b.open:
-		state = openT.Render(b.Toggle, b.note)
+		state = append(state, ui.HTML(`<p onClick={b.Toggle}>open {b.note}</p>`, b.Toggle, b.note))
 	case len(b.items) == 0:
-		state = emptyT.Render()
+		state = append(state, ui.HTML(`<p>empty</p>`))
 	default:
-		state = closedT.Render()
+		state = append(state, ui.HTML(`<p>closed</p>`))
 	}
-	var mode ui.Node
+	var mode []ui.Node
 	switch b.mode {
 	case "big":
-		mode = bigT.Render()
+		mode = append(mode, ui.HTML(`<b>BIG</b>`))
 	case "note":
-		mode = noteT.Render(b.Note, b.note)
+		mode = append(mode, ui.HTML(`<input onInput={b.Note} value={b.note} />`, b.Note, b.note))
 	default:
-		mode = ui.El("i", nil, ui.Text("opaque "+b.mode), ui.Key(nil, &tCounter{Label: "inner"}))
+		mode = append(mode, ui.El("i", nil, ui.Text("opaque "+b.mode), ui.Key(nil, &tCounter{Label: "inner"})))
 	}
-	return boardT.Render(b.mode, b.note, b.Title, len(b.items), b.Children, b.Do, b.mode, b.Toggle,
-		ui.Each(b.items, func(it item) ui.Node {
-			return boardItemT.Render(it.ID, it.Name, &tCounter{Label: it.Name}, func() { b.Remove(it.ID) })
-		}),
-		numbered, ui.If(true, state), ui.If(true, mode),
-		"var mode = '"+b.mode+"' </script>",
-		ui.Each(b.items, func(it item) ui.Node { return ui.Key(it.ID, &tCounter{Label: "k" + it.Name}) }),
-	)
+	var keyed []ui.Node
+	for _, it := range b.items {
+		keyed = append(keyed, ui.Key(it.ID, &tCounter{Label: "k" + it.Name}))
+	}
+	script := ui.El("script", nil, ui.Child("var mode = '"+b.mode+"' </script>"))
+	return ui.HTML(`
+<section class="board {b.mode}">
+  <h2 title={b.note}>{b.Title} ({len(b.items)})</h2>
+  {b.Children}
+  <input onInput={b.Do} value={b.mode}>
+  <button onClick={b.Toggle}>toggle</button>
+  <ul>{items}</ul>
+  <ol>{numbered}</ol>
+  {state}
+  {mode}
+  {script}
+  {keyed}
+</section>`, b.mode, b.note, b.Title, len(b.items), b.Children, b.Do, b.Toggle, items, numbered, state, mode, script, keyed)
 }
 
-var (
-	pageT = ui.Template(`<main>{{0}}{{1}}{{2}}</main>`)
-	emT   = ui.Template(`<em>first</em>`)
-)
-
 func tPage(context.Context) ui.Node {
-	return pageT.Render(&tBoard{Title: "one", Children: emT.Render()}, &tBoard{Title: "two"}, &tCounter{Label: "solo"})
+	return ui.HTML(`<main>{one}{two}{solo}</main>`, &tBoard{Title: "one", Children: ui.HTML(`<em>first</em>`)}, &tBoard{Title: "two"}, &tCounter{Label: "solo"})
 }
 
 // tCellTable is demo.CellTable.
@@ -179,25 +166,18 @@ func (t *tCellTable) Mount() { t.cells = make([]int, t.N) }
 
 func (t *tCellTable) Bump(i int) { t.cells[i]++ }
 
-var (
-	cellTableT = ui.Template(`<table>{{0}}</table>`)
-	cellRowT   = ui.Template(`
-<tr key="{{0}}">
-  <td>row {{0}}</td>
-  <td className="n">{{1}}</td>
-  <td><button onClick="{{2}}">+</button></td>
-</tr>`)
-)
-
 func (t *tCellTable) Render() ui.Node {
 	rows := make([]ui.Node, len(t.cells))
 	for i, v := range t.cells {
-		rows[i] = cellRowT.Render(i, v, func() { t.Bump(i) })
+		rows[i] = ui.HTML(`
+<tr key={i}>
+  <td>row {i}</td>
+  <td class="n">{v}</td>
+  <td><button onClick={bump}>+</button></td>
+</tr>`, i, v, func() { t.Bump(i) })
 	}
-	return cellTableT.Render(rows)
+	return ui.HTML(`<table>{rows}</table>`, rows)
 }
-
-var countersT = ui.Template(`<main>{{0}}</main>`)
 
 func tCounters(n int) func(context.Context) ui.Node {
 	return func(context.Context) ui.Node {
@@ -205,7 +185,7 @@ func tCounters(n int) func(context.Context) ui.Node {
 		for i := range n {
 			cs[i] = ui.Key(i, &tCounter{Label: "c" + strconv.Itoa(i)})
 		}
-		return countersT.Render(cs)
+		return ui.HTML(`<main>{cs}</main>`, cs)
 	}
 }
 

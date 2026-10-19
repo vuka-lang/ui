@@ -231,15 +231,13 @@ const Styles = `:root{
 .vk-img-overlay{position:absolute;inset:0}
 @media (prefers-reduced-motion:reduce){.vk-img{animation:none}}`
 
-//line theme.vuka:237
-var styleTag = Template(`<style data-vk-ui>{{0}}</style>`)
-
 // StyleTag is a <style> element holding Styles, to place in a page's head so
 // the components are themed:
 //
 //	func layout(page ui.Node) ui.Node {
 //		return ui.El("html", nil, ui.El("head", nil, ui.StyleTag()), ui.El("body", nil, page))
 //	}
-//
+func StyleTag() Node {
 //line theme.vuka:237
-func StyleTag() Node { return styleTag.Render(RawHTML(Styles)) }
+	return HTML(`{El("style", []Attr{{Name: "data-vk-ui", Value: true}}, Child(RawHTML(Styles)))}`, El("style", []Attr{{Name: "data-vk-ui", Value: true}}, Child(RawHTML(Styles))))
+}

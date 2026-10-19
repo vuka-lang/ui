@@ -15,7 +15,7 @@ type query struct {
 	Tags  []string
 }
 
-var exprAttr = ui.Template(`<p data-x="{{0}}">{{1}}</p>`)
+func exprAttr(v any) ui.Node { return ui.HTML(`<p data-x={v}>{v}</p>`, v) }
 
 // TestDerive checks State's expression methods against the bindings a .vuka
 // file's compiler wrote for the same expressions: the same HTML, the same
@@ -47,16 +47,16 @@ func TestDerive(t *testing.T) {
 		{"field", ui.At[int](q, "Range.Lo").Eq(0), ui.Bind(true, `["==",{"$":0,"p":["Range","Lo"]},0]`, q)},
 	}
 	for _, tt := range tests {
-		got := pageHTML(t, exprAttr.Render(tt.got, tt.got))
-		want := pageHTML(t, exprAttr.Render(tt.old, tt.old))
+		got := pageHTML(t, exprAttr(tt.got))
+		want := pageHTML(t, exprAttr(tt.old))
 		if got != want {
 			t.Errorf("%s:\ngot  %s\nwant %s", tt.name, got, want)
 		}
 	}
 
-	cls := ui.Template(`<div class="{{0}}"></div>`)
-	got := pageHTML(t, cls.Render(ui.Classes{"menu": true, "is-open": open, "env": tab.Eq("env")}))
-	want := pageHTML(t, cls.Render(ui.Bind(ui.Class{"menu": true, "is-open": false, "env": false}, `["class",{"env":["==",{"$":1},"env"],"is-open":{"$":0},"menu":true}]`, open, tab)))
+	cls := func(v any) ui.Node { return ui.HTML(`<div class={v}></div>`, v) }
+	got := pageHTML(t, cls(ui.Classes{"menu": true, "is-open": open, "env": tab.Eq("env")}))
+	want := pageHTML(t, cls(ui.Bind(ui.Class{"menu": true, "is-open": false, "env": false}, `["class",{"env":["==",{"$":1},"env"],"is-open":{"$":0},"menu":true}]`, open, tab)))
 	if got != want {
 		t.Errorf("classes:\ngot  %s\nwant %s", got, want)
 	}
@@ -82,7 +82,7 @@ func TestDeriveRefuses(t *testing.T) {
 		"neg of a string":  func() { tab.Neg() },
 		"no such field":    func() { ui.At[string](q, "Nope") },
 		"field of a type":  func() { ui.At[int](q, "Text") },
-		"classes of a str": func() { pageHTML(t, ui.Template(`<i class="{{0}}"></i>`).Render(ui.Classes{"a": "b"})) },
+		"classes of a str": func() { pageHTML(t, ui.HTML(`<i class={c}></i>`, ui.Classes{"a": "b"})) },
 	} {
 		func() {
 			defer func() {

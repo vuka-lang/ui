@@ -3,17 +3,12 @@
 //line actions.vuka:1
 package ui
 
-//line actions.vuka:8
-var actions = Template(`<div class="vk-actions">{{0}}</div>`)
-
 // Actions is a right-aligned row of buttons, for a modal footer or a card
 // header:
 //
 //	ui.Actions(ui.Cancel(m.Close), ui.Button(ui.ButtonProps{Variant: ui.Primary, On: m.Save, Children: ui.Text("Save")}))
-//
-//line actions.vuka:7
 func Actions(buttons ...Node) Node {
-	return actions.Render(buttons)
+	return HTML(`<div class="vk-actions">{buttons}</div>`, buttons)
 }
 
 // Cancel is a neutral button that dismisses a modal or form. On is what it

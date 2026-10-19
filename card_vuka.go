@@ -16,19 +16,6 @@ type CardProps struct {
 	Children Node
 }
 
-//line card.vuka:27
-var cardDiv = Template(`<div class="vk-card__title">{{0}}</div>`)
-
-var cardDiv2 = Template(`<div class="vk-card__header-actions">{{0}}</div>`)
-
-var cardDiv3 = Template(`<div class="vk-card__header">{{0}}</div>`)
-
-//line card.vuka:37
-var cardDiv4 = Template(`<div class="{{0}}">{{1}}</div>`)
-
-//line card.vuka:43
-var card = Template(`<div class="{{0}}">{{1}}</div>`)
-
 // Card is a bordered surface with an optional header (a title on the left,
 // actions on the right) and a body:
 //
@@ -37,26 +24,24 @@ var card = Template(`<div class="{{0}}">{{1}}</div>`)
 //		Header: ui.Actions(ui.Button(ui.ButtonProps{Variant: ui.Primary, Children: ui.Text("Invite")})),
 //		Children: table,
 //	})
-//
-//line card.vuka:24
 func Card(p CardProps) Node {
 	var kids []Node
 	if p.Title != nil || p.Header != nil {
-		head := []Node{cardDiv.Render(p.Title)}
+		head := []Node{HTML(`<div class="vk-card__title">{p.Title}</div>`, p.Title)}
 		if p.Header != nil {
-			head = append(head, cardDiv2.Render(p.Header))
+			head = append(head, HTML(`<div class="vk-card__header-actions">{p.Header}</div>`, p.Header))
 		}
-		kids = append(kids, cardDiv3.Render(head))
+		kids = append(kids, HTML(`<div class="vk-card__header">{head}</div>`, head))
 	}
 	bodyClass := "vk-card__body"
 	if p.NoPad {
 		bodyClass += " vk-card__body--flush"
 	}
-	kids = append(kids, cardDiv4.Render(bodyClass, p.Children))
+	kids = append(kids, HTML(`<div class={bodyClass}>{p.Children}</div>`, bodyClass, p.Children))
 
 	class := "vk-card"
 	if p.Class != "" {
 		class += " " + p.Class
 	}
-	return card.Render(class, kids)
+	return HTML(`<div class={class}>{kids}</div>`, class, kids)
 }
