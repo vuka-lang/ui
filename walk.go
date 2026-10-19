@@ -139,6 +139,9 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		}
 		return rec.replay(ctx, r)
 	}
+	if v, ok := n.(viewer); ok {
+		return Walk(ctx, v.View(), r)
+	}
 	return r.Opaque(ctx, n)
 }
 
