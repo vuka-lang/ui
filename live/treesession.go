@@ -29,6 +29,14 @@ func (s *Session) treeUpdates() []TreeUpdate {
 			in.tree.HTML(&b, nil)
 			if b.Len() < len(e.b) {
 				s.c.rollback()
+				if markupOnly(in.tree) {
+					// its whole tree costs what its HTML does, and the
+					// client keeps it to patch
+					s.c.begin()
+					e.b, u.Full = e.b[:0], true
+					e.frame(in.tree)
+					break
+				}
 				in.shadow = nil
 				ups = append(ups, TreeUpdate{ID: in.id, HTML: b.String()})
 				continue
@@ -39,6 +47,17 @@ func (s *Session) treeUpdates() []TreeUpdate {
 		ups = append(ups, u)
 	}
 	return ups
+}
+
+// markupOnly is whether t has no statics: an instance rendered without
+// frames, its HTML one dynamic.
+func markupOnly(t *ui.Tree) bool {
+	for _, st := range t.Statics {
+		if st != "" {
+			return false
+		}
+	}
+	return true
 }
 
 // treeHTML writes an instance's HTML from its tree, the instances it renders

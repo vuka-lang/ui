@@ -37,6 +37,7 @@ type Session struct {
 	trees  bool // a v2 connection: instances render to trees
 	c      conn
 	verify bool
+	whole  bool     // each instance one dynamic of its HTML: wholeTrees's
 	js     []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
 	router Router
 
@@ -90,7 +91,7 @@ const RootID = "c0"
 // NewSession is a session rendering the page render returns. ctx is the
 // context of Mount, handlers and Update methods, and of every render.
 func NewSession(ctx context.Context, render func(ctx context.Context) ui.Node) *Session {
-	s := &Session{ctx: ctx, render: render, byID: map[string]*instance{}, verify: Verify}
+	s := &Session{ctx: ctx, render: render, byID: map[string]*instance{}, verify: Verify, whole: wholeTrees}
 	s.root = &instance{s: s, id: RootID, children: map[string]*instance{}}
 	s.byID[RootID] = s.root
 	return s
@@ -737,7 +738,7 @@ func (s *Session) renderInst(in *instance) error {
 	if in.comp != nil {
 		defer ui.SettleState(in.comp)
 	}
-	if s.trees {
+	if s.trees && !s.whole {
 		t, err := ui.BuildTree(ctx, node, s.verify)
 		if err != nil {
 			return err
@@ -752,6 +753,10 @@ func (s *Session) renderInst(in *instance) error {
 		}
 	}
 	own := b.String()
+	if s.trees {
+		in.tree = splitMarkers(ui.OpaqueTree(own))
+		return nil
+	}
 	in.changed = in.fresh || own != in.own
 	in.own = own
 	return nil
