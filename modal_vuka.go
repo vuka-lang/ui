@@ -36,24 +36,6 @@ type ModalProps struct {
 	Children Node
 }
 
-//line modal.vuka:80
-var modalSpan = Template(`<span class="vk-modal__icon">{{0}}</span>`)
-
-//line modal.vuka:85
-var modalH2 = Template(`<h2 class="vk-modal__title">{{0}}</h2>`)
-
-//line modal.vuka:88
-var modalP = Template(`<p class="vk-modal__subtitle">{{0}}</p>`)
-
-var modalDiv = Template(`<div class="vk-modal__heading">{{0}}</div>`)
-
-//line modal.vuka:102
-var modalDiv2 = Template(`<div class="vk-modal__header">{{0}}</div>`)
-
-var modalDiv3 = Template(`<div class="vk-modal__body">{{0}}</div>`)
-
-var modalDiv4 = Template(`<div class="vk-modal__footer">{{0}}</div>`)
-
 // Modal is a dialog centred over a backdrop. A browser-only modal is hidden
 // until OpenModal shows it and keeps its open state in the DOM:
 //
@@ -67,8 +49,6 @@ var modalDiv4 = Template(`<div class="vk-modal__footer">{{0}}</div>`)
 //
 // Opening traps focus (PushFocus then FocusFirst); closing restores it
 // (PopFocus). Escape and a backdrop click close a dismissible modal.
-//
-//line modal.vuka:49
 func Modal(p ModalProps) Node {
 	ref := p.Ref
 	if ref == "" {
@@ -100,17 +80,17 @@ func Modal(p ModalProps) Node {
 
 	var head []Node
 	if p.Icon != nil {
-		head = append(head, modalSpan.Render(p.Icon))
+		head = append(head, HTML(`<span class="vk-modal__icon">{p.Icon}</span>`, p.Icon))
 	}
 	if p.Title != nil || p.Subtitle != "" {
 		heading := []Node{}
 		if p.Title != nil {
-			heading = append(heading, modalH2.Render(p.Title))
+			heading = append(heading, HTML(`<h2 class="vk-modal__title">{p.Title}</h2>`, p.Title))
 		}
 		if p.Subtitle != "" {
-			heading = append(heading, modalP.Render(Text(p.Subtitle)))
+			heading = append(heading, HTML(`<p class="vk-modal__subtitle">{Text(p.Subtitle)}</p>`, Text(p.Subtitle)))
 		}
-		head = append(head, modalDiv.Render(heading))
+		head = append(head, HTML(`<div class="vk-modal__heading">{heading}</div>`, heading))
 	}
 	if dismissible {
 		// close is already an On(...) value; pass it directly rather than through
@@ -122,11 +102,11 @@ func Modal(p ModalProps) Node {
 
 	dialogKids := []Node{}
 	if len(head) > 0 {
-		dialogKids = append(dialogKids, modalDiv2.Render(head))
+		dialogKids = append(dialogKids, HTML(`<div class="vk-modal__header">{head}</div>`, head))
 	}
-	dialogKids = append(dialogKids, modalDiv3.Render(p.Children))
+	dialogKids = append(dialogKids, HTML(`<div class="vk-modal__body">{p.Children}</div>`, p.Children))
 	if p.Footer != nil {
-		dialogKids = append(dialogKids, modalDiv4.Render(p.Footer))
+		dialogKids = append(dialogKids, HTML(`<div class="vk-modal__footer">{p.Footer}</div>`, p.Footer))
 	}
 
 	dialogAttrs := []Attr{{"class", class}, {"role", "dialog"}, {"aria-modal", "true"}, {"tabindex", "-1"}}

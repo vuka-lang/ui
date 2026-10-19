@@ -33,17 +33,12 @@ type TabsProps struct {
 	Class string
 }
 
-//line tabs.vuka:48
-var tabs2 = Template(`<div class="{{0}}" role="tablist">{{1}}</div>`)
-
 // Tabs is a tab bar underlining the active tab; each tab may carry a count:
 //
 //	ui.Tabs(ui.TabsProps{Tabs: []ui.Tab{
 //		{Label: "Placements", Href: "/tasks?type=placements", Active: true, Count: ui.Count(42)},
 //		{Label: "Permits", Href: "/tasks?type=permits", Count: ui.Count(7)},
 //	}})
-//
-//line tabs.vuka:39
 func Tabs(p TabsProps) Node {
 	class := "vk-tabs"
 	if p.Class != "" {
@@ -53,17 +48,9 @@ func Tabs(p TabsProps) Node {
 	for _, t := range p.Tabs {
 		tabs = append(tabs, tabNode(t))
 	}
-	return tabs2.Render(class, tabs)
+	return HTML(`<div class={class} role="tablist">{tabs}</div>`, class, tabs)
 }
 
-//line tabs.vuka:58
-var tabNodeSpan = Template(`<span class="vk-tab__icon">{{0}}</span>`)
-
-var tabNodeSpan2 = Template(`<span class="vk-tab__label">{{0}}</span>`)
-
-var tabNodeSpan3 = Template(`<span class="vk-tab__count">{{0}}</span>`)
-
-//line tabs.vuka:51
 func tabNode(t Tab) Node {
 	tabClass := "vk-tab"
 	if t.Active {
@@ -71,11 +58,11 @@ func tabNode(t Tab) Node {
 	}
 	var label []Node
 	if t.Icon != "" {
-		label = append(label, tabNodeSpan.Render(Icon(t.Icon)))
+		label = append(label, HTML(`<span class="vk-tab__icon">{Icon(t.Icon)}</span>`, Icon(t.Icon)))
 	}
-	label = append(label, tabNodeSpan2.Render(Text(t.Label)))
+	label = append(label, HTML(`<span class="vk-tab__label">{Text(t.Label)}</span>`, Text(t.Label)))
 	if t.Count != nil {
-		label = append(label, tabNodeSpan3.Render(Text(strconv.Itoa(*t.Count))))
+		label = append(label, HTML(`<span class="vk-tab__count">{Text(strconv.Itoa(*t.Count))}</span>`, Text(strconv.Itoa(*t.Count))))
 	}
 
 	if t.Href != "" {

@@ -10,49 +10,51 @@ import (
 	"github.com/vuka-lang/ui"
 )
 
-// The benchmark page of page_bench_test.go written with templates, as a
-// person (or the compiler, once it emits them) writes it.
+// The benchmark page of page_bench_test.go written with ui.HTML, as a
+// person or the compiler writes it.
 
-var benchLayoutT = ui.Template(`
+func benchLayoutHTML(title string, content ui.Node) ui.Node {
+	return ui.HTML(`
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{0}} · Bench</title>
+    <title>{title} · Bench</title>
   </head>
   <body class="page">
     <header class="top">
       <nav><a href="/">Home</a> <a href="/page">Users</a></nav>
     </header>
-    <main class="content">{{1}}</main>
+    <main class="content">{content}</main>
     <footer class="foot">Benchmark page</footer>
   </body>
-</html>`)
+</html>`, title, content)
+}
 
-var benchContentT = ui.Template(`
+func benchContentHTML(rows ui.Node) ui.Node {
+	return ui.HTML(`
 <h1 class="title">Users</h1>
 <table class="table">
   <thead>
     <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr>
   </thead>
-  <tbody>{{0}}</tbody>
-</table>`)
-
-var benchRowT = ui.Template(`
-<tr class="row">
-  <td class="num">{{0}}</td>
-  <td class="name">{{1}}</td>
-  <td class="email"><a href="{{2}}">{{3}}</a></td>
-  <td class="role">{{4}}</td>
-  <td class="{{5}}">{{6}}</td>
-</tr>`)
+  <tbody>{rows}</tbody>
+</table>`, rows)
+}
 
 func benchRowTemplate(r benchRow) ui.Node {
-	return benchRowT.Render(strconv.Itoa(r.ID), r.Name, "mailto:"+r.Email, r.Email, r.Role, "status status-"+r.Status, r.Status)
+	return ui.HTML(`
+<tr class="row">
+  <td class="num">{strconv.Itoa(r.ID)}</td>
+  <td class="name">{r.Name}</td>
+  <td class="email"><a href={"mailto:" + r.Email}>{r.Email}</a></td>
+  <td class="role">{r.Role}</td>
+  <td class={"status status-" + r.Status}>{r.Status}</td>
+</tr>`, strconv.Itoa(r.ID), r.Name, "mailto:"+r.Email, r.Email, r.Role, "status status-"+r.Status, r.Status)
 }
 
 func benchPageTemplate() ui.Node {
-	return benchLayoutT.Render("Users", benchContentT.Render(ui.Each(benchRows(), benchRowTemplate)))
+	return benchLayoutHTML("Users", benchContentHTML(ui.Each(benchRows(), benchRowTemplate)))
 }
 
 func TestTemplateBenchPageGolden(t *testing.T) {

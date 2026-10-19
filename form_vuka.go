@@ -149,15 +149,6 @@ func Select(p FieldProps) Node { p.typ = kindSelect; return field(p) }
 // Checkbox is a single boolean field; its label sits beside the box.
 func Checkbox(p FieldProps) Node { p.typ = kindCheckbox; return field(p) }
 
-//line form.vuka:174
-var fieldDiv = Template(`<div class="vk-field__help" id="{{0}}">{{1}}</div>`)
-
-//line form.vuka:177
-var fieldDiv2 = Template(`<div class="vk-field__error" id="{{0}}" role="alert">{{1}}</div>`)
-
-var fieldDiv3 = Template(`<div class="{{0}}">{{1}}</div>`)
-
-//line form.vuka:149
 func field(p FieldProps) Node {
 	id := "f-" + p.Name
 	invalid := p.Error != ""
@@ -183,32 +174,22 @@ func field(p FieldProps) Node {
 		kids = append(kids, fieldControl(p, id, invalid))
 	}
 	if p.Help != "" {
-		kids = append(kids, fieldDiv.Render(id+"-help", Text(p.Help)))
+		kids = append(kids, HTML(`<div class="vk-field__help" id={id + "-help"}>{Text(p.Help)}</div>`, id+"-help", Text(p.Help)))
 	}
 	if invalid {
-		kids = append(kids, fieldDiv2.Render(id+"-error", Text(p.Error)))
+		kids = append(kids, HTML(`<div class="vk-field__error" id={id + "-error"} role="alert">{Text(p.Error)}</div>`, id+"-error", Text(p.Error)))
 	}
-	return fieldDiv3.Render(wrapClass, kids)
+	return HTML(`<div class={wrapClass}>{kids}</div>`, wrapClass, kids)
 }
 
-//line form.vuka:185
-var fieldLabelSpan = Template(`<span class="vk-field__req" aria-hidden="true">{{0}}</span>`)
-
-var fieldLabelLabel = Template(`<label class="vk-field__label" for="{{0}}">{{1}}</label>`)
-
-//line form.vuka:182
 func fieldLabel(p FieldProps, id string) Node {
 	label := []Node{Text(p.Label)}
 	if p.Required {
-		label = append(label, fieldLabelSpan.Render(Text("*")))
+		label = append(label, HTML(`<span class="vk-field__req" aria-hidden="true">{Text("*")}</span>`, Text("*")))
 	}
-	return fieldLabelLabel.Render(id, label)
+	return HTML(`<label class="vk-field__label" for={id}>{label}</label>`, id, label)
 }
 
-//line form.vuka:212
-var fieldControlOption = Template(`<option value="" disabled selected="{{0}}">{{1}}</option>`)
-
-//line form.vuka:190
 func fieldControl(p FieldProps, id string, invalid bool) Node {
 	common := []Attr{{"id", id}, {"name", p.Name}}
 	common = appendIf(common, p.Required, Attr{"required", true})
@@ -231,7 +212,7 @@ func fieldControl(p FieldProps, id string, invalid bool) Node {
 		a := append([]Attr{{"class", inputClass("vk-select", invalid)}}, common...)
 		var opts []Node
 		if p.Placeholder != "" {
-			opts = append(opts, fieldControlOption.Render(p.Value == "", Text(p.Placeholder)))
+			opts = append(opts, HTML(`<option value="" disabled selected={p.Value == ""}>{Text(p.Placeholder)}</option>`, p.Value == "", Text(p.Placeholder)))
 		}
 		for _, o := range p.Options {
 			oa := []Attr{{"value", o.Value}}
@@ -255,22 +236,19 @@ func fieldControl(p FieldProps, id string, invalid bool) Node {
 	}
 }
 
-//line form.vuka:241
-var checkboxControlLabel = Template(`
-<label class="vk-check" for="{{0}}">
-  {{1}}
-  <span class="vk-check__label">{{2}}</span>
-</label>`)
-
-//line form.vuka:236
 func checkboxControl(p FieldProps, id string) Node {
 	box := []Attr{{"type", "checkbox"}, {"class", "vk-check__box"}, {"id", id}, {"name", p.Name}, {"value", "true"}}
 	box = appendIf(box, p.Value == "true", Attr{"checked", true})
 	box = appendIf(box, p.Disabled, Attr{"disabled", true})
 	box = append(box, p.Attrs...)
-	return checkboxControlLabel.Render(id, El("input", box), Text(p.Label))
+	return HTML(`
+<label class="vk-check" for={id}>
+  {El("input", box)}
+  <span class="vk-check__label">{Text(p.Label)}</span>
+</label>`, id, El("input", box), Text(p.Label))
 }
 
+//line form.vuka:244
 func inputClass(base string, invalid bool) string {
 	if invalid {
 		return base + " " + base + "--invalid"

@@ -65,9 +65,6 @@ type DataTableProps[T any] struct {
 	Tabs Node
 }
 
-//line datatable.vuka:108
-var dataTable = Template(`<div class="{{0}}">{{1}}</div>`)
-
 // DataTable is a Table with a search box, sortable headers and a pager,
 // driven from a live view's events. It renders a page (ui.Page[T], e.g. from
 // web.Paginate) and calls the handlers the host supplies:
@@ -80,8 +77,6 @@ var dataTable = Template(`<div class="{{0}}">{{1}}</div>`)
 //		OnSort:   p.SortBy,   // func(string)
 //		OnPage:   p.GoTo,     // func(int)
 //	})
-//
-//line datatable.vuka:77
 func DataTable[T any](p DataTableProps[T]) Node {
 	class := "vk-datatable"
 	if p.Class != "" {
@@ -113,17 +108,9 @@ func DataTable[T any](p DataTableProps[T]) Node {
 		kids = append(kids, bar)
 	}
 	kids = append(kids, table, dataTableFoot(p))
-	return dataTable.Render(class, kids)
+	return HTML(`<div class={class}>{kids}</div>`, class, kids)
 }
 
-//line datatable.vuka:128
-var sortHeaderButton = Template(`
-<button type="button" class="vk-sort" aria-sort="{{0}}" onClick="{{1}}">
-  {{2}}
-  {{3}}
-</button>`)
-
-//line datatable.vuka:111
 func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
 	ind := Icon("caret-up-down", "vk-sort__ind")
 	if c.Sort == sort {
@@ -141,22 +128,12 @@ func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
 			aria = "ascending"
 		}
 	}
-	return sortHeaderButton.Render(aria, JS.Push(onSort, Value(c.Sort)), c.Header, ind)
+	return HTML(`
+<button type="button" class="vk-sort" aria-sort={aria} onClick={JS.Push(onSort, Value(c.Sort))}>
+  {c.Header}
+  {ind}
+</button>`, aria, JS.Push(onSort, Value(c.Sort)), c.Header, ind)
 }
-
-//line datatable.vuka:151
-var dataTableBarDiv = Template(`
-<div class="vk-datatable__searchbox">
-  {{0}}
-  {{1}}
-</div>`)
-
-//line datatable.vuka:153
-var dataTableBarDiv2 = Template(`<div class="vk-datatable__bar-left">{{0}}</div>`)
-
-var dataTableBarDiv3 = Template(`<div class="vk-datatable__bar-right">{{0}}</div>`)
-
-var dataTableBarDiv4 = Template(`<div class="vk-datatable__bar">{{0}}</div>`)
 
 //line datatable.vuka:131
 func dataTableBar[T any](p DataTableProps[T]) Node {
@@ -179,23 +156,24 @@ func dataTableBar[T any](p DataTableProps[T]) Node {
 			{"placeholder", ph}, {"aria-label", "Search"}, {"value", p.Search},
 			{"onInput", On(p.OnSearch)},
 		})
-		left = append(left, dataTableBarDiv.Render(Icon("search", "vk-datatable__searchicon"), search))
+		left = append(left, func() Node {
+//line datatable.vuka:151
+			value2 := Icon("search", "vk-datatable__searchicon")
+			return HTML(`
+<div class="vk-datatable__searchbox">
+  {value2}
+  {search}
+</div>`, value2, search)
+		}())
 	}
-	kids := []Node{dataTableBarDiv2.Render(left)}
+//line datatable.vuka:153
+	kids := []Node{HTML(`<div class="vk-datatable__bar-left">{left}</div>`, left)}
 	if p.Toolbar != nil {
-		kids = append(kids, dataTableBarDiv3.Render(p.Toolbar))
+		kids = append(kids, HTML(`<div class="vk-datatable__bar-right">{p.Toolbar}</div>`, p.Toolbar))
 	}
-	return dataTableBarDiv4.Render(kids)
+	return HTML(`<div class="vk-datatable__bar">{kids}</div>`, kids)
 }
 
-//line datatable.vuka:173
-var dataTableFootDiv = Template(`
-<div class="vk-datatable__foot">
-  <div class="vk-datatable__count">{{0}}</div>
-  {{1}}
-</div>`)
-
-//line datatable.vuka:160
 func dataTableFoot[T any](p DataTableProps[T]) Node {
 	page := p.Page
 	var left []Node
@@ -209,15 +187,12 @@ func dataTableFoot[T any](p DataTableProps[T]) Node {
 		left = append(left, sizeSelect(p))
 	}
 
-	return dataTableFootDiv.Render(left, pager(page, p.Window, p.OnPage))
+	return HTML(`
+<div class="vk-datatable__foot">
+  <div class="vk-datatable__count">{left}</div>
+  {pager(page, p.Window, p.OnPage)}
+</div>`, left, pager(page, p.Window, p.OnPage))
 }
-
-//line datatable.vuka:188
-var sizeSelectLabel = Template(`
-<label class="vk-datatable__size">
-  {{0}}
-  {{1}}
-</label>`)
 
 //line datatable.vuka:176
 func sizeSelect[T any](p DataTableProps[T]) Node {
@@ -232,19 +207,17 @@ func sizeSelect[T any](p DataTableProps[T]) Node {
 	// OnSize is any; build the select with El so On can wrap it (JSX's on…
 	// lowering requires a function type).
 	sel := El("select", []Attr{{"aria-label", "Rows per page"}, {"onChange", On(p.OnSize)}}, opts...)
-	return sizeSelectLabel.Render(Text("Per page "), sel)
+	return HTML(`
+<label class="vk-datatable__size">
+  {Text("Per page ")}
+  {sel}
+</label>`, Text("Per page "), sel)
 }
-
-//line datatable.vuka:193
-var pagerDiv = Template(`<div class="vk-pager"/>`)
-
-//line datatable.vuka:203
-var pagerNav = Template(`<nav class="vk-pager" aria-label="Pagination">{{0}}</nav>`)
 
 //line datatable.vuka:191
 func pager[T any](page Page[T], window int, onPage any) Node {
 	if page.Pages <= 1 {
-		return pagerDiv.Render()
+		return HTML(`<div class="vk-pager"/>`)
 	}
 	if window < 1 {
 		window = 5
@@ -254,7 +227,7 @@ func pager[T any](page Page[T], window int, onPage any) Node {
 		kids = append(kids, pagerButton(strconv.Itoa(n), "Page "+strconv.Itoa(n), n, true, n == page.Page, onPage))
 	}
 	kids = append(kids, pagerButton("›", "Next page", page.Page+1, page.HasNext, false, onPage))
-	return pagerNav.Render(kids)
+	return HTML(`<nav class="vk-pager" aria-label="Pagination">{kids}</nav>`, kids)
 }
 
 func pagerButton(label, aria string, target int, enabled, current bool, onPage any) Node {

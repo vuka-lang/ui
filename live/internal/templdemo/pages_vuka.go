@@ -21,32 +21,20 @@ type Inbox struct {
 
 func (b *Inbox) Read() { b.read.Update(func(n int) int { return n + 1 }) }
 
-//line pages.vuka:22
-var inboxP = ui.Template(`
-<p>Messages arrive here.</p>
-<button onClick="{{0}}">Read one</button>`)
-
-//line pages.vuka:28
-var inbox = ui.Template(`<div class="inbox">{{0}}</div>`)
-
-//line pages.vuka:20
 func (b *Inbox) Render() ui.Node {
-	panel := ui.WithChildren(Panel("Inbox", b.Unread-b.read.Get()), inboxP.Render(b.Read))
+	panel := ui.WithChildren(Panel("Inbox", b.Unread-b.read.Get()), ui.HTML(`
+<p>Messages arrive here.</p>
+<button onClick={b.Read}>Read one</button>`, b.Read))
 //line pages.vuka:25
 	if b.Opaque {
 		panel = Opaque(panel)
 	}
-	return inbox.Render(panel)
+	return ui.HTML(`<div class="inbox">{panel}</div>`, panel)
 }
 
-//line pages.vuka:34
-var inboxPage = ui.Template(`{{0}}`)
-
 // InboxPage and BooksPage are pages sharing the templ Layout.
-//
-//line pages.vuka:32
 func InboxPage() ui.Node {
-	return ui.WithChildren(Layout("Inbox", "/inbox"), inboxPage.Render(&Inbox{Unread: 3}))
+	return ui.WithChildren(Layout("Inbox", "/inbox"), ui.HTML(`{&Inbox{Unread: 3}}`, &Inbox{Unread: 3}))
 }
 
 //line pages.vuka:38

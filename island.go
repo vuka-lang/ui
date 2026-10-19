@@ -383,8 +383,15 @@ func emitAttr(name string) string {
 	return b.String()
 }
 
+// Template marks a named region slot inside a <ui.Island> wrapper — e.g.
+// <ui.Template fallback>…</ui.Template> gives the island's pre-hydration
+// fallback. The transpiler consumes these tags (they render no element of
+// their own); this declaration only lets the tag resolve. Calling it directly
+// renders nothing.
+func Template(...any) Node { return Fragment() }
+
 // Mount is an island placed with options: in a template's child hole,
-// chart.Render(ui.Mount(Chart{Points: pts}, ui.Idle(), ui.Fallback(spinner))).
+// ui.HTML(`<div>{chart}</div>`, ui.Mount(Chart{Points: pts}, ui.Idle(), ui.Fallback(spinner))).
 // The hole gives it its site; props alone, with no options, mount the same.
 func Mount(props any, opts ...IslandOpt) Node { return &islandMount{props, opts} }
 

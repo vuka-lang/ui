@@ -3,10 +3,9 @@
 The UI library for [Vuka](https://github.com/vuka-lang/vuka): what JSX in a
 `.vuka` file renders with. A file that imports `github.com/vuka-lang/ui` is a
 JSX file whose elements become `ui.El`, `ui.Text`, `ui.Child`, … (the package
-declares `const VukaJSX = 1`, Vuka's JSX target contract).
+declares `const VukaJSX = 3`, Vuka's JSX target contract).
 
-- `ui` — `Node` (= `templ.Component`), templates (`Template`, `Each`,
-  `If`), elements and text, `Safe`, `Style`,
+- `ui` — `Node` (= `templ.Component`), markup (`HTML`, `Each`, `If`), elements and text, `Safe`, `Style`,
   `ErrorBoundary`, HTML rendering (`String`, `Write`, `Handler`), `Walk` and
   `Renderer`; stateful components (`Live`, `On`, `Event`); JS commands the
   browser runs on an event (`JS`, `Ref`, `Live.PushJS`), and a payload for a
@@ -32,51 +31,58 @@ func Hello(name string) ui.Node {
 
 Documentation: https://vuka-lang.github.io/ui/
 
-## Templates: markup in plain Go
+## Markup in plain Go: `ui.HTML`
 
-`ui.Template` is markup for `.go` files: HTML in backticks with numbered
-holes, parsed once when the package initializes. It renders like JSX — the
-static HTML is written straight through, and under a live session it is a
-frame of statics and dynamics that diffs as JSX does.
+`ui.HTML` is markup for `.go` files: HTML in backticks whose holes are
+labelled with the Go of their values, the values after it in the order the
+labels first appear. It is parsed once and renders like JSX — the static HTML
+is written straight through, and under a live session it is a frame of
+statics and dynamics that diffs as JSX does.
 
 ```go
-var orderRow = ui.Template(`
-<tr key="{{0}}" class="{{1}}">
-  <td>{{2}}</td>
-  <td class="tabular-nums">{{3}}</td>
-  <td><button onClick="{{4}}">Cancel</button></td>
-</tr>`)
-
-var orderTable = ui.Template(`<table><tbody>{{0}}</tbody></table>`)
-
 func (p *Orders) row(o Order) ui.Node {
-	return orderRow.Render(o.ID, ui.Class{"row": true, "late": o.Late}, o.Ref, money(o.Total),
-		func() { p.Cancel(o.ID) })
+	cancel := func() { p.Cancel(o.ID) }
+	return ui.HTML(`
+<tr key={o.ID} class="row" class:late={o.Late}>
+  <td>{o.Ref}</td>
+  <td class="tabular-nums">{money(o.Total)}</td>
+  <td><button onClick={cancel}>Cancel</button></td>
+</tr>`, o.ID, o.Late, o.Ref, money(o.Total), cancel)
 }
 
-func (p *Orders) Render() ui.Node { return orderTable.Render(ui.Each(p.orders, p.row)) }
+func (p *Orders) Render() ui.Node {
+	rows := ui.Each(p.orders, p.row)
+	return ui.HTML(`<table><tbody>{rows}</tbody></table>`, rows)
+}
 ```
 
-Each hole is escaped for its place, and a value of the wrong kind fails the
-render with the template's file, line and hole:
+A label appearing twice is one value; vukavet checks each value is written as its label. Each hole is escaped for its place,
+and a value of the wrong kind fails the render with the file, line and
+hole:
 
 | Place | Takes |
 |---|---|
-| a child, `<td>{{0}}</td>` | a `ui.Node`, `[]ui.Node`, string or number (escaped), error, nil, a `ui.State` (kept current), a stateful component (`&Counter{…}`, `ui.Key(k, &Counter{…})`), an island (`Chart{…}`, `ui.Mount(Chart{…}, ui.Idle())`) |
-| text, `<title>{{0}}</title>` (title, textarea, script) | a string or number |
-| a value, `class="{{0}}"` | what a JSX attribute takes: string, number, bool, nil, `ui.Class` / `ui.Style` on class / style, a `ui.State`; an `on…` attribute takes a handler — a func, `ui.On(…)`, JS commands |
-| part of a value, `href="/orders/{{0}}"` | a string or number |
-| an attribute set, `<input {{0}}>` | `ui.Attr`, `[]ui.Attr`, `templ.Attributes` (`ui.BindAttr` gives one) |
+| a child, `<td>{x}</td>` | a `ui.Node`, `[]ui.Node`, string or number (escaped), error, nil, a `ui.State` (kept current), a stateful component (`&Counter{…}`, `ui.Key(k, &Counter{…})`), an island (`Chart{…}`, `ui.Mount(Chart{…}, ui.Idle())`) |
+| text, `<title>{x}</title>` (title, textarea) | a string or number |
+| a value, `class={x}` | what a JSX attribute takes: string, number, bool, nil, `ui.Class` / `ui.Classes` / `ui.Style` on class / style, a `ui.State`; an `on…` attribute takes a handler — a func, `ui.On(…)`, JS commands |
+| part of a value, `href="/orders/{id}"` | a string or number |
+| a toggled class, `class:late={on}` | a bool or a `ui.State[bool]` |
+| an attribute set, `<input {attrs...}>` | `ui.Attr`, `[]ui.Attr`, `templ.Attributes` (`ui.BindAttr` gives one) |
 
 - Loops and conditionals are Go: `ui.Each(items, fn)`, `ui.If(cond, node)`,
-  or a `[]ui.Node` built in a loop. Their items diff by key: a `key`
-  attribute on an item's first element, or `ui.Key` on a component.
+  or a `[]ui.Node` built in a loop, given to a hole. Their items diff by key:
+  a `key` attribute on an item's first element, or `ui.Key` on a component.
 - Client state: `open := ui.UseState(false)` in a component,
   `var theme = ui.UsePageState("light")` for the page.
+- `{{` is a literal brace and `{/* … */}` a comment; in script and style,
+  braces are text.
 - The markup is strict — every element closed (void elements and `<x/>`
-  aside), holes only where the table says — and a mistake panics at init
+  aside), holes only where the table says — and a mistake fails the render
   with its line. Text follows JSX's whitespace rule, so indentation adds
-  nothing; pre, textarea, script and style keep theirs.
+  nothing; pre and textarea keep theirs.
+
+With the `vuka` command, markup goes in `.vuka.html` files beside the Go —
+templates with Go statements, compiled to the same calls.
 
 ## Versions
 

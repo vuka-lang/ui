@@ -19,26 +19,12 @@ type TileProps struct {
 	Class   string
 }
 
-//line tile.vuka:36
-var tileSpan = Template(`<span class="{{0}}">{{1}}</span>`)
-
-var tile = Template(`
-<div class="{{0}}">
-  {{1}}
-  <div class="vk-tile__body">
-    <div class="vk-tile__value">{{2}}</div>
-    <div class="vk-tile__label">{{3}}</div>
-  </div>
-</div>`)
-
 // Tile is a dashboard stat card: an icon badge beside a big number and its
 // label:
 //
 //	ui.Tile(ui.TileProps{Label: "Applications", Icon: "file-text", Value: int64(12840)})
 //
 // Lay a row of them out with TileGrid.
-//
-//line tile.vuka:25
 func Tile(p TileProps) Node {
 	variant := p.Variant
 	if variant == "" {
@@ -50,9 +36,22 @@ func Tile(p TileProps) Node {
 	}
 	var badge Node
 	if p.Icon != "" {
-		badge = tileSpan.Render("vk-tile__icon vk-tile__icon--"+string(variant), Icon(p.Icon))
+		badge = func() Node {
+//line tile.vuka:36
+			value2 := "vk-tile__icon vk-tile__icon--" + string(variant)
+//line tile.vuka:36
+			return HTML(`<span class={value2}>{Icon(p.Icon)}</span>`, value2, Icon(p.Icon))
+		}()
 	}
-	return tile.Render(class, badge, Text(tileValue(p.Value)), Text(p.Label))
+//line tile.vuka:38
+	return HTML(`
+<div class={class}>
+  {badge}
+  <div class="vk-tile__body">
+    <div class="vk-tile__value">{Text(tileValue(p.Value))}</div>
+    <div class="vk-tile__label">{Text(p.Label)}</div>
+  </div>
+</div>`, class, badge, Text(tileValue(p.Value)), Text(p.Label))
 }
 
 // TileGrid lays tiles out in a responsive grid (four across on a wide screen,

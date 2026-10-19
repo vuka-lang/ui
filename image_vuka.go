@@ -36,17 +36,6 @@ type ImageProps struct {
 	WrapClass string
 }
 
-//line image.vuka:85
-var image = Template(`
-<div class="{{0}}">
-  {{1}}
-  {{2}}
-  <div class="vk-img-overlay">{{3}}</div>
-</div>`)
-
-//line image.vuka:88
-var imageDiv = Template(`<div class="vk-img-scrim"/>`)
-
 // Image is a network-friendly <img>: lazy, responsive, reserved and decoded
 // off-thread, with a shimmer placeholder. With Overlay set it wraps the image
 // as a backdrop for content laid over it.
@@ -54,8 +43,6 @@ var imageDiv = Template(`<div class="vk-img-scrim"/>`)
 //	ui.Image(ui.ImageProps{Src: "/hero.webp", Srcset: set, Sizes: "100vw",
 //		Width: 1600, Height: 600, Priority: true, Scrim: true,
 //		Overlay: heading})
-//
-//line image.vuka:43
 func Image(p ImageProps) Node {
 	loading := "lazy"
 	if p.Priority || p.Eager {
@@ -98,17 +85,16 @@ func Image(p ImageProps) Node {
 	if p.WrapClass != "" {
 		wrap += " " + p.WrapClass
 	}
-	return image.Render(
-		wrap,
-		img,
-		func() Node {
-			var node2 Node
+	var div []Node
 //line image.vuka:87
-			if p.Scrim {
-				node2 = imageDiv.Render()
-			}
-			return If(node2 != nil, node2)
-		}(),
-		p.Overlay,
-	)
+	if p.Scrim {
+		div = append(div, HTML(`<div class="vk-img-scrim"/>`))
+	}
+//line image.vuka:85
+	return HTML(`
+<div class={wrap}>
+  {img}
+  {div}
+  <div class="vk-img-overlay">{p.Overlay}</div>
+</div>`, wrap, img, div, p.Overlay)
 }

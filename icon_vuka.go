@@ -37,15 +37,10 @@ var icons = map[string]string{
 	"info":             `<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>`,
 }
 
-//line icon.vuka:49
-var icon = Template(`<svg class="{{0}}" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="{{1}}">{{2}}</svg>`)
-
 // Icon renders a named icon from the built-in set as an inline SVG, coloured
 // with the current text colour. An extra class or two can be passed. An
 // unknown name renders an empty SVG marked with the name, so a typo shows up
 // in tests rather than silently vanishing.
-//
-//line icon.vuka:41
 func Icon(name string, class ...string) Node {
 	c := "vk-icon"
 	for _, x := range class {
@@ -54,7 +49,7 @@ func Icon(name string, class ...string) Node {
 		}
 	}
 	inner := icons[name]
-	return icon.Render(c, name, RawHTML(inner))
+	return HTML(`<svg class={c} viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon={name}>{RawHTML(inner)}</svg>`, c, name, RawHTML(inner))
 }
 
 // RegisterIcon adds or replaces an icon in the built-in set. body is the inner

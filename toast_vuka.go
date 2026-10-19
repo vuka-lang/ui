@@ -29,15 +29,10 @@ type ToastContainerProps struct {
 	Children Node
 }
 
-//line toast.vuka:46
-var toastContainer = Template(`<div ref="{{0}}" class="{{1}}" role="region" aria-label="Notifications" aria-live="polite">{{2}}</div>`)
-
 // ToastContainer is the fixed region toasts stack in. Place one per page (a
 // live view renders a Toast per message it holds inside it):
 //
 //	ui.ToastContainer(ui.ToastContainerProps{Children: ui.Fragment(toasts…)})
-//
-//line toast.vuka:33
 func ToastContainer(p ToastContainerProps) Node {
 	ref := p.Ref
 	if ref == "" {
@@ -51,7 +46,7 @@ func ToastContainer(p ToastContainerProps) Node {
 	if p.Class != "" {
 		class += " " + p.Class
 	}
-	return toastContainer.Render(ref, class, p.Children)
+	return HTML(`<div ref={ref} class={class} role="region" aria-label="Notifications" aria-live="polite">{p.Children}</div>`, ref, class, p.Children)
 }
 
 // ToastProps configures one Toast; Children is the message body.
@@ -74,19 +69,9 @@ type ToastProps struct {
 	Children Node
 }
 
-//line toast.vuka:92
-var toastDiv = Template(`<div class="vk-toast__title">{{0}}</div>`)
-
-//line toast.vuka:96
-var toastDiv2 = Template(`<div class="vk-toast__body">{{0}}</div>`)
-
-var toastButton = Template(`<button type="button" class="vk-toast__close" aria-label="Dismiss" onClick="{{0}}">{{1}}</button>`)
-
 // Toast is one notification. Its tone matches Alert's variants:
 //
 //	ui.Toast(ui.ToastProps{Variant: ui.AlertSuccess, Title: "Saved", Timeout: 4 * time.Second})
-//
-//line toast.vuka:72
 func Toast(p ToastProps) Node {
 	variant := p.Variant
 	if variant == "" {
@@ -107,13 +92,13 @@ func Toast(p ToastProps) Node {
 
 	var body []Node
 	if p.Title != "" {
-		body = append(body, toastDiv.Render(Text(p.Title)))
+		body = append(body, HTML(`<div class="vk-toast__title">{Text(p.Title)}</div>`, Text(p.Title)))
 	}
 	body = append(body, Child(p.Children))
 
-	kids := []Node{toastDiv2.Render(body)}
+	kids := []Node{HTML(`<div class="vk-toast__body">{body}</div>`, body)}
 	if !p.Closed {
-		kids = append(kids, toastButton.Render(DismissToast(), Text("×")))
+		kids = append(kids, HTML(`<button type="button" class="vk-toast__close" aria-label="Dismiss" onClick={DismissToast()}>{Text("×")}</button>`, DismissToast(), Text("×")))
 	}
 	return El("div", attrs, kids...)
 }

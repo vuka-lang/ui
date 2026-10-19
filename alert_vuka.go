@@ -27,24 +27,12 @@ type AlertProps struct {
 	Children    Node
 }
 
-//line alert.vuka:45
-var alertDiv = Template(`<div class="vk-alert__title">{{0}}</div>`)
-
-//line alert.vuka:49
-var alertDiv2 = Template(`<div class="vk-alert__body">{{0}}</div>`)
-
-var alertButton = Template(`<button type="button" class="vk-alert__close" aria-label="Dismiss" onClick="{{0}}">{{1}}</button>`)
-
-var alert = Template(`<div class="{{0}}" role="alert">{{1}}</div>`)
-
 // Alert is an inline message box in one of four tones:
 //
 //	ui.Alert(ui.AlertProps{Variant: ui.AlertSuccess, Title: "Saved"}, ui.Text("Your changes are live."))
 //
 // A dismissible alert hides itself with a browser command; a server that
 // wants it gone for good drops it from its own render instead.
-//
-//line alert.vuka:33
 func Alert(p AlertProps) Node {
 	variant := p.Variant
 	if variant == "" {
@@ -57,13 +45,13 @@ func Alert(p AlertProps) Node {
 
 	var body []Node
 	if p.Title != "" {
-		body = append(body, alertDiv.Render(Text(p.Title)))
+		body = append(body, HTML(`<div class="vk-alert__title">{Text(p.Title)}</div>`, Text(p.Title)))
 	}
 	body = append(body, Child(p.Children))
 
-	kids := []Node{alertDiv2.Render(body)}
+	kids := []Node{HTML(`<div class="vk-alert__body">{body}</div>`, body)}
 	if p.Dismissible {
-		kids = append(kids, alertButton.Render(JS.Hide(Closest(".vk-alert")), Text("×")))
+		kids = append(kids, HTML(`<button type="button" class="vk-alert__close" aria-label="Dismiss" onClick={JS.Hide(Closest(".vk-alert"))}>{Text("×")}</button>`, JS.Hide(Closest(".vk-alert")), Text("×")))
 	}
-	return alert.Render(class, kids)
+	return HTML(`<div class={class} role="alert">{kids}</div>`, class, kids)
 }
