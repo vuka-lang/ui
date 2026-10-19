@@ -77,11 +77,7 @@ func States(v any) Node {
 	cp := reflect.New(rv.Type()).Elem()
 	cp.Set(rv)
 	anyState := reflect.TypeFor[AnyState]()
-	type named struct {
-		name string
-		s    AnyState
-	}
-	var states []named
+	var states stateRefs
 	t := rv.Type()
 	for i := range t.NumField() {
 		f := t.Field(i)
@@ -97,25 +93,36 @@ func States(v any) Node {
 		}
 		fv := cp.Field(i)
 		s := reflect.NewAt(f.Type, unsafe.Pointer(fv.UnsafeAddr())).Elem().Interface().(AnyState)
-		states = append(states, named{name, s})
+		states = append(states, namedState{name, s})
 	}
 	if len(states) == 0 {
 		return nil
 	}
-	return NodeFunc(func(ctx context.Context, w io.Writer) error {
-		out := make(map[string]any, len(states))
-		for _, s := range states {
-			r, err := stateProp(ctx, s.s)
-			if err != nil {
-				return err
-			}
-			out[s.name] = r
-		}
-		b, err := marshal(out)
+	return states
+}
+
+// stateRefs are States' value: a Node, written once the render's context
+// gives the states their keys.
+type stateRefs []namedState
+
+type namedState struct {
+	name string
+	s    AnyState
+}
+
+func (r stateRefs) Render(ctx context.Context, w io.Writer) error {
+	out := make(map[string]any, len(r))
+	for _, s := range r {
+		ref, err := stateProp(ctx, s.s)
 		if err != nil {
 			return err
 		}
-		_, err = w.Write(b)
+		out[s.name] = ref
+	}
+	b, err := marshal(out)
+	if err != nil {
 		return err
-	})
+	}
+	_, err = w.Write(b)
+	return err
 }
