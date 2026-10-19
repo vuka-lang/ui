@@ -24,5 +24,6 @@ func verifyDefault() bool {
 }
 
 // wholeTrees renders every instance as one piece of markup, as a component
-// built from nodes with no frames renders: for the fallback's tests.
-var wholeTrees bool
+// built from nodes with no frames renders: the fallback, for comparing a
+// page's diffs with it (VUKA_LIVE_WHOLE=1) and for its tests.
+var wholeTrees = os.Getenv("VUKA_LIVE_WHOLE") == "1"
