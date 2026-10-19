@@ -1,12 +1,11 @@
-func (a Alert) View()
-<div class={a.classes()} role="alert">
+<div class={classes()} role="alert">
   <div class="vk-alert__body">
-    if a.Title != "" {
-      <div class="vk-alert__title">{a.Title}</div>
+    if Title != "" {
+      <div class="vk-alert__title">{Title}</div>
     }
-    {a.Children}
+    {Children}
   </div>
-  if a.Dismissible {
+  if Dismissible {
     <button type="button" class="vk-alert__close" aria-label="Dismiss" onClick={JS.Hide(Closest(".vk-alert"))}>×</button>
   }
 </div>

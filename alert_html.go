@@ -11,12 +11,11 @@ import (
 //line alert.vuka.html:1
 func (a Alert) View() Node {
 	var div []Node
-//line alert.vuka.html:4
 	if a.Title != "" {
 		div = append(div, HTML(`<div class="vk-alert__title">{a.Title}</div>`, a.Title))
 	}
 	var button []Node
-//line alert.vuka.html:9
+//line alert.vuka.html:8
 	if a.Dismissible {
 		button = append(button, HTML(`<button type="button" class="vk-alert__close" aria-label="Dismiss" onClick={JS.Hide(Closest(".vk-alert"))}>×</button>`, JS.Hide(Closest(".vk-alert"))))
 	}
@@ -31,5 +30,4 @@ func (a Alert) View() Node {
 </div>`, a.classes(), div, a.Children, button)
 }
 
-//line alert.vuka.html:12
 func (a Alert) Render(ctx context.Context, w io.Writer) error { return a.View().Render(ctx, w) }
