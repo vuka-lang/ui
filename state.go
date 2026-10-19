@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -70,6 +72,35 @@ func NewState[T any](site string, initial T) State[T] {
 // one value.
 func PageState[T any](site string, initial T) State[T] {
 	return State[T]{c: &stateCell{site: site, page: true, init: initial, typ: reflect.TypeFor[T](), key: "g:" + site}, v: initial}
+}
+
+// UseState is a state declared where it is called, what ui.State(initial)
+// in a component's function is in a .vuka file: each component instance
+// rendering it has its own.
+//
+//	open := ui.UseState(false)
+func UseState[T any](initial T) State[T] { return NewState(callSite(), initial) }
+
+// UsePageState is a state the whole page shares, declared where it is
+// called: what a package-level ui.State(initial) is in a .vuka file.
+//
+//	var theme = ui.UsePageState("light")
+func UsePageState[T any](initial T) State[T] { return PageState(callSite(), initial) }
+
+var callSites sync.Map // pc → site
+
+// callSite is a name for the place UseState's caller calls it from.
+func callSite() string {
+	var pc [1]uintptr
+	runtime.Callers(3, pc[:])
+	if s, ok := callSites.Load(pc[0]); ok {
+		return s.(string)
+	}
+	f, _ := runtime.CallersFrames(pc[:]).Next()
+	h := fnv.New64a()
+	fmt.Fprintf(h, "%s:%d:%d", f.Function, f.Line, f.PC-f.Entry)
+	s, _ := callSites.LoadOrStore(pc[0], "s"+strconv.FormatUint(h.Sum64()&0xffffffffff, 36))
+	return s.(string)
 }
 
 // Derived names an expression of states for reuse, read wherever a state

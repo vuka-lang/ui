@@ -370,7 +370,7 @@ func (b *treeBuilder) record(ctx context.Context, n Node) (any, error) {
 // component, a NodeFunc.
 func opaque(n Node) bool {
 	switch n.(type) {
-	case *Element, TextNode, RawHTML, Group, Builder, TryNode, Boundary, *Frame, *lazyFrame, *ComponentNode:
+	case *Element, TextNode, RawHTML, Group, Builder, TryNode, Boundary, *Frame, *lazyFrame, *ComponentNode, *islandMount, *list:
 		return false
 	}
 	return true

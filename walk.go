@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -40,6 +41,9 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 				ctx = h.Keyed(ctx, k)
 			}
 		}
+		if _, html := r.(*HTMLRenderer); !html {
+			n = withSets(n)
+		}
 		if err := r.Open(n); err != nil || void {
 			return err
 		}
@@ -61,6 +65,16 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 			return err
 		}
 		return Walk(ctx, c.Render(), r)
+	case *islandMount:
+		return Walk(ctx, n.node(""), r)
+	case *list:
+		var err error
+		n.items(func(c Node) {
+			if err == nil {
+				err = Walk(ctx, n.placed(c), r)
+			}
+		})
+		return err
 	case TextNode:
 		return r.Text(string(n))
 	case Binding:
@@ -171,4 +185,23 @@ func (r recording) replay(ctx context.Context, to Renderer) error {
 		}
 	}
 	return nil
+}
+
+// withSets is e with the attributes of its attribute sets (a template's
+// <input {{0}}>) in their place, for a Renderer that isn't HTML's.
+func withSets(e *Element) *Element {
+	i := slices.IndexFunc(e.Attrs, func(a Attr) bool { _, ok := a.Value.(attrSet); return ok })
+	if i < 0 {
+		return e
+	}
+	cp := *e
+	cp.Attrs = slices.Clone(e.Attrs[:i])
+	for _, a := range e.Attrs[i:] {
+		if set, ok := a.Value.(attrSet); ok {
+			cp.Attrs = append(cp.Attrs, set...)
+		} else {
+			cp.Attrs = append(cp.Attrs, a)
+		}
+	}
+	return &cp
 }

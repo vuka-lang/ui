@@ -264,6 +264,14 @@ func (h *HTMLRenderer) attr(e *Element, a Attr) error { return h.attrNamed(e.Tag
 // holding one is compiled as not fast.
 func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 	name := a.Name
+	if set, ok := a.Value.(attrSet); ok {
+		for _, a := range set {
+			if err := h.attrNamed(tag, e, a); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	if b, ok := a.Value.(Binding); ok {
 		return h.bindAttr(tag, e, name, b)
 	}
