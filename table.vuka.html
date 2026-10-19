@@ -1,0 +1,55 @@
+func (t Table[T]) View()
+<div class="vk-table-wrap">
+  <table class={t.classes()}>
+    <thead>
+      <tr>
+        if t.Selectable {
+          <th class="vk-col--center vk-col--select" scope="col">
+            if t.OnSelectAll != nil {
+              <input type="checkbox" class="vk-check__box" aria-label="Select all" checked={t.AllSelected} {t.mixed()...} {on("onChange", t.OnSelectAll)...}/>
+            }
+          </th>
+        }
+        if t.Index {
+          <th class="vk-col--center vk-col--index" scope="col">#</th>
+        }
+        for _, c := range t.Columns {
+          <th scope="col" class={colClass(c)}>{c.Header}</th>
+        }
+        if t.RowActions != nil {
+          <th class="vk-col--right" scope="col" aria-label="Actions"></th>
+        }
+      </tr>
+    </thead>
+    if len(t.Rows) == 0 {
+      <tbody><tr><td colspan={t.span()} class="vk-table__empty">{t.emptyState()}</td></tr></tbody>
+    } else {
+      <tbody>
+        for i, row := range t.Rows {
+          <tr key={t.key(row)} class={t.rowClass(row)} {t.rowNav(row)...}>
+            if t.Selectable {
+              <td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value={t.selectValue(row)} {t.selectBox(row)...}/></td>
+            }
+            if t.Index {
+              <td class="vk-col--center vk-col--index">{t.IndexFrom + i + 1}</td>
+            }
+            for _, c := range t.Columns {
+              <td class={colClass(c)}>{c.cell(row)}</td>
+            }
+            if t.RowActions != nil {
+              <td class="vk-col--right vk-col--actions">{t.RowActions(row)}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    }
+  </table>
+</div>
+
+// emptyState is what the body shows when there are no rows.
+func (t Table[T]) emptyState()
+if t.EmptyIcon == nil {
+  {t.empty()}
+} else {
+  <div class="vk-empty"><span class="vk-empty__icon">{t.EmptyIcon}</span><span class="vk-empty__msg">{t.empty()}</span></div>
+}

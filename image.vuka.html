@@ -1,0 +1,15 @@
+func (im Image) View()
+if im.Overlay == nil {
+  {im.img()}
+} else {
+  <div class={withClass("vk-img-wrap", im.WrapClass)}>
+    {im.img()}
+    if im.Scrim {
+      <div class="vk-img-scrim"></div>
+    }
+    <div class="vk-img-overlay">{im.Overlay}</div>
+  </div>
+}
+
+func (im Image) img()
+<img src={im.Src} alt={im.Alt} loading={im.loading()} decoding="async" class={im.classes()} fetchpriority={when(im.Priority, "high")} srcset={nonEmpty(im.Srcset)} sizes={nonEmpty(im.Sizes)} width={when(im.Width > 0, im.Width)} height={when(im.Height > 0, im.Height)}/>

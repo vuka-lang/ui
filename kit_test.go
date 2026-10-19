@@ -21,16 +21,16 @@ func contains(t *testing.T, s string, wants ...string) {
 // --- Button ---------------------------------------------------------------
 
 func TestButtonRenders(t *testing.T) {
-	s := render(t, ui.Button(ui.ButtonProps{Variant: ui.Primary, Size: ui.SizeSm, Icon: ui.Icon("plus"), Children: ui.Text("New")}))
+	s := render(t, ui.Button{Variant: ui.Primary, Size: ui.SizeSm, Icon: ui.Icon("plus"), Children: ui.Text("New")})
 	contains(t, s, "<button", `type="button"`, "vk-btn", "vk-btn--primary", "vk-btn--sm", "vk-btn__icon", `data-vk-icon="plus"`, "New")
 
 	// A link button.
-	link := render(t, ui.Button(ui.ButtonProps{Href: "/back", Nav: true, Children: ui.Text("Back")}))
+	link := render(t, ui.Button{Href: "/back", Nav: true, Children: ui.Text("Back")})
 	contains(t, link, "<a", `href="/back"`, "data-vk-link", "vk-btn")
 }
 
 func TestButtonLoading(t *testing.T) {
-	s := render(t, ui.Submit(ui.ButtonProps{Loading: true, Children: ui.Text("Save")}))
+	s := render(t, ui.Submit{Loading: true, Children: ui.Text("Save")})
 	// A loading submit button is busy, disabled, spins, and carries the hook
 	// the form-busy CSS targets.
 	contains(t, s, `aria-busy="true"`, "disabled", "vk-spinner", "vk-btn--submit", `type="submit"`, "vk-btn--primary")
@@ -42,26 +42,26 @@ func TestButtonLoading(t *testing.T) {
 // --- Badge / Tile / Card / Icon ------------------------------------------
 
 func TestBadge(t *testing.T) {
-	contains(t, render(t, ui.Badge(ui.BadgeProps{Variant: ui.Success, Children: ui.Text("Signed")})),
+	contains(t, render(t, ui.Badge{Variant: ui.Success, Children: ui.Text("Signed")}),
 		"vk-badge", "vk-badge--success", "Signed")
-	contains(t, render(t, ui.Badge(ui.BadgeProps{Variant: ui.Danger, Soft: true, Children: ui.Text("Failed")})),
+	contains(t, render(t, ui.Badge{Variant: ui.Danger, Soft: true, Children: ui.Text("Failed")}),
 		"vk-badge--danger", "vk-badge--soft")
 }
 
 func TestTileFormatsNumber(t *testing.T) {
-	s := render(t, ui.Tile(ui.TileProps{Label: "Applications", Icon: "file-text", Value: int64(1234567)}))
+	s := render(t, ui.Tile{Label: "Applications", Icon: "file-text", Value: int64(1234567)})
 	contains(t, s, "vk-tile", "vk-tile__value", "1,234,567", "Applications", `data-vk-icon="file-text"`)
 
-	grid := render(t, ui.TileGrid(ui.Tile(ui.TileProps{Label: "A", Value: 5}), ui.Tile(ui.TileProps{Label: "B", Value: 0})))
+	grid := render(t, ui.TileGrid(ui.Tile{Label: "A", Value: 5}, ui.Tile{Label: "B", Value: 0}))
 	contains(t, grid, "vk-tile-grid")
 }
 
 func TestCard(t *testing.T) {
-	s := render(t, ui.Card(ui.CardProps{
+	s := render(t, ui.Card{
 		Title:    ui.Text("Members"),
-		Header:   ui.Actions(ui.Button(ui.ButtonProps{Children: ui.Text("Invite")})),
+		Header:   ui.Actions(ui.Button{Children: ui.Text("Invite")}),
 		Children: ui.Text("body"),
-	}))
+	})
 	contains(t, s, "vk-card", "vk-card__header", "vk-card__title", "Members", "vk-card__header-actions", "vk-actions", "Invite", "vk-card__body", "body")
 }
 
@@ -84,10 +84,10 @@ func (h *tabsHost) Mount()        { h.active.Set("a") }
 func (h *tabsHost) Pick(v string) { h.active.Set(v) }
 func (h *tabsHost) Render() ui.Node {
 	cur := h.active.Get()
-	return ui.Tabs(ui.TabsProps{Tabs: []ui.Tab{
+	return ui.Tabs{Tabs: []ui.Tab{
 		{Label: "Alpha", ID: "tab-a", On: func() { h.Pick("a") }, Active: cur == "a", Count: ui.Count(3)},
 		{Label: "Beta", ID: "tab-b", On: func() { h.Pick("b") }, Active: cur == "b"},
-	}})
+	}}
 }
 
 func TestTabsSwitch(t *testing.T) {
@@ -149,7 +149,7 @@ func (h *selHost) count() int {
 }
 func (h *selHost) Render() ui.Node {
 	rows := catalog[:3]
-	return ui.DataTable(ui.DataTableProps[book]{
+	return ui.DataTable[book]{
 		Columns:     []ui.Column[book]{{Header: txt("Title"), Cell: func(b book) ui.Node { return txt(b.Title) }}},
 		Page:        ui.NewPage(rows, len(rows), 1, 10),
 		Index:       true,
@@ -159,7 +159,7 @@ func (h *selHost) Render() ui.Node {
 		OnSelect:    func(b book) any { id := b.ID; return func() { h.Toggle(id) } },
 		OnSelectAll: h.All,
 		AllSelected: h.count() == 3,
-	})
+	}
 }
 
 func TestDataTableSelection(t *testing.T) {
@@ -190,24 +190,24 @@ func TestDataTableSelection(t *testing.T) {
 }
 
 func TestTableEmptyWithIcon(t *testing.T) {
-	s := render(t, ui.Table(ui.TableProps[book]{
+	s := render(t, ui.Table[book]{
 		Columns:   []ui.Column[book]{{Header: txt("Title"), Cell: func(b book) ui.Node { return txt(b.Title) }}},
 		Flush:     true,
 		EmptyIcon: ui.Icon("list-checks"),
 		Empty:     ui.Text("No tasks available."),
-	}))
+	})
 	contains(t, s, "vk-table--flush", "vk-table__empty", "vk-empty", "vk-empty__icon", `data-vk-icon="list-checks"`, "No tasks available.")
 }
 
 // --- Dialog (Modal) extras ------------------------------------------------
 
 func TestModalIconSubtitleSize(t *testing.T) {
-	s := render(t, ui.Modal(ui.ModalProps{
+	s := render(t, ui.Modal{
 		Ref: "approval", Open: true, Size: "xl",
 		Icon: ui.Icon("check-circle"), Title: ui.Text("Preview"), Subtitle: "Review before signing",
 		Footer:   ui.Actions(ui.Cancel(ui.CloseModal("approval"))),
 		Children: ui.Text("body"),
-	}))
+	})
 	contains(t, s, "vk-modal--xl", "vk-modal__icon", `data-vk-icon="check-circle"`, "vk-modal__heading",
 		"vk-modal__title", "Preview", "vk-modal__subtitle", "Review before signing", "vk-modal__footer")
 }
@@ -237,11 +237,11 @@ func (h *formHost) Render() ui.Node {
 	if h.signed.Get() {
 		return ui.El("div", []ui.Attr{{Name: "id", Value: "done"}}, txt("Signed."))
 	}
-	return ui.El("div", nil, ui.Form(ui.FormProps{ID: "sign", OnSubmit: h.Save, Children: ui.Fragment(
-		ui.Input(ui.FieldProps{Name: "username", Label: "Username", Value: "ada", Disabled: true}),
-		ui.Password(ui.FieldProps{Name: "password", Label: "Password", Required: true, Error: h.errMsg.Get()}),
-		ui.Submit(ui.ButtonProps{Children: txt("Sign")}),
-	)}))
+	return ui.El("div", nil, ui.Form{ID: "sign", OnSubmit: h.Save, Children: ui.Fragment(
+		ui.Input{Name: "username", Label: "Username", Value: "ada", Disabled: true},
+		ui.Password{Name: "password", Label: "Password", Required: true, Error: h.errMsg.Get()},
+		ui.Submit{Children: txt("Sign")},
+	)})
 }
 
 func TestFormSubmitAndErrors(t *testing.T) {
@@ -268,18 +268,18 @@ func TestFormSubmitAndErrors(t *testing.T) {
 }
 
 func TestFormLevelError(t *testing.T) {
-	s := render(t, ui.Form(ui.FormProps{Error: "Could not reach the provider.", Children: ui.Text("x")}))
+	s := render(t, ui.Form{Error: "Could not reach the provider.", Children: ui.Text("x")})
 	contains(t, s, "vk-alert", "vk-alert--error", "Could not reach the provider.")
 }
 
 func TestSelectAndCheckbox(t *testing.T) {
-	sel := render(t, ui.Select(ui.FieldProps{Name: "cat", Label: "Category", Value: "b",
-		Options: []ui.Option{{Value: "a", Label: "Alpha"}, {Value: "b", Label: "Beta"}}}))
+	sel := render(t, ui.Select{Name: "cat", Label: "Category", Value: "b",
+		Options: []ui.Option{{Value: "a", Label: "Alpha"}, {Value: "b", Label: "Beta"}}})
 	contains(t, sel, "vk-select", "<option", "Alpha", "Beta", `value="b" selected`)
 
-	cb := render(t, ui.Checkbox(ui.FieldProps{Name: "agree", Label: "I agree", Value: "true"}))
+	cb := render(t, ui.Checkbox{Name: "agree", Label: "I agree", Value: "true"})
 	contains(t, cb, "vk-field--check", "vk-check", "vk-check__box", `type="checkbox"`, "checked", "I agree")
 
-	ta := render(t, ui.Textarea(ui.FieldProps{Name: "note", Label: "Note", Rows: 5, Value: "hi"}))
+	ta := render(t, ui.Textarea{Name: "note", Label: "Note", Rows: 5, Value: "hi"})
 	contains(t, ta, "vk-textarea", `rows="5"`, "hi")
 }

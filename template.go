@@ -51,7 +51,7 @@ import (
 //
 // A label appearing twice is one value. Blocks are Go producing nodes —
 // ui.Each, ui.If, a []ui.Node — and components their calls, each in a
-// hole: {rows}, {ui.Card(ui.CardProps{Title: t})}. {/* … */} is a comment.
+// hole: {rows}, {ui.Card{Title: t}}. {/* … */} is a comment.
 //
 // The markup is strict: every element is closed (<br> and the other void
 // elements need not be, and <x/> closes any), names are letters, digits and
@@ -151,11 +151,22 @@ type tmpl struct {
 	count  [3]int // nodes, attributes, elements
 	slots  []tslot
 	sites  []string
-	direct bool // slot i is value i, used as given
+	empty  []*list // each child slot's empty list, an empty []Node's value
+	direct bool    // slot i is value i, used as given
+	pass   bool    // the template is one child hole: {nodes}
 	plan   *ftPlan
 	build  func([]any) Node
 	static Node     // a template without holes: its one node
 	labels []string // the positional values' labels, at the root
+}
+
+// blockAt is the block a []Node in child slot i is: the slot's own empty
+// block, or the nodes, placed at the slot.
+func (t *tmpl) blockAt(i int, ns []Node) *list {
+	if len(ns) == 0 {
+		return t.empty[i]
+	}
+	return &list{site: t.sites[i], nodes: ns}
 }
 
 // renderArgs fills an HTML template's holes with args.
@@ -166,6 +177,16 @@ func (t *tmpl) renderArgs(args []any) Node {
 	if t.static != nil {
 		return t.static
 	}
+	if t.pass {
+		// A template that is one hole of nodes, {nodes}, is those nodes:
+		// the block a statement at a template's top level builds.
+		if x, ok := args[0].([]Node); ok {
+			if len(x) == 0 {
+				return t.empty[0]
+			}
+			return &list{site: t.sites[0], nodes: x}
+		}
+	}
 	if !t.direct {
 		return t.render(args)
 	}
@@ -175,6 +196,11 @@ func (t *tmpl) renderArgs(args []any) Node {
 		s := &t.slots[i]
 		if s.kind < kSet && !s.event && isString(args[i]) {
 			continue
+		}
+		if s.kind == kChild {
+			if _, ok := args[i].([]Node); ok {
+				continue // a block: the frame's build makes it the slot's (blockAt)
+			}
 		}
 		v, changed, err := t.check(s, i, args[i])
 		if err != nil {
@@ -245,11 +271,12 @@ func isString(v any) bool {
 // frame is the template's frame with d as its dynamics, as F would build it:
 // its nodes, attributes and elements each in one allocation.
 func (t *tmpl) frame(d []any) Node {
-	b := tbuild{d: d, nodes: make([]Node, t.count[0]), attrs: make([]Attr, t.count[1]), elems: make([]Element, t.count[2])}
+	b := tbuild{t: t, d: d, nodes: make([]Node, t.count[0]), attrs: make([]Attr, t.count[1]), elems: make([]Element, t.count[2])}
 	return &Frame{FP: t.fp, Shape: t.shape, Kids: b.kids(t.nodes)}
 }
 
 type tbuild struct {
+	t     *tmpl
 	d     []any
 	nodes []Node
 	attrs []Attr
@@ -265,7 +292,11 @@ func (b *tbuild) kids(ns []tnode) []Node {
 		case n.static != nil:
 			out[i] = n.static
 		case n.tag == "":
-			out[i] = Child(b.d[n.slot])
+			if ns, ok := b.d[n.slot].([]Node); ok {
+				out[i] = b.t.blockAt(n.slot, ns)
+			} else {
+				out[i] = Child(b.d[n.slot])
+			}
 		default:
 			attrs := b.attrs[:len(n.attrs):len(n.attrs)]
 			b.attrs = b.attrs[len(n.attrs):]
@@ -399,6 +430,9 @@ func (t *tmpl) check(s *tslot, i int, v any) (any, bool, error) {
 		case Node:
 			return v, false, nil
 		case []Node:
+			if len(x) == 0 {
+				return t.empty[i], true, nil
+			}
 			l := listOf(x)
 			l.site = t.sites[i]
 			return l, true, nil
@@ -659,8 +693,12 @@ func (p *tparser) template(site string, body func() []tnode) *tmpl {
 	t.shape = sh.String()
 	t.count = counted(t.nodes)
 	t.build = t.frame
+	t.empty = make([]*list, len(t.slots))
 	for i := range t.slots {
 		t.sites = append(t.sites, site+"#"+strconv.Itoa(i))
+		if t.slots[i].kind == kChild {
+			t.empty[i] = &list{site: t.sites[i]}
+		}
 	}
 	f := fnv.New64a()
 	f.Write([]byte(p.src))
@@ -671,6 +709,8 @@ func (p *tparser) template(site string, body func() []tnode) *tmpl {
 		err := Walk(nil, sample, &HTMLRenderer{w: discard{}})
 		panic(tmplError(fmt.Sprintf("ui: template %s: %v", site, err)))
 	}
+	t.plan.sites = t.sites
+	t.pass = len(t.nodes) == 1 && t.nodes[0].static == nil && t.nodes[0].tag == "" && len(t.slots) == 1 && t.slots[0].kind == kChild
 	if len(t.slots) == 0 {
 		t.static = &lazyFrame{fp: t.fp, shape: t.shape, built: sample, p: t.plan}
 	}

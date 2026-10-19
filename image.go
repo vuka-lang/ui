@@ -1,0 +1,58 @@
+package ui
+
+// Image is a network-friendly <img>: lazy, responsive, reserved and decoded
+// off-thread, with a shimmer placeholder. With Overlay set it wraps the image
+// as a backdrop for content laid over it:
+//
+//	<ui.Image src="/hero.webp" srcset={set} sizes="100vw" width={1600} height={600}
+//		priority scrim overlay={heading}/>
+//
+// The defaults suit a slow network: the image lazy-loads, reserves its box
+// from Width/Height so nothing shifts while it streams in, decodes off the
+// main thread, and shows a shimmer placeholder until it paints.
+type Image struct {
+	Src    string
+	Srcset string
+	Sizes  string
+	Alt    string
+	Width  int
+	Height int
+	// Class is added to the <img> (sizing, rounding, the caller's utilities).
+	Class string
+	// Priority marks the page's largest image: it loads eagerly with a high
+	// fetch priority. Use it once per page.
+	Priority bool
+	// Eager loads an above-the-fold image immediately, without raising its
+	// priority. Leave both off for below-the-fold images (the default lazy).
+	Eager bool
+	// Plain drops the placeholder, for a transparent image (a logo) the
+	// shimmer would show through.
+	Plain bool
+	// Overlay is content laid over the image, which then acts as a backdrop.
+	Overlay Node
+	// Scrim darkens the bottom of the image under the Overlay so text on it
+	// stays legible over any picture.
+	Scrim bool
+	// WrapClass is added to the positioning wrapper the Overlay needs.
+	WrapClass string
+}
+
+// ImageProps is Image, by its former name.
+//
+// Deprecated: use Image: ui.Image{…}, or <ui.Image …> in a template.
+type ImageProps = Image
+
+func (im Image) loading() string {
+	if im.Priority || im.Eager {
+		return "eager"
+	}
+	return "lazy"
+}
+
+func (im Image) classes() string {
+	c := "vk-img"
+	if im.Plain {
+		c += " vk-img--plain"
+	}
+	return withClass(c, im.Class)
+}

@@ -188,24 +188,37 @@ func If(cond bool, n Node) Node {
 	return &list{items: func(add func(Node)) { add(n) }}
 }
 
+// A viewer is a struct component: a Node whose markup is its View. The
+// renderers and the live tree read its View, so it renders, diffs and keys
+// as its markup does; its own Render (templ's method) is for everything
+// else.
+type viewer interface{ View() Node }
+
+// unview is n, or the markup of the struct component n is.
+func unview(n Node) Node {
+	for {
+		v, ok := n.(viewer)
+		if !ok {
+			return n
+		}
+		n = v.View()
+	}
+}
+
 // list is a block: Each's, If's or a []Node in a template's hole. Its
 // components and islands with no site of their own take the hole's.
 type list struct {
 	site  string
-	items func(add func(Node))
+	nodes []Node               // a []Node's items, when items is nil
+	items func(add func(Node)) // a block's
 }
 
-func listOf(ns []Node) *list {
-	return &list{items: func(add func(Node)) {
-		for _, n := range ns {
-			add(n)
-		}
-	}}
-}
+func listOf(ns []Node) *list { return &list{nodes: ns} }
 
 func (n *list) Render(ctx context.Context, w io.Writer) error { return renderHTML(ctx, w, n) }
 
 func (n *list) placed(c Node) Node {
+	c = unview(c)
 	switch c := c.(type) {
 	case *ComponentNode:
 		if c != nil && c.Site == "" && n.site != "" {

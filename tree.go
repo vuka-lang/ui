@@ -355,7 +355,14 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 		return b.value(ctx, n.node(""))
 	case *list:
 		var ns []Node
-		n.items(func(c Node) { ns = append(ns, n.item(c)) })
+		if n.items == nil && len(n.nodes) > 0 {
+			ns = make([]Node, len(n.nodes))
+			for i, c := range n.nodes {
+				ns[i] = n.item(c)
+			}
+		} else if n.items != nil {
+			n.items(func(c Node) { ns = append(ns, n.item(c)) })
+		}
 		return b.seq(ctx, ns, true)
 	case Builder:
 		if n == nil {
@@ -372,6 +379,9 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 		}
 		return b.value(ctx, n.Node)
 	}
+	if v, ok := n.(viewer); ok {
+		return b.value(ctx, v.View())
+	}
 	if opaque(n) {
 		return b.record(ctx, n)
 	}
@@ -387,6 +397,7 @@ func (b *treeBuilder) seq(ctx context.Context, ns []Node, block bool) (any, erro
 	frames := len(ns) > 0 || block
 	fs := make([]*Frame, len(ns))
 	for i, n := range ns {
+		n = unview(n)
 		if lf, ok := n.(*lazyFrame); ok && lf != nil {
 			n = lf.frame() // a lazy frame is a frame of the block, like F's
 		}
