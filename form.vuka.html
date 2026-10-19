@@ -1,0 +1,8 @@
+func (f Form) View()
+<form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...}>
+  if f.Error != "" {
+    <Alert variant={AlertError}>{f.Error}</Alert>
+  }
+  {f.CSRF}
+  {f.Children}
+</form>

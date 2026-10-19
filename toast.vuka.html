@@ -1,0 +1,12 @@
+func (t Toast) View()
+<div class={t.classes()} role="status" id={nonEmpty(t.ID)} ref={nonEmpty(t.ID)} style={t.life()}>
+  <div class="vk-toast__body">
+    if t.Title != "" {
+      <div class="vk-toast__title">{t.Title}</div>
+    }
+    {t.Children}
+  </div>
+  if !t.Closed {
+    <button type="button" class="vk-toast__close" aria-label="Dismiss" onClick={DismissToast()}>×</button>
+  }
+</div>

@@ -1,0 +1,12 @@
+func (c Card) View()
+<div class={withClass("vk-card", c.Class)}>
+  if c.Title != nil || c.Header != nil {
+    <div class="vk-card__header">
+      <div class="vk-card__title">{c.Title}</div>
+      if c.Header != nil {
+        <div class="vk-card__header-actions">{c.Header}</div>
+      }
+    </div>
+  }
+  <div class="vk-card__body" class:vk-card__body--flush={c.NoPad}>{c.Children}</div>
+</div>

@@ -1,0 +1,43 @@
+func (f Field) View()
+<div class={f.classes()}>
+  if f.kind == kindCheckbox {
+    <label class="vk-check" for={f.id()}>
+      <input type="checkbox" class="vk-check__box" id={f.id()} name={f.Name} value="true" checked={f.Value == "true"} disabled={f.Disabled} {f.Attrs...}/>
+      <span class="vk-check__label">{f.Label}</span>
+    </label>
+  } else {
+    if f.Label != "" {
+      <label class="vk-field__label" for={f.id()}>
+        {f.Label}
+        if f.Required {
+          <span class="vk-field__req" aria-hidden="true">*</span>
+        }
+      </label>
+    }
+    {f.input()}
+  }
+  if f.Help != "" {
+    <div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>
+  }
+  if f.invalid() {
+    <div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>
+  }
+</div>
+
+// input is the field's control: a textarea, a select or an input.
+func (f Field) input()
+switch f.kind {
+case kindTextarea:
+  <textarea class={f.control("vk-textarea")} rows={f.rows()} {f.common()...} placeholder={nonEmpty(f.Placeholder)}>{f.Value}</textarea>
+case kindSelect:
+  <select class={f.control("vk-select")} {f.common()...}>
+    if f.Placeholder != "" {
+      <option value="" disabled selected={f.Value == ""}>{f.Placeholder}</option>
+    }
+    for _, o := range f.Options {
+      <option value={o.Value} selected={o.Value == f.Value}>{o.Label}</option>
+    }
+  </select>
+default:
+  <input class={f.control("vk-input")} type={f.inputType()} value={f.Value} {f.common()...} placeholder={nonEmpty(f.Placeholder)} min={nonEmpty(f.Min)} max={nonEmpty(f.Max)} step={nonEmpty(f.Step)}/>
+}

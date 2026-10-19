@@ -68,6 +68,14 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 	case *islandMount:
 		return Walk(ctx, n.node(""), r)
 	case *list:
+		if n.items == nil {
+			for _, c := range n.nodes {
+				if err := Walk(ctx, n.placed(c), r); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		var err error
 		n.items(func(c Node) {
 			if err == nil {
@@ -130,6 +138,9 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 			}
 		}
 		return rec.replay(ctx, r)
+	}
+	if v, ok := n.(viewer); ok {
+		return Walk(ctx, v.View(), r)
 	}
 	return r.Opaque(ctx, n)
 }

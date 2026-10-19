@@ -77,6 +77,7 @@ type ftPlan struct {
 	statics []string
 	slots   []ftSlot
 	fast    bool
+	sites   []string // a template's slots' sites, where a block in one places its items
 }
 
 // ftPlans caches one plan per fingerprint, like staticsCache: frames that share
@@ -124,6 +125,14 @@ func (n *lazyFrame) fastHTML(ctx context.Context, h *HTMLRenderer, p *ftPlan) er
 		if s.attr {
 			if err := h.attrNamed(s.tag, nil, Attr{Name: s.name, Value: d}); err != nil {
 				return err
+			}
+		} else if ns, ok := d.([]Node); ok && p.sites != nil {
+			// A template's block, walked as its list would be, without one.
+			at := list{site: p.sites[i]}
+			for _, c := range ns {
+				if err := Walk(ctx, at.placed(c), h); err != nil {
+					return err
+				}
 			}
 		} else if err := h.child(ctx, d); err != nil {
 			return err

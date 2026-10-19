@@ -13,9 +13,10 @@ import (
 )
 
 // TestDiagnosticCodes: every code ui's checks report has a page in vuka's
-// catalogue, which `vuka explain` prints: the catalogue of the vuka checked
-// out beside this module (CI's, or $VUKA_DIR), where a new code's page lands
-// before a release carries it, else the required version's.
+// catalogue, which `vuka explain` prints: the catalogue of $VUKA_DIR (CI's
+// is the vuka module tools.mod pins) or of a vuka checked out beside this
+// module, where a new code's page lands before a release carries it, else
+// the required version's.
 func TestDiagnosticCodes(t *testing.T) {
 	dir := os.Getenv("VUKA_DIR")
 	if dir == "" {
