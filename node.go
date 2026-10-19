@@ -218,7 +218,8 @@ func listOf(ns []Node) *list { return &list{nodes: ns} }
 func (n *list) Render(ctx context.Context, w io.Writer) error { return renderHTML(ctx, w, n) }
 
 func (n *list) placed(c Node) Node {
-	switch c := unview(c).(type) {
+	c = unview(c)
+	switch c := c.(type) {
 	case *ComponentNode:
 		if c != nil && c.Site == "" && n.site != "" {
 			cp := *c

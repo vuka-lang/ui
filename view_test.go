@@ -62,3 +62,38 @@ func TestStructComponentLive(t *testing.T) {
 		t.Fatalf("struct items render %s, their Views %s", l.HTML(), direct.HTML())
 	}
 }
+
+// viewCount counts its View's calls.
+type viewCount struct{ n *int }
+
+func (c viewCount) View() ui.Node {
+	*c.n++
+	return ui.HTML(`<b>x</b>`)
+}
+
+func (c viewCount) Render(ctx context.Context, w io.Writer) error { return c.View().Render(ctx, w) }
+
+// A struct component's View is built once per render, statically and live.
+func TestStructComponentViewOnce(t *testing.T) {
+	n := 0
+	c := viewCount{&n}
+	for _, tc := range []struct {
+		node  ui.Node
+		views int
+	}{
+		{ui.HTML(`<p>{c}</p>`, ui.Node(c)), 1},
+		{ui.Actions(c, c), 2},
+		{ui.Card{Children: c}, 1},
+	} {
+		n = 0
+		render(t, tc.node)
+		if n != tc.views {
+			t.Errorf("rendering built %d views, want %d", n, tc.views)
+		}
+		n = 0
+		join(t, 1, func(context.Context) ui.Node { return tc.node })
+		if n != tc.views {
+			t.Errorf("a live join built %d views, want %d", n, tc.views)
+		}
+	}
+}

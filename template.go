@@ -160,6 +160,15 @@ type tmpl struct {
 	labels []string // the positional values' labels, at the root
 }
 
+// blockAt is the block a []Node in child slot i is: the slot's own empty
+// block, or the nodes, placed at the slot.
+func (t *tmpl) blockAt(i int, ns []Node) *list {
+	if len(ns) == 0 {
+		return t.empty[i]
+	}
+	return &list{site: t.sites[i], nodes: ns}
+}
+
 // renderArgs fills an HTML template's holes with args.
 func (t *tmpl) renderArgs(args []any) Node {
 	if len(args) != len(t.labels) {
@@ -187,6 +196,11 @@ func (t *tmpl) renderArgs(args []any) Node {
 		s := &t.slots[i]
 		if s.kind < kSet && !s.event && isString(args[i]) {
 			continue
+		}
+		if s.kind == kChild {
+			if _, ok := args[i].([]Node); ok {
+				continue // a block: the frame's build makes it the slot's (blockAt)
+			}
 		}
 		v, changed, err := t.check(s, i, args[i])
 		if err != nil {
@@ -257,11 +271,12 @@ func isString(v any) bool {
 // frame is the template's frame with d as its dynamics, as F would build it:
 // its nodes, attributes and elements each in one allocation.
 func (t *tmpl) frame(d []any) Node {
-	b := tbuild{d: d, nodes: make([]Node, t.count[0]), attrs: make([]Attr, t.count[1]), elems: make([]Element, t.count[2])}
+	b := tbuild{t: t, d: d, nodes: make([]Node, t.count[0]), attrs: make([]Attr, t.count[1]), elems: make([]Element, t.count[2])}
 	return &Frame{FP: t.fp, Shape: t.shape, Kids: b.kids(t.nodes)}
 }
 
 type tbuild struct {
+	t     *tmpl
 	d     []any
 	nodes []Node
 	attrs []Attr
@@ -277,7 +292,11 @@ func (b *tbuild) kids(ns []tnode) []Node {
 		case n.static != nil:
 			out[i] = n.static
 		case n.tag == "":
-			out[i] = Child(b.d[n.slot])
+			if ns, ok := b.d[n.slot].([]Node); ok {
+				out[i] = b.t.blockAt(n.slot, ns)
+			} else {
+				out[i] = Child(b.d[n.slot])
+			}
 		default:
 			attrs := b.attrs[:len(n.attrs):len(n.attrs)]
 			b.attrs = b.attrs[len(n.attrs):]
@@ -690,6 +709,7 @@ func (p *tparser) template(site string, body func() []tnode) *tmpl {
 		err := Walk(nil, sample, &HTMLRenderer{w: discard{}})
 		panic(tmplError(fmt.Sprintf("ui: template %s: %v", site, err)))
 	}
+	t.plan.sites = t.sites
 	t.pass = len(t.nodes) == 1 && t.nodes[0].static == nil && t.nodes[0].tag == "" && len(t.slots) == 1 && t.slots[0].kind == kChild
 	if len(t.slots) == 0 {
 		t.static = &lazyFrame{fp: t.fp, shape: t.shape, built: sample, p: t.plan}
