@@ -68,6 +68,14 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 	case *islandMount:
 		return Walk(ctx, n.node(""), r)
 	case *list:
+		if n.items == nil {
+			for _, c := range n.nodes {
+				if err := Walk(ctx, n.placed(c), r); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		var err error
 		n.items(func(c Node) {
 			if err == nil {

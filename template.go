@@ -151,7 +151,9 @@ type tmpl struct {
 	count  [3]int // nodes, attributes, elements
 	slots  []tslot
 	sites  []string
-	direct bool // slot i is value i, used as given
+	empty  []*list // each child slot's empty list, an empty []Node's value
+	direct bool    // slot i is value i, used as given
+	pass   bool    // the template is one child hole: {nodes}
 	plan   *ftPlan
 	build  func([]any) Node
 	static Node     // a template without holes: its one node
@@ -165,6 +167,16 @@ func (t *tmpl) renderArgs(args []any) Node {
 	}
 	if t.static != nil {
 		return t.static
+	}
+	if t.pass {
+		// A template that is one hole of nodes, {nodes}, is those nodes:
+		// the block a statement at a template's top level builds.
+		if x, ok := args[0].([]Node); ok {
+			if len(x) == 0 {
+				return t.empty[0]
+			}
+			return &list{site: t.sites[0], nodes: x}
+		}
 	}
 	if !t.direct {
 		return t.render(args)
@@ -399,6 +411,9 @@ func (t *tmpl) check(s *tslot, i int, v any) (any, bool, error) {
 		case Node:
 			return v, false, nil
 		case []Node:
+			if len(x) == 0 {
+				return t.empty[i], true, nil
+			}
 			l := listOf(x)
 			l.site = t.sites[i]
 			return l, true, nil
@@ -659,8 +674,12 @@ func (p *tparser) template(site string, body func() []tnode) *tmpl {
 	t.shape = sh.String()
 	t.count = counted(t.nodes)
 	t.build = t.frame
+	t.empty = make([]*list, len(t.slots))
 	for i := range t.slots {
 		t.sites = append(t.sites, site+"#"+strconv.Itoa(i))
+		if t.slots[i].kind == kChild {
+			t.empty[i] = &list{site: t.sites[i]}
+		}
 	}
 	f := fnv.New64a()
 	f.Write([]byte(p.src))
@@ -671,6 +690,7 @@ func (p *tparser) template(site string, body func() []tnode) *tmpl {
 		err := Walk(nil, sample, &HTMLRenderer{w: discard{}})
 		panic(tmplError(fmt.Sprintf("ui: template %s: %v", site, err)))
 	}
+	t.pass = len(t.nodes) == 1 && t.nodes[0].static == nil && t.nodes[0].tag == "" && len(t.slots) == 1 && t.slots[0].kind == kChild
 	if len(t.slots) == 0 {
 		t.static = &lazyFrame{fp: t.fp, shape: t.shape, built: sample, p: t.plan}
 	}

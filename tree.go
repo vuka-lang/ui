@@ -355,7 +355,14 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 		return b.value(ctx, n.node(""))
 	case *list:
 		var ns []Node
-		n.items(func(c Node) { ns = append(ns, n.item(c)) })
+		if n.items == nil && len(n.nodes) > 0 {
+			ns = make([]Node, len(n.nodes))
+			for i, c := range n.nodes {
+				ns[i] = n.item(c)
+			}
+		} else if n.items != nil {
+			n.items(func(c Node) { ns = append(ns, n.item(c)) })
+		}
 		return b.seq(ctx, ns, true)
 	case Builder:
 		if n == nil {

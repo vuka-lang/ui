@@ -192,16 +192,11 @@ func If(cond bool, n Node) Node {
 // components and islands with no site of their own take the hole's.
 type list struct {
 	site  string
-	items func(add func(Node))
+	nodes []Node               // a []Node's items, when items is nil
+	items func(add func(Node)) // a block's
 }
 
-func listOf(ns []Node) *list {
-	return &list{items: func(add func(Node)) {
-		for _, n := range ns {
-			add(n)
-		}
-	}}
-}
+func listOf(ns []Node) *list { return &list{nodes: ns} }
 
 func (n *list) Render(ctx context.Context, w io.Writer) error { return renderHTML(ctx, w, n) }
 
