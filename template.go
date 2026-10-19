@@ -353,13 +353,11 @@ func (m *Markup) check(s *tslot, v any) (any, bool, error) {
 	case kValue:
 		if s.event {
 			switch v.(type) {
-			case nil, EventHandler, templ.ComponentScript:
-				return v, false, nil
-			case JSChain:
-				return On(v), true, nil
+			case nil, EventHandler, templ.ComponentScript, JSChain:
+				return v, false, nil // the renderer takes a func or commands as a handler
 			}
 			if reflect.TypeOf(v).Kind() == reflect.Func {
-				return On(v), true, nil
+				return v, false, nil
 			}
 			return nil, false, m.wrong(s, s.hole, v, "not a handler: a func, ui.On(…), JS commands or a templ.ComponentScript")
 		}
