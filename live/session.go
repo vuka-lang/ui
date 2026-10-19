@@ -244,7 +244,20 @@ func (s *Session) handler(target string) any {
 	}
 	h, err := strconv.Atoi(n)
 	if err != nil {
-		return pushable(in.comp, n)
+		fn := pushable(in.comp, n)
+		if set, ok := fn.(func(context.Context, ui.Event) error); ok && n == "_set" && in.src != nil {
+			// what it sets are props: the tag's too, or its next render
+			// would set them back.
+			return func(ctx context.Context, ev ui.Event) error {
+				if err := set(ctx, ev); err != nil {
+					return err
+				}
+				in.set = true
+				copyProps(in.src, in.comp)
+				return nil
+			}
+		}
+		return fn
 	}
 	if h < 0 || h >= len(in.handlers) {
 		return nil
@@ -259,7 +272,9 @@ func (s *Session) handler(target string) any {
 // lists them (each ctx.push("Name") of the scripts) and web registers them
 // from its manifest. A component nothing allows accepts no pushes by name;
 // the handlers its page renders work regardless. Render, Mount, an Update
-// and methods promoted from what it embeds are never pushed.
+// and methods promoted from what it embeds are never pushed. "_set" allows
+// setting its bind: fields (ui.SetBound), as a page script's
+// live.<field>.set(v) does.
 func AllowPush(typ string, methods ...string) {
 	pushMu.Lock()
 	defer pushMu.Unlock()
@@ -292,6 +307,11 @@ func pushable(c ui.Stateful, name string) any {
 	pushMu.RUnlock()
 	if !ok {
 		return nil
+	}
+	if name == "_set" {
+		// a page script's live.<field>.set(v): its bind: fields, as an
+		// island page sets them.
+		return func(ctx context.Context, ev ui.Event) error { return ui.SetBound(ctx, v, ev.Data) }
 	}
 	m := v.MethodByName(name)
 	if !m.IsValid() {
@@ -498,7 +518,9 @@ type instance struct {
 	topics   []string
 	js       []ui.Commands // pushed since the last reply
 	seen     int
-	own      string // its HTML, each child as a marker
+	src      ui.Stateful // the props its tag last rendered it with
+	set      bool        // a page script set its props: it renders again
+	own      string      // its HTML, each child as a marker
 	changed  bool
 	fresh    bool
 	key      any // its tag's key, written on its root as data-vk-key
@@ -646,7 +668,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			same = false
 		}
 	}
-	in.key = n.Key
+	in.key, in.src = n.Key, n.Props
 	parent.kids = append(parent.kids, in)
 	return in, s.visit(in, same)
 }
@@ -692,7 +714,9 @@ func (s *Session) renderAll() error {
 // visit renders an instance, or keeps its last render when its state is all
 // Assigns, none changed, and its props are the same (same).
 func (s *Session) visit(in *instance, same bool) error {
-	if same && !in.fresh {
+	set := in.set
+	in.set = false
+	if same && !in.fresh && !set {
 		if tracked, changed := ui.TrackedState(in.comp); tracked && !changed {
 			if s.verify {
 				return s.verifySkip(in)
