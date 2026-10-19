@@ -105,7 +105,9 @@ func kitCases() []kitCase {
 			return ui.Image(ui.ImageProps{Src: "/a.webp", Srcset: "/a-1.webp 1x, /a-2.webp 2x", Sizes: "100vw", Alt: "A", Width: 1600, Height: 600,
 				Class: "rounded", Priority: true})
 		}},
-		{"image/eager-plain", func() ui.Node { return ui.Image(ui.ImageProps{Src: "/logo.svg", Eager: true, Plain: true, Class: "h-8"}) }},
+		{"image/eager-plain", func() ui.Node {
+			return ui.Image(ui.ImageProps{Src: "/logo.svg", Eager: true, Plain: true, Class: "h-8"})
+		}},
 		{"image/overlay", func() ui.Node {
 			return ui.Image(ui.ImageProps{Src: "/hero.webp", Overlay: ui.El("h1", nil, ui.Text("Hi"))})
 		}},
@@ -147,7 +149,9 @@ func kitCases() []kitCase {
 
 		{"theme/styletag", ui.StyleTag},
 
-		{"tile", func() ui.Node { return ui.Tile(ui.TileProps{Label: "Applications", Icon: "file-text", Value: int64(1234567)}) }},
+		{"tile", func() ui.Node {
+			return ui.Tile(ui.TileProps{Label: "Applications", Icon: "file-text", Value: int64(1234567)})
+		}},
 		{"tile/variants", func() ui.Node {
 			return ui.TileGrid(
 				ui.Tile(ui.TileProps{Label: "A", Value: 5, Variant: ui.Success, Icon: "check", Class: "x"}),
@@ -224,7 +228,9 @@ func kitCases() []kitCase {
 		{"table/select-nokey", func() ui.Node {
 			return ui.Table(ui.TableProps[book]{Columns: kitCols()[:1], Rows: kitBooks[:1], Selectable: true})
 		}},
-		{"table/empty", func() ui.Node { return ui.Table(ui.TableProps[book]{Columns: kitCols(), Selectable: true, Index: true}) }},
+		{"table/empty", func() ui.Node {
+			return ui.Table(ui.TableProps[book]{Columns: kitCols(), Selectable: true, Index: true})
+		}},
 		{"table/empty-icon", func() ui.Node {
 			return ui.Table(ui.TableProps[book]{Columns: kitCols()[:1], EmptyIcon: ui.Icon("list-checks"), Empty: ui.Text("No tasks available."),
 				RowActions: func(book) ui.Node { return nil }})
