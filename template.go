@@ -58,10 +58,12 @@ type Markup struct {
 //     ui.State (its value, kept current by the browser), a stateful
 //     component (&Counter{…}, or ui.Key(k, &Counter{…})), an island's props
 //     (Chart{…}, or ui.Mount(Chart{…}, opts…));
-//   - text, inside title, textarea or script: a string or number;
+//   - text, inside title or textarea: a string or number; inside script
+//     or style, a child, written as the element's content;
 //   - an attribute's value, class="{{0}}": what a JSX attribute takes — a
 //     string, number, bool (false omits it, true writes it bare), nil, a
-//     ui.Class or ui.Style on class and style, a ui.State; an on… attribute
+//     ui.Class, ui.Classes or ui.Style on class and style, a ui.State (an
+//     expression of states too: open.Not()); an on… attribute
 //     takes a handler (a func, ui.On(…), JS commands);
 //   - part of a value, href="/orders/{{0}}": a string or number;
 //   - an attribute set, <input {{0}}>: a ui.Attr, []ui.Attr or
@@ -69,8 +71,8 @@ type Markup struct {
 //
 // The markup is strict: every element is closed (<br> and the other void
 // elements need not be, and <x/> closes any), names are letters, digits and
-// - _ : . and holes can't name a tag or an attribute, or sit in a style
-// element or a comment. Text follows JSX: lines are trimmed where they meet
+// - _ : . and holes can't name a tag or an attribute, or sit in a
+// comment. Text follows JSX: lines are trimmed where they meet
 // a line break and blank lines dropped, so indentation adds nothing; inside
 // pre, textarea, script and style it is kept as written. Entities in text
 // and attribute values are decoded and escaped again on output. A mistake is
@@ -305,7 +307,7 @@ func (m *Markup) check(s *tslot, v any) (any, bool, error) {
 			return nil, false, m.wrong(s, s.hole, v, attrsWhy)
 		case EventHandler, JSChain:
 			return nil, false, m.wrong(s, s.hole, v, handlerWhy)
-		case Class, Style:
+		case Class, Classes, Style:
 			return nil, false, m.wrong(s, s.hole, v, "an attribute's value")
 		case *ComponentNode:
 			if x != nil && x.Site == "" {
@@ -342,7 +344,7 @@ func (m *Markup) check(s *tslot, v any) (any, bool, error) {
 		switch v.(type) {
 		case nil, string, int, int64, float64, bool, error, TextNode:
 			return v, false, nil
-		case Node, Stateful, AnyState, Attr, []Attr, templ.Attributes, EventHandler, JSChain, Class, Style:
+		case Node, Stateful, AnyState, Attr, []Attr, templ.Attributes, EventHandler, JSChain, Class, Classes, Style:
 			return nil, false, m.wrong(s, s.hole, v, "not text")
 		}
 		if reflect.TypeOf(v).Kind() == reflect.Func {
@@ -351,13 +353,11 @@ func (m *Markup) check(s *tslot, v any) (any, bool, error) {
 	case kValue:
 		if s.event {
 			switch v.(type) {
-			case nil, EventHandler, templ.ComponentScript:
-				return v, false, nil
-			case JSChain:
-				return On(v), true, nil
+			case nil, EventHandler, templ.ComponentScript, JSChain:
+				return v, false, nil // the renderer takes a func or commands as a handler
 			}
 			if reflect.TypeOf(v).Kind() == reflect.Func {
-				return On(v), true, nil
+				return v, false, nil
 			}
 			return nil, false, m.wrong(s, s.hole, v, "not a handler: a func, ui.On(…), JS commands or a templ.ComponentScript")
 		}
@@ -373,6 +373,11 @@ func (m *Markup) check(s *tslot, v any) (any, bool, error) {
 				return nil, false, m.wrong(s, s.hole, v, "a class: only class takes one")
 			}
 			return v, false, nil
+		case Classes:
+			if !s.class {
+				return nil, false, m.wrong(s, s.hole, v, "a class: only class takes one")
+			}
+			return x.binding(), true, nil
 		case Style:
 			if !s.styled {
 				return nil, false, m.wrong(s, s.hole, v, "a style: only style takes one")
@@ -757,11 +762,12 @@ func (p *tparser) raw(sh *strings.Builder, tag string) []tnode {
 	for p.i < end {
 		at := p.i
 		if n, ok := p.hole(); ok {
-			if tag == "style" {
-				p.failAt(at, "a hole can't be in <style>; set a class or a style attribute instead")
-			}
 			flush(at)
-			out = append(out, tnode{slot: p.slot(tslot{kind: kText, hole: n, where: "text in <" + tag + ">"})})
+			kind := uint8(kText)
+			if tag == "script" || tag == "style" {
+				kind = kChild // written in the element's mode, as JSX's {…} is
+			}
+			out = append(out, tnode{slot: p.slot(tslot{kind: kind, hole: n, where: "text in <" + tag + ">"})})
 			sh.WriteByte('h')
 			start = p.i
 			continue

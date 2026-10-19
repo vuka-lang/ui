@@ -72,3 +72,39 @@ func TestIslandBadOptions(t *testing.T) {
 		}
 	}
 }
+
+type regBare struct {
+	N int `json:"n"`
+}
+
+type regOpts struct{}
+
+type regOld struct{}
+
+// RegisterIsland takes what Island takes; its older forms keep working.
+func TestRegisterIsland(t *testing.T) {
+	RegisterIsland[regBare]()
+	RegisterIsland[regOpts]("islands/Opts.tsx", Strategy("idle"), Layout(wrap("main")))
+	RegisterIsland[regOld]("./islands/Old.vue", "load")
+	for _, c := range []struct {
+		t                               reflect.Type
+		name, path, framework, strategy string
+		layout                          bool
+	}{
+		{reflect.TypeFor[regBare](), "regBare", "", "", "", false},
+		{reflect.TypeFor[regOpts](), "regOpts", "islands/Opts.tsx", "react", "idle", true},
+		{reflect.TypeFor[regOld](), "regOld", "./islands/Old.vue", "vue", "load", false},
+	} {
+		info := lookupIsland(c.t)
+		if info == nil {
+			t.Fatalf("%s not registered", c.t)
+		}
+		if info.Name != c.name || info.Path != c.path || info.Framework != c.framework || info.Strategy != c.strategy || (IslandLayout(c.t) != nil) != c.layout {
+			t.Errorf("%s: %+v, layout %v", c.t, info, IslandLayout(c.t) != nil)
+		}
+	}
+	s := renderIsland(t, MountIsland("b", regBare{N: 2}))
+	if !strings.Contains(s, `data-vk-island="regBare"`) || !strings.Contains(s, "&#34;n&#34;:2") {
+		t.Errorf("bare island host: %s", s)
+	}
+}

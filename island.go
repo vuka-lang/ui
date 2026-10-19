@@ -21,9 +21,9 @@ import (
 // Islands are client components hydrated in the browser — a framework
 // component (Vue/React/Svelte) or a vanilla module — placed in a server-
 // rendered page and brought to life on a client:* strategy. A struct type
-// annotated with @ui.Island names the component file and declares the props;
-// the transpiler lowers a tag of that type to MountIsland. See
-// docs/design/islands.md.
+// registered with RegisterIsland (or annotated with @ui.Island) names the
+// component file and declares the props; the transpiler lowers a tag of that
+// type to MountIsland. See docs/design/islands.md.
 
 // islandInfo is a registered island: the component file, the framework
 // inferred from its extension, the default hydration strategy (empty when
@@ -40,9 +40,10 @@ type islandInfo struct {
 var islandReg sync.Map // reflect.Type (the props struct) -> *islandInfo
 
 // Island is the @ui.Island type decorator. Above a struct type it registers
-// that type as an island whose props are its exported fields. Written bare,
-// the vuka command finds the component as islands/[<module>/]<Type>.<ext>
-// under the frontend root; @ui.Island("islands/Chart.vue") names it instead.
+// that type as an island whose props are its exported fields, as
+// RegisterIsland does in Go. Written bare, the vuka command finds the
+// component as islands/[<module>/]<Type>.<ext> under the frontend root;
+// @ui.Island("islands/Chart.vue") names it instead.
 // The framework is inferred from the file extension (.vue, .tsx/.jsx,
 // .svelte, else vanilla .ts/.js).
 //
@@ -213,17 +214,19 @@ func PageTitle(ctx context.Context) string {
 	return s
 }
 
-// RegisterIsland registers T as the island whose component is
-// componentPath: what the compiler writes for a .vuka file's import of a
-// component file (import Counter "./islands/Counter.vue"), T being the
-// props type it generates from the component.
-func RegisterIsland[T any](componentPath string, strategy ...string) {
+// RegisterIsland registers T as an island whose props are its exported
+// fields. It takes what Island takes: a component path and a strategy, then
+// options. Bare, the component is islands/[<module>/]<T>.<ext> under the
+// frontend root, found by the vuka command (go tool vuka build-islands):
+//
+//	func init() { ui.RegisterIsland[Chart]() }
+//	func init() { ui.RegisterIsland[Chart]("islands/Chart.vue", ui.Strategy("load")) }
+//
+// It is what the compiler writes for @ui.Island on a type and for a .vuka
+// file's import of a component file (import Counter "./islands/Counter.vue").
+func RegisterIsland[T any](args ...any) {
 	t := reflect.TypeFor[T]()
-	info := &islandInfo{Name: t.Name(), Path: componentPath, Framework: frameworkOf(componentPath)}
-	if len(strategy) > 0 {
-		info.Strategy = strategy[0]
-	}
-	islandReg.Store(t, info)
+	Island(args...)(&vuka.Type{Name: t.String(), Reflect: t})
 }
 
 func shortName(qualified string) string {

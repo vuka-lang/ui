@@ -21,33 +21,35 @@ type Inbox struct {
 
 func (b *Inbox) Read() { b.read.Update(func(n int) int { return n + 1 }) }
 
-func (b *Inbox) Render() ui.Node {
-	panel := ui.FT(0xaf63de4c8601eff2, "c", func(d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(d[0])) }, ui.WithChildren(Panel("Inbox", b.Unread-b.read.Get()), ui.FT(0xaa36629f423bfa0e, "E(t)Ed(t)", func(d []any) ui.Node {
-		return ui.F(0xaa36629f423bfa0e, "E(t)Ed(t)", ui.El("p", nil, ui.Text("Messages arrive here.")), ui.El("button", []ui.Attr{{Name: "onClick", Value: d[0]}}, ui.Text("Read one")))
-	}, ui.On(
+//line pages.vuka:22
+var inboxP = ui.Template(`
+<p>Messages arrive here.</p>
+<button onClick="{{0}}">Read one</button>`)
 
-		b.Read))),
-	)
+//line pages.vuka:28
+var inbox = ui.Template(`<div class="inbox">{{0}}</div>`)
+
+//line pages.vuka:20
+func (b *Inbox) Render() ui.Node {
+	panel := ui.WithChildren(Panel("Inbox", b.Unread-b.read.Get()), inboxP.Render(b.Read))
 //line pages.vuka:25
 	if b.Opaque {
 		panel = Opaque(panel)
 	}
-	return ui.FT(0xa36d9d11ee39bba7, "Es(h)", func(d []any) ui.Node {
-		return ui.F(0xa36d9d11ee39bba7, "Es(h)", ui.El("div", []ui.Attr{{Name: "class", Value: "inbox"}}, ui.Child(d[0])))
-	}, panel)
+	return inbox.Render(panel)
 }
+
+//line pages.vuka:34
+var inboxPage = ui.Template(`{{0}}`)
 
 // InboxPage and BooksPage are pages sharing the templ Layout.
 //
 //line pages.vuka:32
 func InboxPage() ui.Node {
-	return ui.FT(0xaf63de4c8601eff2, "c", func(d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(d[0])) }, ui.WithChildren(Layout("Inbox", "/inbox"), ui.FT(0xaf63de4c8601eff2, "c", func(d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(d[0])) }, ui.Component("pages.vuka#3", nil,
-		&Inbox{Unread: 3}))),
-	)
+	return ui.WithChildren(Layout("Inbox", "/inbox"), inboxPage.Render(&Inbox{Unread: 3}))
 }
 
+//line pages.vuka:38
 func BooksPage(books []string) ui.Node {
-	return ui.FT(0xaf63de4c8601eff2, "c", func(d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(d[0])) }, ui.WithChildren(Layout("Books", "/books"), ui.FT(0xaf63de4c8601eff2, "c", func(d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(d[0])) }, ui.WithChildren(
-		Panel("Books", len(books)), ui.FT(0xaf63de4c8601eff2, "c", func(d []any) ui.Node { return ui.F(0xaf63de4c8601eff2, "c", ui.Child(d[0])) }, Shelf(books))))),
-	)
+	return ui.WithChildren(Layout("Books", "/books"), ui.WithChildren(Panel("Books", len(books)), Shelf(books)))
 }

@@ -29,10 +29,11 @@ import (
 //	<ul hidden={!open}>…</ul>
 //
 // Writes are commands, chained with the rest of ui.JS: Set, Toggle (a
-// State[bool]), Inc and Dec (numbers), Reset. Reads are expressions in JSX
-// attributes, text and ui.Class that the compiler turns into ones the
-// browser evaluates (see BindExpr); the server renders them with the initial
-// value, so the page is right before any script runs.
+// State[bool]), Inc and Dec (numbers), Reset. Reads are expressions the
+// browser evaluates: in JSX attributes, text and ui.Class, plain Go
+// expressions the compiler writes with State's methods (open.Not(),
+// tab.Eq("env"), see Not); the server renders them with the initial value,
+// so the page is right before any script runs.
 //
 // A struct state's fields are states of their own: f.Q.Set("x") changes
 // one field, and what reads f.Q follows only f.Q. A state passed as a prop
@@ -104,8 +105,10 @@ func callSite() string {
 }
 
 // Derived names an expression of states for reuse, read wherever a state
-// is: the compiler turns ui.Derived(!open && tab == "env") into NewDerived.
-// Without the compiler it is a state that never changes.
+// is: in a .vuka file, ui.Derived(!open && tab == "env"), which the compiler
+// writes as open.Not().And(tab.Eq("env")). In Go, Derived(v) is a state that
+// never changes: an operand for an expression starting with a value,
+// ui.Derived("Hello, ").Plus(name).
 func Derived[T any](value T) State[T] { return NewDerived(value, `{"$":0}`, value) }
 
 // NewDerived is a derived state: value is what it renders with, expr and
@@ -114,9 +117,9 @@ func NewDerived[T any](value T, expr string, deps ...any) State[T] {
 	return State[T]{c: &stateCell{init: value, typ: reflect.TypeFor[T](), derived: &Binding{value, expr, deps}}, v: value}
 }
 
-// StateField is the field name of a struct state: what f.Q becomes outside
-// JSX. sample is the field's value as rendered (f.Get().Q), which also gives
-// its type.
+// StateField is the field name of a struct state, sample its value as
+// rendered (f.Get().Q), which also gives its type. At is the same with the
+// type named: At[string](f, "Q").
 func StateField[S, T any](s State[S], name string, sample T) State[T] {
 	if s.c != nil && s.c.derived != nil {
 		panic("ui: a field of a ui.Derived isn't a state")
