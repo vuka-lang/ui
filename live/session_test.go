@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -317,13 +318,25 @@ type Typing struct{ Who string }
 
 func (c *Chat) Mount() { c.Subscribe("room:" + c.Room) }
 
-// Overloads, as Vuka names them.
-func (c *Chat) Update__NewMessage(m NewMessage) { c.log = append(c.log, "msg "+m.Text) }
-func (c *Chat) Update__Typing(ctx context.Context, m Typing) error {
+// Overloads of Update, as vuka names them: after the message's type.
+func (c *Chat) UpdateNewMessage(m NewMessage) { c.log = append(c.log, "msg "+m.Text) }
+func (c *Chat) UpdateTyping(ctx context.Context, m Typing) error {
 	c.log = append(c.log, "typing "+m.Who)
 	return nil
 }
-func (c *Chat) Update__any(m any) { c.log = append(c.log, "other") }
+func (c *Chat) UpdateAny(m any) { c.log = append(c.log, "other") }
+
+// UpdateTopic takes a string: an event, not an Update.
+func (c *Chat) UpdateTopic(topic string) { c.Room = topic }
+
+// OldChat's overloads are named as older vuka commands wrote them.
+type OldChat struct {
+	ui.Live
+	log []string
+}
+
+func (c *OldChat) Update__NewMessage(m NewMessage) { c.log = append(c.log, "old "+m.Text) }
+func (c *OldChat) Render() ui.Node                 { return ui.El("p", nil, ui.Text(strings.Join(c.log, ","))) }
 
 func (c *Chat) Render() ui.Node {
 	return ui.El("ul", nil, ui.Nodes(func(add func(ui.Node)) {
@@ -357,6 +370,43 @@ func TestInfo(t *testing.T) {
 	}
 	if p, _ := s.Info("room:none", NewMessage{"x"}); len(p.Updates) != 0 {
 		t.Fatalf("nobody subscribed: %+v", p)
+	}
+	if p, _ := s.Info("room:go", "rust"); len(p.Updates) != 1 || !strings.Contains(p.Updates[0].HTML, "<li>other</li>") {
+		t.Fatalf("a string reached UpdateTopic: %+v", p)
+	}
+
+	old := live.NewSession(context.Background(), func(context.Context) ui.Node {
+		return ui.Component("t:1", nil, &OldChat{})
+	})
+	if _, err := old.Render(); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := old.Info("", NewMessage{"hi"}); len(p.Updates) != 1 || !strings.Contains(p.Updates[0].HTML, "old hi") {
+		t.Fatalf("Update__NewMessage: %+v", p)
+	}
+}
+
+func TestIsUpdate(t *testing.T) {
+	ct := reflect.TypeFor[*Chat]()
+	for name, want := range map[string]bool{"UpdateNewMessage": true, "UpdateTyping": true, "UpdateAny": true, "UpdateTopic": false, "Render": false} {
+		m, _ := ct.MethodByName(name)
+		if got := ui.IsUpdate(m); got != want {
+			t.Errorf("IsUpdate(%s) = %v", name, got)
+		}
+	}
+	for _, c := range []struct {
+		v    any
+		want string
+	}{
+		{0, "Int"}, {(*NewMessage)(nil), "NewMessage"}, {[]Typing{}, "Typings"}, {map[string]int{}, "MapStringInt"},
+		{[]*Chat{}, "Chats"}, {struct{}{}, "Struct"}, {(*error)(nil), "Error"}, {ui.State[[]Typing]{}, "StateTypings"},
+	} {
+		if got := ui.TypeName(reflect.TypeOf(c.v)); got != c.want {
+			t.Errorf("TypeName(%T) = %s, want %s", c.v, got, c.want)
+		}
+	}
+	if got := ui.TypeName(reflect.TypeFor[any]()); got != "Any" {
+		t.Errorf("TypeName(any) = %s", got)
 	}
 }
 

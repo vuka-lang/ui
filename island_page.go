@@ -70,7 +70,7 @@ func IslandMethods(t reflect.Type) []IslandMethod {
 	var out []IslandMethod
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
-		if lifecycle[m.Name] || liveMethods[m.Name] || strings.HasPrefix(m.Name, "Update__") || isLoader(t, m.Name) || isHook(t, m.Name) {
+		if lifecycle[m.Name] || liveMethods[m.Name] || IsUpdate(m) || isLoader(t, m.Name) || isHook(t, m.Name) {
 			continue
 		}
 		mt := m.Type
