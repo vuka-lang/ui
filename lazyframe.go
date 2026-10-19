@@ -33,7 +33,8 @@ type lazyFrame struct {
 	shape string
 	build func([]any) Node
 	dyns  []any
-	built Node // build(dyns), once materialized
+	built Node    // build(dyns), once materialized
+	p     *ftPlan // a template's, compiled when it was parsed
 }
 
 func (n *lazyFrame) Render(ctx context.Context, w io.Writer) error {
@@ -43,11 +44,17 @@ func (n *lazyFrame) Render(ctx context.Context, w io.Writer) error {
 // frame is the lazy frame's real node tree, F would have built it: used by the
 // live render-tree builder, a non-HTML Renderer, RootAttrs and the not-fast
 // fallback. Built once per lazyFrame value.
+// A template's frame is built each time instead, so a node Render returned
+// renders concurrently without a race.
 func (n *lazyFrame) frame() Node {
-	if n.built == nil {
-		n.built = n.build(n.dyns)
+	if n.built != nil {
+		return n.built
 	}
-	return n.built
+	f := n.build(n.dyns)
+	if n.p == nil {
+		n.built = f
+	}
+	return f
 }
 
 // ftSlot is one dynamic of a lazy frame: an {expr}/block/component child, or an
@@ -77,6 +84,9 @@ type ftPlan struct {
 var ftPlans sync.Map // uint64 → *ftPlan
 
 func (n *lazyFrame) plan() *ftPlan {
+	if n.p != nil {
+		return n.p
+	}
 	if p, ok := ftPlans.Load(n.fp); ok {
 		return p.(*ftPlan)
 	}

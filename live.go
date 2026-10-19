@@ -111,6 +111,13 @@ func Component(site string, key any, props Stateful) Node {
 	return &ComponentNode{Site: site, Key: key, Props: props}
 }
 
+// Key is a stateful component with a key, as a key attribute on its tag is:
+// the instances in one place are told apart by their keys, unkeyed ones by
+// their order.
+//
+//	ui.Each(items, func(it Item) ui.Node { return ui.Key(it.ID, &Counter{Label: it.Name}) })
+func Key(key any, c Stateful) Node { return &ComponentNode{Key: key, Props: c} }
+
 func (n *ComponentNode) Render(ctx context.Context, w io.Writer) error {
 	if h := liveHost(ctx); h != nil {
 		KeyStates(ctx, n.Props)

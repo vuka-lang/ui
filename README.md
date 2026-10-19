@@ -5,7 +5,8 @@ The UI library for [Vuka](https://github.com/vuka-lang/vuka): what JSX in a
 JSX file whose elements become `ui.El`, `ui.Text`, `ui.Child`, … (the package
 declares `const VukaJSX = 1`, Vuka's JSX target contract).
 
-- `ui` — `Node` (= `templ.Component`), elements and text, `Safe`, `Style`,
+- `ui` — `Node` (= `templ.Component`), templates (`Template`, `Each`,
+  `If`), elements and text, `Safe`, `Style`,
   `ErrorBoundary`, HTML rendering (`String`, `Write`, `Handler`), `Walk` and
   `Renderer`; stateful components (`Live`, `On`, `Event`); JS commands the
   browser runs on an event (`JS`, `Ref`, `Live.PushJS`), and a payload for a
@@ -31,18 +32,51 @@ func Hello(name string) ui.Node {
 
 Documentation: https://vuka-lang.github.io/ui/
 
-## Live patches without render tracking
+## Templates: markup in plain Go
 
-JSX and `ui.Template` build frames: a component's markup splits into
-statics, sent once per connection, and dynamics, of which a live session
-sends only those that changed. A component built from nodes by hand
-(`ui.El`, `ui.Text`, a `ui.NodeFunc`, templ without vuka's instrumentation)
-has no frames, and needs nothing else: the session diffs its whole output —
-a token patch of the markup when that is small, else the markup — and the
-browser ends with the same page. The node type decides, so the tracked path
-pays no check. On the demo pages' random-event tests a v2 connection
-carries 1.7–2.2× the bytes without frames; one click in a 100-counter page
-is 168 bytes instead of 63 (`go test -bench Fallback ./live`).
+`ui.Template` is markup for `.go` files: HTML in backticks with numbered
+holes, parsed once when the package initializes. It renders like JSX — the
+static HTML is written straight through, and under a live session it is a
+frame of statics and dynamics that diffs as JSX does.
+
+```go
+var orderRow = ui.Template(`
+<tr key="{{0}}" class="{{1}}">
+  <td>{{2}}</td>
+  <td class="tabular-nums">{{3}}</td>
+  <td><button onClick="{{4}}">Cancel</button></td>
+</tr>`)
+
+var orderTable = ui.Template(`<table><tbody>{{0}}</tbody></table>`)
+
+func (p *Orders) row(o Order) ui.Node {
+	return orderRow.Render(o.ID, ui.Class{"row": true, "late": o.Late}, o.Ref, money(o.Total),
+		func() { p.Cancel(o.ID) })
+}
+
+func (p *Orders) Render() ui.Node { return orderTable.Render(ui.Each(p.orders, p.row)) }
+```
+
+Each hole is escaped for its place, and a value of the wrong kind fails the
+render with the template's file, line and hole:
+
+| Place | Takes |
+|---|---|
+| a child, `<td>{{0}}</td>` | a `ui.Node`, `[]ui.Node`, string or number (escaped), error, nil, a `ui.State` (kept current), a stateful component (`&Counter{…}`, `ui.Key(k, &Counter{…})`), an island (`Chart{…}`, `ui.Mount(Chart{…}, ui.Idle())`) |
+| text, `<title>{{0}}</title>` (title, textarea, script) | a string or number |
+| a value, `class="{{0}}"` | what a JSX attribute takes: string, number, bool, nil, `ui.Class` / `ui.Style` on class / style, a `ui.State`; an `on…` attribute takes a handler — a func, `ui.On(…)`, JS commands |
+| part of a value, `href="/orders/{{0}}"` | a string or number |
+| an attribute set, `<input {{0}}>` | `ui.Attr`, `[]ui.Attr`, `templ.Attributes` (`ui.BindAttr` gives one) |
+
+- Loops and conditionals are Go: `ui.Each(items, fn)`, `ui.If(cond, node)`,
+  or a `[]ui.Node` built in a loop. Their items diff by key: a `key`
+  attribute on an item's first element, or `ui.Key` on a component.
+- Client state: `open := ui.UseState(false)` in a component,
+  `var theme = ui.UsePageState("light")` for the page.
+- The markup is strict — every element closed (void elements and `<x/>`
+  aside), holes only where the table says — and a mistake panics at init
+  with its line. Text follows JSX's whitespace rule, so indentation adds
+  nothing; pre, textarea, script and style keep theirs.
 
 ## Versions
 

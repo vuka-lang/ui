@@ -164,6 +164,72 @@ func Fragment(children ...Node) Node { return Group(children) }
 // Nodes is the children a loop, if or match block produces.
 func Nodes(build func(add func(Node))) Node { return Builder(build) }
 
+// Each is a list of what fn makes of each item, as a {for} block is: under a
+// live session its items diff by their keys (a key attribute on an item's
+// first element, or ui.Key on a component).
+//
+//	ui.Each(orders, OrderRow)
+func Each[T any](items []T, fn func(T) Node) Node {
+	return &list{items: func(add func(Node)) {
+		for _, it := range items {
+			add(fn(it))
+		}
+	}}
+}
+
+// If is n when cond holds, else nothing, as an {if} block is. n is built
+// either way; when it can only be built while cond holds, use a Go if.
+func If(cond bool, n Node) Node {
+	if !cond || n == nil {
+		return &list{items: func(func(Node)) {}}
+	}
+	return &list{items: func(add func(Node)) { add(n) }}
+}
+
+// list is a block: Each's, If's or a []Node in a template's hole. Its
+// components and islands with no site of their own take the hole's.
+type list struct {
+	site  string
+	items func(add func(Node))
+}
+
+func listOf(ns []Node) *list {
+	return &list{items: func(add func(Node)) {
+		for _, n := range ns {
+			add(n)
+		}
+	}}
+}
+
+func (n *list) Render(ctx context.Context, w io.Writer) error { return renderHTML(ctx, w, n) }
+
+func (n *list) placed(c Node) Node {
+	switch c := c.(type) {
+	case *ComponentNode:
+		if c != nil && c.Site == "" && n.site != "" {
+			cp := *c
+			cp.Site = n.site
+			return &cp
+		}
+	case *islandMount:
+		return c.node(n.site)
+	}
+	return c
+}
+
+// item is c as an item of the block: a frame of its own, as each of a {for}
+// block's bodies is, so a live render tree keeps the items apart.
+func (n *list) item(c Node) Node {
+	switch c := n.placed(c).(type) {
+	case *Frame, *lazyFrame:
+		return c
+	default:
+		return newFrame(itemFP, "h", []Node{c})
+	}
+}
+
+const itemFP = 0x6974656d
+
 // WithChildren renders c with children as its templ children
 // (templ.WithChildren), so a templ component's { children... } renders them:
 // <Card>{…}</Card> on a templ Card.

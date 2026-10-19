@@ -351,6 +351,12 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 			}
 			return TreeRef(id), nil
 		}
+	case *islandMount:
+		return b.value(ctx, n.node(""))
+	case *list:
+		var ns []Node
+		n.items(func(c Node) { ns = append(ns, n.item(c)) })
+		return b.seq(ctx, ns, true)
 	case Builder:
 		if n == nil {
 			return "", nil
