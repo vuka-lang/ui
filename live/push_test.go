@@ -124,3 +124,33 @@ func TestScopeIsStatic(t *testing.T) {
 		}
 	}
 }
+
+type Searched struct {
+	ui.Live
+	Q string
+}
+
+func (s *Searched) LiveSchema(l *ui.LiveSchema) { l.Field(&s.Q, ui.Bind{}) }
+func (s *Searched) Render() ui.Node             { return ui.El("p", nil, ui.Text("q="), ui.Child(s.Q)) }
+
+// A page script's live.q.set(v) pushes _set: the page's bind: fields, as
+// ui.SetBound sets them, once AllowPush lists it.
+func TestPushSet(t *testing.T) {
+	typ := "github.com/vuka-lang/ui/live_test.Searched"
+	page := &Searched{}
+	s := live.NewSession(context.Background(), func(context.Context) ui.Node { return ui.Component("s", nil, page) })
+	s.Handle(live.ClientMessage{Type: live.Join, V: 2, Ref: 1})
+	ref := 1
+	set := func() live.ServerMessage {
+		ref++
+		return s.Handle(live.ClientMessage{Type: live.EventMsg, Ref: ref, Event: ui.Event{Target: "c1:_set", Type: "push", Data: []byte(`{"Q":"go"}`)}})
+	}
+	if m := set(); m.Type != live.Error {
+		t.Fatalf("_set without AllowPush: %+v", m)
+	}
+	live.AllowPush(typ, "_set")
+	defer live.AllowPush(typ)
+	if m := set(); m.Type != live.PatchMsg || !strings.Contains(fmt.Sprint(m.Updates, string(treeJSON(m.Trees))), "go") {
+		t.Fatalf("_set: %+v", m)
+	}
+}
