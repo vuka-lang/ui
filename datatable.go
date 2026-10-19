@@ -74,9 +74,9 @@ type DataTable[T any] struct {
 // <ui.DataTable …> in a template.
 type DataTableProps[T any] = DataTable[T]
 
-// table is the Table of the page's rows, its sortable columns' headers sort
-// controls.
-func (d DataTable[T]) table() Table[T] {
+// table is the markup of the Table of the page's rows, its sortable
+// columns' headers sort controls.
+func (d DataTable[T]) table() Node {
 	cols := d.Columns
 	if d.OnSort != nil {
 		cols = make([]Column[T], len(d.Columns))
@@ -94,7 +94,7 @@ func (d DataTable[T]) table() Table[T] {
 		AllSelected: d.AllSelected, SomeSelected: d.SomeSelected,
 		Index: d.Index, IndexFrom: d.Page.From() - 1,
 		Empty: d.Empty, EmptyIcon: d.EmptyIcon, Flush: d.Flush,
-	}
+	}.View()
 }
 
 func (d DataTable[T]) placeholder() string {

@@ -8,5 +8,5 @@ func Cancel(on any, label ...string) Node {
 	if len(label) > 0 && label[0] != "" {
 		l = label[0]
 	}
-	return Button{On: on, Children: Text(l)}
+	return Button{On: on, Children: Text(l)}.View()
 }
