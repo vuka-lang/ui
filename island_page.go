@@ -70,7 +70,7 @@ func IslandMethods(t reflect.Type) []IslandMethod {
 	var out []IslandMethod
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
-		if lifecycle[m.Name] || liveMethods[m.Name] || strings.HasPrefix(m.Name, "Update__") || isLoader(t, m.Name) {
+		if lifecycle[m.Name] || liveMethods[m.Name] || strings.HasPrefix(m.Name, "Update__") || isLoader(t, m.Name) || isHook(t, m.Name) {
 			continue
 		}
 		mt := m.Type
@@ -278,8 +278,9 @@ func (viewerJSON) Render(ctx context.Context, w io.Writer) error {
 	return err
 }
 
-// urlFields are the fields of an island's struct tagged url:"name": its
-// wire name → the query parameter the page's address keeps it in.
+// urlFields are the fields of an island's struct its LiveSchema gives a URL
+// (or tagged url:"name"): its wire name → the query parameter the page's
+// address keeps it in.
 func urlFields(t reflect.Type) map[string]string {
 	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
@@ -290,6 +291,9 @@ func urlFields(t reflect.Type) map[string]string {
 	var out map[string]string
 	for _, f := range reflect.VisibleFields(t) {
 		q, _, _ := strings.Cut(f.Tag.Get("url"), ",")
+		if u := FieldOptionsOf(t, f).URL; u != "" {
+			q = u
+		}
 		if !f.IsExported() || q == "" || q == "-" {
 			continue
 		}

@@ -177,7 +177,7 @@ func (c Classes) binding() Binding {
 		}
 	}
 	b.WriteString(`}]`)
-	return Bind(init, b.String(), deps...)
+	return BindExpr(init, b.String(), deps...)
 }
 
 const (
