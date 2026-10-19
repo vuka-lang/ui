@@ -10,13 +10,14 @@ import (
 
 //line toast.vuka.html:1
 func (t Toast) View() Node {
+//line toast.vuka.html:1
 	value2 := nonEmpty(t.ID)
 	var div []Node
 	if t.Title != "" {
 		div = append(div, HTML(`<div class="vk-toast__title">{t.Title}</div>`, t.Title))
 	}
 	var button []Node
-//line toast.vuka.html:9
+//line toast.vuka.html:8
 	if !t.Closed {
 		button = append(button, HTML(`<button type="button" class="vk-toast__close" aria-label="Dismiss" onClick={DismissToast()}>×</button>`, DismissToast()))
 	}
@@ -39,5 +40,5 @@ func (t Toast) View() Node {
 	)
 }
 
-//line toast.vuka.html:12
+//line toast.vuka.html:11
 func (t Toast) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }

@@ -9,13 +9,13 @@ import (
 )
 
 //line toast_container.vuka.html:1
-func (c ToastContainer) View() Node {
+func (t ToastContainer) View() Node {
 //line toast_container.vuka.html:1
-	return HTML(`<div ref={c.ref()} class={c.classes()} role="region" aria-label="Notifications" aria-live="polite">{c.Children}</div>`, c.ref(), c.classes(), c.Children)
+	return HTML(`<div ref={t.ref()} class={t.classes()} role="region" aria-label="Notifications" aria-live="polite">{t.Children}</div>`, t.ref(), t.classes(), t.Children)
 }
 
-//line toast_container.vuka.html:2
-func (c ToastContainer) Render(ctx context.Context, w io.Writer) error {
-//line toast_container.vuka.html:2
-	return c.View().Render(ctx, w)
+//line toast_container.vuka.html:1
+func (t ToastContainer) Render(ctx context.Context, w io.Writer) error {
+//line toast_container.vuka.html:1
+	return t.View().Render(ctx, w)
 }
