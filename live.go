@@ -163,9 +163,18 @@ func CopyLive(c Stateful) Stateful {
 	return cp.Interface().(Stateful)
 }
 
-// MountLive runs c's Mount method, if it has one: Mount(), Mount() error,
+// MountLive runs c's Mount hook, the one its LiveSchema sets; or, from
+// earlier releases, its Mount method: Mount(), Mount() error,
 // Mount(context.Context) or Mount(context.Context) error.
 func MountLive(ctx context.Context, c Stateful) error {
+	if s := liveSchemaOf(reflect.TypeOf(c)); s != nil {
+		if len(s.errs) > 0 {
+			return s.errs[0]
+		}
+		if s.mount != nil {
+			return liveHooks(reflect.ValueOf(c)).mount(ctx)
+		}
+	}
 	switch m := c.(type) {
 	case interface{ Mount(context.Context) error }:
 		return m.Mount(ctx)

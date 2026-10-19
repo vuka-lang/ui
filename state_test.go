@@ -110,15 +110,15 @@ func TestBindings(t *testing.T) {
 	ready := ui.NewDerived(!open.Get() && tab.Get() == "env", `["&&",["!",{"$":0}],["==",{"$":1},"env"]]`, open, tab)
 	out, info := page(t, ui.El("div", nil,
 		ui.El("button", []ui.Attr{
-			{Name: "aria-expanded", Value: ui.Bind(open.Get(), `{"$":0}`, open)},
-			{Name: "disabled", Value: ui.Bind(f.Get().Q == "" || tab.Get() != "logs", `["||",["==",{"$":0,"p":["Q"]},""],["!=",{"$":1},"logs"]]`, f, tab)},
+			{Name: "aria-expanded", Value: ui.BindExpr(open.Get(), `{"$":0}`, open)},
+			{Name: "disabled", Value: ui.BindExpr(f.Get().Q == "" || tab.Get() != "logs", `["||",["==",{"$":0,"p":["Q"]},""],["!=",{"$":1},"logs"]]`, f, tab)},
 			{Name: "onClick", Value: ui.On(open.Toggle())},
 		}, ui.Text("Menu")),
-		ui.El("ul", []ui.Attr{{Name: "hidden", Value: ui.Bind(!open.Get(), `["!",{"$":0}]`, open)}}),
-		ui.El("p", []ui.Attr{{Name: "class", Value: ui.Bind(ui.Class{"tab": true, "bg-brand": tab.Get() == "env"}, `["class",{"tab":true,"bg-brand":["==",{"$":0},"env"]}]`, tab)}},
-			ui.Child(ui.Bind(n.Get(), `{"$":0}`, n)), ui.Text(" of "), ui.Child(ui.Bind(len(tab.Get()), `["len",{"$":0}]`, tab))),
-		ui.El("i", []ui.Attr{{Name: "data-ready", Value: ui.Bind(ready.Get(), `{"$":0}`, ready)}}),
-		ui.El("b", []ui.Attr{{Name: "title", Value: ui.Bind(tab.Get()+"!", `["+",{"$":0},{"$":1}]`, tab, map[string]int{"x": 1})}}),
+		ui.El("ul", []ui.Attr{{Name: "hidden", Value: ui.BindExpr(!open.Get(), `["!",{"$":0}]`, open)}}),
+		ui.El("p", []ui.Attr{{Name: "class", Value: ui.BindExpr(ui.Class{"tab": true, "bg-brand": tab.Get() == "env"}, `["class",{"tab":true,"bg-brand":["==",{"$":0},"env"]}]`, tab)}},
+			ui.Child(ui.BindExpr(n.Get(), `{"$":0}`, n)), ui.Text(" of "), ui.Child(ui.BindExpr(len(tab.Get()), `["len",{"$":0}]`, tab))),
+		ui.El("i", []ui.Attr{{Name: "data-ready", Value: ui.BindExpr(ready.Get(), `{"$":0}`, ready)}}),
+		ui.El("b", []ui.Attr{{Name: "title", Value: ui.BindExpr(tab.Get()+"!", `["+",{"$":0},{"$":1}]`, tab, map[string]int{"x": 1})}}),
 	))
 	if !info.JS {
 		t.Error("a page with bindings isn't marked JS")
@@ -169,12 +169,12 @@ func TestBindAttr(t *testing.T) {
 func TestBindingRefusals(t *testing.T) {
 	open := ui.NewState("o", false)
 	for _, name := range []string{"onclick", "srcdoc", "ref", "key"} {
-		if _, err := ui.String(context.Background(), ui.El("div", []ui.Attr{{Name: name, Value: ui.Bind(true, `{"$":0}`, open)}})); err == nil {
+		if _, err := ui.String(context.Background(), ui.El("div", []ui.Attr{{Name: name, Value: ui.BindExpr(true, `{"$":0}`, open)}})); err == nil {
 			t.Errorf("%s bound", name)
 		}
 	}
 	var zero ui.State[bool]
-	if _, err := ui.String(context.Background(), ui.El("div", []ui.Attr{{Name: "hidden", Value: ui.Bind(true, `{"$":0}`, zero)}})); err == nil {
+	if _, err := ui.String(context.Background(), ui.El("div", []ui.Attr{{Name: "hidden", Value: ui.BindExpr(true, `{"$":0}`, zero)}})); err == nil {
 		t.Error("a zero state bound")
 	}
 }
@@ -183,7 +183,7 @@ func TestStateKeysPerInstance(t *testing.T) {
 	g := ui.PageState("shared", "a")
 	menu := func() ui.Node {
 		open := ui.NewState("menu.open", false)
-		return ui.El("ul", []ui.Attr{{Name: "hidden", Value: ui.Bind(!open.Get(), `["!",{"$":0}]`, open)}, {Name: "title", Value: ui.Bind(g.Get(), `{"$":0}`, g)}})
+		return ui.El("ul", []ui.Attr{{Name: "hidden", Value: ui.BindExpr(!open.Get(), `["!",{"$":0}]`, open)}, {Name: "title", Value: ui.BindExpr(g.Get(), `{"$":0}`, g)}})
 	}
 	out, _ := page(t, ui.Fragment(menu(), menu()))
 	for _, want := range []string{"c0:menu.open:1", "c0:menu.open:2", "g:shared"} {
@@ -206,7 +206,7 @@ func TestShow(t *testing.T) {
 		{true, `<vk-show style="display: contents;"><div class="transition data-closed:opacity-0">hi</div></vk-show>`},
 		{false, `<vk-show hidden><div`},
 		{open, `<vk-show data-vk-show="{&#34;i&#34;:false,&#34;s&#34;:&#34;c0:open:1&#34;}" hidden><div`},
-		{ui.Bind(!open.Get(), `["!",{"$":0}]`, open), `<vk-show data-vk-show="[&#34;!&#34;,{&#34;i&#34;:false,&#34;s&#34;:&#34;c0:open:1&#34;}]" style="display: contents;"><div`},
+		{ui.BindExpr(!open.Get(), `["!",{"$":0}]`, open), `<vk-show data-vk-show="[&#34;!&#34;,{&#34;i&#34;:false,&#34;s&#34;:&#34;c0:open:1&#34;}]" style="display: contents;"><div`},
 	} {
 		out, _ := page(t, ui.Show(ui.ShowProps{When: tt.when, Children: kid}))
 		out = strings.ReplaceAll(out, "c0:open:2", "c0:open:1")

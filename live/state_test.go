@@ -26,7 +26,7 @@ func (m *menu) Bump() { m.n++ }
 func (m *menu) Render() ui.Node {
 	open := ui.NewState("menu.open", false)
 	return ui.El("div", nil,
-		ui.El("button", []ui.Attr{a("onClick", ui.On(open.Toggle())), a("aria-expanded", ui.Bind(open.Get(), `{"$":0}`, open))}, ui.Text(m.Label)),
+		ui.El("button", []ui.Attr{a("onClick", ui.On(open.Toggle())), a("aria-expanded", ui.BindExpr(open.Get(), `{"$":0}`, open))}, ui.Text(m.Label)),
 		ui.El("button", []ui.Attr{a("onClick", ui.On(m.Bump))}, ui.Child(m.n)),
 		ui.Component("menu.list", nil, &menuList{Open: open}))
 }
@@ -38,7 +38,7 @@ type menuList struct {
 }
 
 func (l *menuList) Render() ui.Node {
-	return ui.El("ul", []ui.Attr{a("hidden", ui.Bind(!l.Open.Get(), `["!",{"$":0}]`, l.Open))})
+	return ui.El("ul", []ui.Attr{a("hidden", ui.BindExpr(!l.Open.Get(), `["!",{"$":0}]`, l.Open))})
 }
 
 var stateKeys = regexp.MustCompile(`c\d+:menu\.open:\d+`)
@@ -96,7 +96,7 @@ type pusher struct {
 func (p *pusher) Mount()   { p.tab = ui.NewState("pusher.tab", "logs") }
 func (p *pusher) ShowEnv() { p.PushJS(p.tab.Set("env")) }
 func (p *pusher) Render() ui.Node {
-	return ui.El("p", []ui.Attr{a("onClick", ui.On(p.ShowEnv)), a("title", ui.Bind(p.tab.Get(), `{"$":0}`, p.tab))})
+	return ui.El("p", []ui.Attr{a("onClick", ui.On(p.ShowEnv)), a("title", ui.BindExpr(p.tab.Get(), `{"$":0}`, p.tab))})
 }
 
 func TestStatePushed(t *testing.T) {
