@@ -1,0 +1,794 @@
+=== actions
+<div class="vk-actions"><button class="vk-btn" type="button" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}],[&#34;pop_focus&#34;,{}]]"><span class="vk-btn__label">Cancel</span></button><button class="vk-btn vk-btn--primary" type="button"><span class="vk-btn__label">Save</span></button></div>
+--- live
+<main><div class="vk-actions"><button class="vk-btn" type="button" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}],[&#34;pop_focus&#34;,{}]]"><span class="vk-btn__label">Cancel</span></button><button class="vk-btn vk-btn--primary" type="button"><span class="vk-btn__label">Save</span></button></div></main>
+=== actions/empty
+<div class="vk-actions"></div>
+--- live
+<main><div class="vk-actions"></div></main>
+=== cancel/label
+<button class="vk-btn" type="button"><span class="vk-btn__label">Close</span></button>
+--- live
+<main><button class="vk-btn" type="button" data-vk-on-click="c0:0"><span class="vk-btn__label">Close</span></button></main>
+=== cancel/empty-label
+<button class="vk-btn" type="button" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}],[&#34;pop_focus&#34;,{}]]"><span class="vk-btn__label">Cancel</span></button>
+--- live
+<main><button class="vk-btn" type="button" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}],[&#34;pop_focus&#34;,{}]]"><span class="vk-btn__label">Cancel</span></button></main>
+=== alert
+<div class="vk-alert vk-alert--info" role="alert"><div class="vk-alert__body">hi</div></div>
+--- live
+<main><div class="vk-alert vk-alert--info" role="alert"><div class="vk-alert__body">hi</div></div></main>
+=== alert/success-title
+<div class="vk-alert vk-alert--success" role="alert"><div class="vk-alert__body"><div class="vk-alert__title">Saved</div>live</div></div>
+--- live
+<main><div class="vk-alert vk-alert--success" role="alert"><div class="vk-alert__body"><div class="vk-alert__title">Saved</div>live</div></div></main>
+=== alert/warning-dismiss-class
+<div class="vk-alert vk-alert--warning mt-2" role="alert"><div class="vk-alert__body">careful</div><button type="button" class="vk-alert__close" aria-label="Dismiss" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;closest&#34;:&#34;.vk-alert&#34;}}]]">×</button></div>
+--- live
+<main><div class="vk-alert vk-alert--warning mt-2" role="alert"><div class="vk-alert__body">careful</div><button type="button" class="vk-alert__close" aria-label="Dismiss" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;closest&#34;:&#34;.vk-alert&#34;}}]]">×</button></div></main>
+=== alert/error-nochildren
+<div class="vk-alert vk-alert--error" role="alert"><div class="vk-alert__body"><div class="vk-alert__title">Oops</div></div></div>
+--- live
+<main><div class="vk-alert vk-alert--error" role="alert"><div class="vk-alert__body"><div class="vk-alert__title">Oops</div></div></div></main>
+=== badge
+<span class="vk-badge">New</span>
+--- live
+<main><span class="vk-badge">New</span></main>
+=== badge/success
+<span class="vk-badge vk-badge--success">Signed</span>
+--- live
+<main><span class="vk-badge vk-badge--success">Signed</span></main>
+=== badge/danger-soft-class
+<span class="vk-badge vk-badge--danger vk-badge--soft ml-1">Failed</span>
+--- live
+<main><span class="vk-badge vk-badge--danger vk-badge--soft ml-1">Failed</span></main>
+=== button
+<button class="vk-btn" type="button"><span class="vk-btn__label">Go</span></button>
+--- live
+<main><button class="vk-btn" type="button"><span class="vk-btn__label">Go</span></button></main>
+=== button/primary-sm-icon
+<button class="vk-btn vk-btn--primary vk-btn--sm" type="button"><span class="vk-btn__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="plus"><path d="M12 5v14M5 12h14"/></svg></span><span class="vk-btn__label">New</span></button>
+--- live
+<main><button class="vk-btn vk-btn--primary vk-btn--sm" type="button"><span class="vk-btn__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="plus"><path d="M12 5v14M5 12h14"/></svg></span><span class="vk-btn__label">New</span></button></main>
+=== button/lg-ghost
+<button class="vk-btn vk-btn--ghost vk-btn--lg" type="button"><span class="vk-btn__label">Ghost</span></button>
+--- live
+<main><button class="vk-btn vk-btn--ghost vk-btn--lg" type="button"><span class="vk-btn__label">Ghost</span></button></main>
+=== button/icon-only
+<button class="vk-btn vk-btn--icon" type="button" title="Close"><span class="vk-btn__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></span>Close</button>
+--- live
+<main><button class="vk-btn vk-btn--icon" type="button" title="Close"><span class="vk-btn__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></span>Close</button></main>
+=== button/icon-only-nolabel
+<button class="vk-btn vk-btn--icon" type="button"><span class="vk-btn__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button>
+--- live
+<main><button class="vk-btn vk-btn--icon" type="button"><span class="vk-btn__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></span></button></main>
+=== button/loading
+<button class="vk-btn" type="button" disabled aria-busy="true"><span class="vk-btn__icon"><span class="vk-spinner" aria-hidden="true"></span></span><span class="vk-btn__label">Wait</span></button>
+--- live
+<main><button class="vk-btn" type="button" disabled aria-busy="true"><span class="vk-btn__icon"><span class="vk-spinner" aria-hidden="true"></span></span><span class="vk-btn__label">Wait</span></button></main>
+=== button/disabled
+<button class="vk-btn" type="button" disabled><span class="vk-btn__label">No</span></button>
+--- live
+<main><button class="vk-btn" type="button" disabled><span class="vk-btn__label">No</span></button></main>
+=== button/submit-form
+<button class="vk-btn vk-btn--submit w-full" type="submit" id="b1" title="Send" form="f1"><span class="vk-btn__label">Send</span></button>
+--- live
+<main><button class="vk-btn vk-btn--submit w-full" type="submit" id="b1" title="Send" form="f1"><span class="vk-btn__label">Send</span></button></main>
+=== button/reset
+<button class="vk-btn vk-btn--danger" type="reset"><span class="vk-btn__label">Reset</span></button>
+--- live
+<main><button class="vk-btn vk-btn--danger" type="reset"><span class="vk-btn__label">Reset</span></button></main>
+=== button/js
+<button class="vk-btn vk-btn--info" type="button" data-vk-js-click="[[&#34;push_focus&#34;,{}],[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;edit&#34;}}],[&#34;focus_first&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;edit&#34;}}]]"><span class="vk-btn__label">Edit</span></button>
+--- live
+<main><button class="vk-btn vk-btn--info" type="button" data-vk-js-click="[[&#34;push_focus&#34;,{}],[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;edit&#34;}}],[&#34;focus_first&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;edit&#34;}}]]"><span class="vk-btn__label">Edit</span></button></main>
+=== button/handler
+<button class="vk-btn vk-btn--success" type="button"><span class="vk-btn__label">Save</span></button>
+--- live
+<main><button class="vk-btn vk-btn--success" type="button" data-vk-on-click="c0:0"><span class="vk-btn__label">Save</span></button></main>
+=== button/attrs
+<button class="vk-btn vk-btn--warning" type="button" data-x="1" aria-label="X"><span class="vk-btn__label">X</span></button>
+--- live
+<main><button class="vk-btn vk-btn--warning" type="button" data-x="1" aria-label="X"><span class="vk-btn__label">X</span></button></main>
+=== button/href
+<a class="vk-btn" href="/back"><span class="vk-btn__label">Back</span></a>
+--- live
+<main><a class="vk-btn" href="/back"><span class="vk-btn__label">Back</span></a></main>
+=== button/href-all
+<a class="vk-btn vk-btn--primary vk-btn--sm c" href="/books" id="l1" title="Books" data-vk-link aria-disabled="true" data-y="2"><span class="vk-btn__icon"><span class="vk-spinner" aria-hidden="true"></span></span><span class="vk-btn__label">Books</span></a>
+--- live
+<main><a class="vk-btn vk-btn--primary vk-btn--sm c" href="/books" id="l1" title="Books" data-vk-link aria-disabled="true" data-y="2"><span class="vk-btn__icon"><span class="vk-spinner" aria-hidden="true"></span></span><span class="vk-btn__label">Books</span></a></main>
+=== button/href-disabled-icon
+<a class="vk-btn" href="/x" aria-disabled="true"><span class="vk-btn__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check"><path d="M5 13l4 4L19 7"/></svg></span><span class="vk-btn__label">X</span></a>
+--- live
+<main><a class="vk-btn" href="/x" aria-disabled="true"><span class="vk-btn__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check"><path d="M5 13l4 4L19 7"/></svg></span><span class="vk-btn__label">X</span></a></main>
+=== button/nochildren
+<button class="vk-btn" type="button"></button>
+--- live
+<main><button class="vk-btn" type="button"></button></main>
+=== submit
+<button class="vk-btn vk-btn--primary vk-btn--submit" type="submit"><span class="vk-btn__label">Save</span></button>
+--- live
+<main><button class="vk-btn vk-btn--primary vk-btn--submit" type="submit"><span class="vk-btn__label">Save</span></button></main>
+=== submit/variant-loading
+<button class="vk-btn vk-btn--danger vk-btn--submit" type="submit" form="f" disabled aria-busy="true"><span class="vk-btn__icon"><span class="vk-spinner" aria-hidden="true"></span></span><span class="vk-btn__label">Delete</span></button>
+--- live
+<main><button class="vk-btn vk-btn--danger vk-btn--submit" type="submit" form="f" disabled aria-busy="true"><span class="vk-btn__icon"><span class="vk-spinner" aria-hidden="true"></span></span><span class="vk-btn__label">Delete</span></button></main>
+=== spinner
+<span class="vk-spinner" aria-hidden="true"></span>
+--- live
+<main><span class="vk-spinner" aria-hidden="true"></span></main>
+=== card
+<div class="vk-card"><div class="vk-card__body">body</div></div>
+--- live
+<main><div class="vk-card"><div class="vk-card__body">body</div></div></main>
+=== card/title
+<div class="vk-card"><div class="vk-card__header"><div class="vk-card__title">Members</div></div><div class="vk-card__body">body</div></div>
+--- live
+<main><div class="vk-card"><div class="vk-card__header"><div class="vk-card__title">Members</div></div><div class="vk-card__body">body</div></div></main>
+=== card/header
+<div class="vk-card"><div class="vk-card__header"><div class="vk-card__title"></div><div class="vk-card__header-actions"><span class="vk-badge">3</span></div></div><div class="vk-card__body">body</div></div>
+--- live
+<main><div class="vk-card"><div class="vk-card__header"><div class="vk-card__title"></div><div class="vk-card__header-actions"><span class="vk-badge">3</span></div></div><div class="vk-card__body">body</div></div></main>
+=== card/all
+<div class="vk-card shadow"><div class="vk-card__header"><div class="vk-card__title">Members</div><div class="vk-card__header-actions"><div class="vk-actions"><button class="vk-btn" type="button"><span class="vk-btn__label">Invite</span></button></div></div></div><div class="vk-card__body vk-card__body--flush">body</div></div>
+--- live
+<main><div class="vk-card shadow"><div class="vk-card__header"><div class="vk-card__title">Members</div><div class="vk-card__header-actions"><div class="vk-actions"><button class="vk-btn" type="button"><span class="vk-btn__label">Invite</span></button></div></div></div><div class="vk-card__body vk-card__body--flush">body</div></div></main>
+=== card/empty
+<div class="vk-card"><div class="vk-card__body"></div></div>
+--- live
+<main><div class="vk-card"><div class="vk-card__body"></div></div></main>
+=== icon
+<svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check"><path d="M5 13l4 4L19 7"/></svg>
+--- live
+<main><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check"><path d="M5 13l4 4L19 7"/></svg></main>
+=== icon/classes
+<svg class="vk-icon a b" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="search"><circle cx="11" cy="11" r="6"/><path d="M20 20l-3.6-3.6"/></svg>
+--- live
+<main><svg class="vk-icon a b" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="search"><circle cx="11" cy="11" r="6"/><path d="M20 20l-3.6-3.6"/></svg></main>
+=== icon/unknown
+<svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="nope"></svg>
+--- live
+<main><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="nope"></svg></main>
+=== image
+<img src="/a.webp" alt="A" loading="lazy" decoding="async" class="vk-img">
+--- live
+<main><img src="/a.webp" alt="A" loading="lazy" decoding="async" class="vk-img"></main>
+=== image/priority-all
+<img src="/a.webp" alt="A" loading="eager" decoding="async" class="vk-img rounded" fetchpriority="high" srcset="/a-1.webp 1x, /a-2.webp 2x" sizes="100vw" width="1600" height="600">
+--- live
+<main><img src="/a.webp" alt="A" loading="eager" decoding="async" class="vk-img rounded" fetchpriority="high" srcset="/a-1.webp 1x, /a-2.webp 2x" sizes="100vw" width="1600" height="600"></main>
+=== image/eager-plain
+<img src="/logo.svg" alt="" loading="eager" decoding="async" class="vk-img vk-img--plain h-8">
+--- live
+<main><img src="/logo.svg" alt="" loading="eager" decoding="async" class="vk-img vk-img--plain h-8"></main>
+=== image/overlay
+<div class="vk-img-wrap"><img src="/hero.webp" alt="" loading="lazy" decoding="async" class="vk-img"><div class="vk-img-overlay"><h1>Hi</h1></div></div>
+--- live
+<main><div class="vk-img-wrap"><img src="/hero.webp" alt="" loading="lazy" decoding="async" class="vk-img"><div class="vk-img-overlay"><h1>Hi</h1></div></div></main>
+=== image/overlay-scrim
+<div class="vk-img-wrap h-64"><img src="/hero.webp" alt="" loading="lazy" decoding="async" class="vk-img" width="10"><div class="vk-img-scrim"></div><div class="vk-img-overlay">Over</div></div>
+--- live
+<main><div class="vk-img-wrap h-64"><img src="/hero.webp" alt="" loading="lazy" decoding="async" class="vk-img" width="10"><div class="vk-img-scrim"></div><div class="vk-img-overlay">Over</div></div></main>
+=== modal
+<div data-vk-ref="modal" class="vk-modal-root" style="display:none;"><div class="vk-modal-backdrop" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"></div><div class="vk-modal" role="dialog" aria-modal="true" tabindex="-1" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"><div class="vk-modal__header"><button type="button" class="vk-modal__close" aria-label="Close" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="vk-modal__body">body</div></div></div>
+--- live
+<main><div data-vk-ref="modal" class="vk-modal-root" style="display:none;"><div class="vk-modal-backdrop" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"></div><div class="vk-modal" role="dialog" aria-modal="true" tabindex="-1" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"><div class="vk-modal__header"><button type="button" class="vk-modal__close" aria-label="Close" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="vk-modal__body">body</div></div></div></main>
+=== modal/full
+<div data-vk-ref="approval" class="vk-modal-root" style="display:none;"><div class="vk-modal-backdrop" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;approval&#34;}}],[&#34;pop_focus&#34;,{}]]"></div><div class="vk-modal vk-modal--lg x" role="dialog" aria-modal="true" tabindex="-1" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;approval&#34;}}],[&#34;pop_focus&#34;,{}]]"><div class="vk-modal__header"><span class="vk-modal__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check-circle"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></span><div class="vk-modal__heading"><h2 class="vk-modal__title">Preview</h2><p class="vk-modal__subtitle">Review before signing</p></div><button type="button" class="vk-modal__close" aria-label="Close" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;approval&#34;}}],[&#34;pop_focus&#34;,{}]]"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="vk-modal__body">body</div><div class="vk-modal__footer"><div class="vk-actions"><button class="vk-btn" type="button" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;approval&#34;}}],[&#34;pop_focus&#34;,{}]]"><span class="vk-btn__label">Cancel</span></button></div></div></div></div>
+--- live
+<main><div data-vk-ref="approval" class="vk-modal-root" style="display:none;"><div class="vk-modal-backdrop" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;approval&#34;}}],[&#34;pop_focus&#34;,{}]]"></div><div class="vk-modal vk-modal--lg x" role="dialog" aria-modal="true" tabindex="-1" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;approval&#34;}}],[&#34;pop_focus&#34;,{}]]"><div class="vk-modal__header"><span class="vk-modal__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check-circle"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg></span><div class="vk-modal__heading"><h2 class="vk-modal__title">Preview</h2><p class="vk-modal__subtitle">Review before signing</p></div><button type="button" class="vk-modal__close" aria-label="Close" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;approval&#34;}}],[&#34;pop_focus&#34;,{}]]"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="vk-modal__body">body</div><div class="vk-modal__footer"><div class="vk-actions"><button class="vk-btn" type="button" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;approval&#34;}}],[&#34;pop_focus&#34;,{}]]"><span class="vk-btn__label">Cancel</span></button></div></div></div></div></main>
+=== modal/subtitle-only-sm
+<div data-vk-ref="modal" class="vk-modal-root" style="display:none;"><div class="vk-modal-backdrop" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"></div><div class="vk-modal vk-modal--sm" role="dialog" aria-modal="true" tabindex="-1" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"><div class="vk-modal__header"><div class="vk-modal__heading"><p class="vk-modal__subtitle">Sub</p></div><button type="button" class="vk-modal__close" aria-label="Close" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="vk-modal__body">b</div></div></div>
+--- live
+<main><div data-vk-ref="modal" class="vk-modal-root" style="display:none;"><div class="vk-modal-backdrop" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"></div><div class="vk-modal vk-modal--sm" role="dialog" aria-modal="true" tabindex="-1" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"><div class="vk-modal__header"><div class="vk-modal__heading"><p class="vk-modal__subtitle">Sub</p></div><button type="button" class="vk-modal__close" aria-label="Close" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;modal&#34;}}],[&#34;pop_focus&#34;,{}]]"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="vk-modal__body">b</div></div></div></main>
+=== modal/closed-xl-open
+<div data-vk-ref="c" class="vk-modal-root"><div class="vk-modal-backdrop"></div><div class="vk-modal vk-modal--xl" role="dialog" aria-modal="true" tabindex="-1"><div class="vk-modal__body">b</div></div></div>
+--- live
+<main><div data-vk-ref="c" class="vk-modal-root"><div class="vk-modal-backdrop"></div><div class="vk-modal vk-modal--xl" role="dialog" aria-modal="true" tabindex="-1"><div class="vk-modal__body">b</div></div></div></main>
+=== modal/closed-notitle
+<div data-vk-ref="modal" class="vk-modal-root" style="display:none;"><div class="vk-modal-backdrop"></div><div class="vk-modal" role="dialog" aria-modal="true" tabindex="-1"><div class="vk-modal__body"></div></div></div>
+--- live
+<main><div data-vk-ref="modal" class="vk-modal-root" style="display:none;"><div class="vk-modal-backdrop"></div><div class="vk-modal" role="dialog" aria-modal="true" tabindex="-1"><div class="vk-modal__body"></div></div></div></main>
+=== modal/onclose
+<div data-vk-ref="srv" class="vk-modal-root"><div class="vk-modal-backdrop" data-vk-js-click="[[&#34;pop_focus&#34;,{}],[&#34;push&#34;,{}]]"></div><div class="vk-modal" role="dialog" aria-modal="true" tabindex="-1" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;srv&#34;}}],[&#34;pop_focus&#34;,{}],[&#34;push&#34;,{}]]"><div class="vk-modal__header"><div class="vk-modal__heading"><h2 class="vk-modal__title">Server</h2></div><button type="button" class="vk-modal__close" aria-label="Close" data-vk-js-click="[[&#34;pop_focus&#34;,{}],[&#34;push&#34;,{}]]"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="vk-modal__body">b</div></div></div>
+--- live
+<main><div data-vk-ref="srv" class="vk-modal-root"><div class="vk-modal-backdrop" data-vk-js-click="[[&#34;pop_focus&#34;,{}],[&#34;push&#34;,{&#34;h&#34;:&#34;c0:0&#34;}]]"></div><div class="vk-modal" role="dialog" aria-modal="true" tabindex="-1" data-vk-js-keydown="[[&#34;key&#34;,{&#34;keys&#34;:[&#34;Escape&#34;]}],[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;srv&#34;}}],[&#34;pop_focus&#34;,{}],[&#34;push&#34;,{&#34;h&#34;:&#34;c0:1&#34;}]]"><div class="vk-modal__header"><div class="vk-modal__heading"><h2 class="vk-modal__title">Server</h2></div><button type="button" class="vk-modal__close" aria-label="Close" data-vk-js-click="[[&#34;pop_focus&#34;,{}],[&#34;push&#34;,{&#34;h&#34;:&#34;c0:2&#34;}]]"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="vk-modal__body">b</div></div></div></main>
+=== modal/commands
+<div><button data-vk-js-click="[[&#34;push_focus&#34;,{}],[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}],[&#34;focus_first&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}]]"></button><button data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}],[&#34;pop_focus&#34;,{}]]"></button></div>
+--- live
+<main><div><button data-vk-js-click="[[&#34;push_focus&#34;,{}],[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}],[&#34;focus_first&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}]]"></button><button data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;m&#34;}}],[&#34;pop_focus&#34;,{}]]"></button></div></main>
+=== tabs/href
+<div class="vk-tabs mb-0" role="tablist"><a class="vk-tab vk-tab--active" href="/tasks?type=placements" data-vk-link role="tab" aria-selected="true"><span class="vk-tab__label">Placements</span><span class="vk-tab__count">42</span></a><a class="vk-tab" href="/tasks?type=permits" data-vk-link="patch" role="tab" aria-selected="false" id="t2"><span class="vk-tab__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="users"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 6.2M17.4 19a5.5 5.5 0 0 0-2-4.3"/></svg></span><span class="vk-tab__label">Permits</span><span class="vk-tab__count">1234</span></a></div>
+--- live
+<main><div class="vk-tabs mb-0" role="tablist"><a class="vk-tab vk-tab--active" href="/tasks?type=placements" data-vk-link role="tab" aria-selected="true"><span class="vk-tab__label">Placements</span><span class="vk-tab__count">42</span></a><a class="vk-tab" href="/tasks?type=permits" data-vk-link="patch" role="tab" aria-selected="false" id="t2"><span class="vk-tab__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="users"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 6.2M17.4 19a5.5 5.5 0 0 0-2-4.3"/></svg></span><span class="vk-tab__label">Permits</span><span class="vk-tab__count">1234</span></a></div></main>
+=== tabs/live
+<div class="vk-tabs" role="tablist"><button type="button" class="vk-tab vk-tab--active" role="tab" aria-selected="true" id="a"><span class="vk-tab__label">A</span></button><button type="button" class="vk-tab" role="tab" aria-selected="false"><span class="vk-tab__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="list"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span><span class="vk-tab__label">B</span></button><button type="button" class="vk-tab" role="tab" aria-selected="false" data-vk-js-click="[[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;x&#34;}}]]"><span class="vk-tab__label">C &amp; D</span><span class="vk-tab__count">0</span></button></div>
+--- live
+<main><div class="vk-tabs" role="tablist"><button type="button" class="vk-tab vk-tab--active" role="tab" aria-selected="true" id="a" data-vk-on-click="c0:0"><span class="vk-tab__label">A</span></button><button type="button" class="vk-tab" role="tab" aria-selected="false"><span class="vk-tab__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="list"><path d="M4 6h16M4 12h16M4 18h16"/></svg></span><span class="vk-tab__label">B</span></button><button type="button" class="vk-tab" role="tab" aria-selected="false" data-vk-js-click="[[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;x&#34;}}]]"><span class="vk-tab__label">C &amp; D</span><span class="vk-tab__count">0</span></button></div></main>
+=== tabs/empty
+<div class="vk-tabs" role="tablist"></div>
+--- live
+<main><div class="vk-tabs" role="tablist"></div></main>
+=== theme/styletag
+<style data-vk-ui>:root{
+  --ui-bg:#ffffff; --ui-fg:#0f172a; --ui-muted:#64748b; --ui-subtle:#f1f5f9;
+  --ui-border:#e2e8f0; --ui-ring:#94a3b8; --ui-overlay:rgba(15,23,42,.45);
+  --ui-primary:#2563eb; --ui-primary-fg:#ffffff;
+  --ui-info:#0ea5e9; --ui-success:#16a34a; --ui-warning:#d97706; --ui-danger:#dc2626;
+  --ui-info-bg:#f0f9ff; --ui-success-bg:#f0fdf4; --ui-warning-bg:#fffbeb; --ui-danger-bg:#fef2f2;
+  --ui-radius:.5rem; --ui-shadow:0 10px 30px -10px rgba(15,23,42,.35);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ui-bg:#0f172a; --ui-fg:#e2e8f0; --ui-muted:#94a3b8; --ui-subtle:#1e293b;
+  --ui-border:#334155; --ui-ring:#64748b; --ui-overlay:rgba(0,0,0,.6);
+  --ui-primary:#3b82f6; --ui-primary-fg:#ffffff;
+  --ui-info-bg:#082f49; --ui-success-bg:#052e16; --ui-warning-bg:#451a03; --ui-danger-bg:#450a0a;
+}}
+:root[data-theme="dark"]{
+  --ui-bg:#0f172a; --ui-fg:#e2e8f0; --ui-muted:#94a3b8; --ui-subtle:#1e293b;
+  --ui-border:#334155; --ui-ring:#64748b; --ui-overlay:rgba(0,0,0,.6);
+  --ui-primary:#3b82f6; --ui-primary-fg:#ffffff;
+  --ui-info-bg:#082f49; --ui-success-bg:#052e16; --ui-warning-bg:#451a03; --ui-danger-bg:#450a0a;
+}
+
+/* Modal */
+.vk-modal-root{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem}
+.vk-modal-backdrop{position:absolute;inset:0;background:var(--ui-overlay)}
+.vk-modal{position:relative;z-index:1;display:flex;flex-direction:column;width:100%;max-width:32rem;max-height:calc(100vh - 2rem);
+  overflow:auto;background:var(--ui-bg);color:var(--ui-fg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
+.vk-modal--sm{max-width:24rem} .vk-modal--lg{max-width:48rem}
+.vk-modal__header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid var(--ui-border)}
+.vk-modal__title{margin:0;font-size:1.05rem;font-weight:600}
+.vk-modal__body{padding:1.25rem;overflow:auto}
+.vk-modal__footer{display:flex;gap:.5rem;justify-content:flex-end;padding:1rem 1.25rem;border-top:1px solid var(--ui-border)}
+.vk-modal__close{appearance:none;border:0;background:transparent;color:var(--ui-muted);font-size:1.25rem;line-height:1;cursor:pointer;padding:.25rem}
+.vk-modal__close:hover{color:var(--ui-fg)}
+
+/* Alert */
+.vk-alert{display:flex;gap:.75rem;align-items:flex-start;padding:.75rem 1rem;border:1px solid var(--ui-border);
+  border-left-width:4px;border-radius:var(--ui-radius);background:var(--ui-subtle);color:var(--ui-fg)}
+.vk-alert__body{flex:1;min-width:0}
+.vk-alert__title{font-weight:600;margin:0 0 .15rem}
+.vk-alert__close{appearance:none;border:0;background:transparent;color:inherit;opacity:.6;cursor:pointer;font-size:1.1rem;line-height:1}
+.vk-alert__close:hover{opacity:1}
+.vk-alert--info{border-left-color:var(--ui-info);background:var(--ui-info-bg)}
+.vk-alert--success{border-left-color:var(--ui-success);background:var(--ui-success-bg)}
+.vk-alert--warning{border-left-color:var(--ui-warning);background:var(--ui-warning-bg)}
+.vk-alert--error{border-left-color:var(--ui-danger);background:var(--ui-danger-bg)}
+
+/* Toasts */
+.vk-toasts{position:fixed;z-index:60;display:flex;flex-direction:column;gap:.5rem;padding:1rem;max-width:min(24rem,100vw);pointer-events:none}
+.vk-toasts--top-right{top:0;right:0} .vk-toasts--top-left{top:0;left:0}
+.vk-toasts--bottom-right{bottom:0;right:0;flex-direction:column-reverse}
+.vk-toasts--bottom-left{bottom:0;left:0;flex-direction:column-reverse}
+.vk-toast{pointer-events:auto;display:flex;gap:.75rem;align-items:flex-start;padding:.75rem 1rem;border:1px solid var(--ui-border);
+  border-left-width:4px;border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg);box-shadow:var(--ui-shadow)}
+.vk-toast__body{flex:1;min-width:0}
+.vk-toast__title{font-weight:600;margin:0 0 .15rem}
+.vk-toast__close{appearance:none;border:0;background:transparent;color:inherit;opacity:.6;cursor:pointer;font-size:1.1rem;line-height:1}
+.vk-toast__close:hover{opacity:1}
+.vk-toast--info{border-left-color:var(--ui-info)} .vk-toast--success{border-left-color:var(--ui-success)}
+.vk-toast--warning{border-left-color:var(--ui-warning)} .vk-toast--error{border-left-color:var(--ui-danger)}
+.vk-toast[style*="--vk-toast-life"]{animation:vk-toast-out .4s var(--vk-toast-life) forwards}
+@keyframes vk-toast-out{to{opacity:0;transform:translateY(-.25rem);visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.vk-toast{animation:none}}
+
+/* Table + DataTable */
+.vk-table-wrap{width:100%;overflow-x:auto}
+.vk-table{width:100%;border-collapse:collapse;color:var(--ui-fg);font-size:.925rem}
+.vk-table th,.vk-table td{padding:.6rem .75rem;text-align:left;border-bottom:1px solid var(--ui-border);vertical-align:middle}
+.vk-table thead th{color:var(--ui-muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.03em}
+.vk-table tbody tr:hover{background:var(--ui-subtle)}
+.vk-table td.vk-col--right,.vk-table th.vk-col--right{text-align:right}
+.vk-table td.vk-col--center,.vk-table th.vk-col--center{text-align:center}
+.vk-table tr.vk-row--link{cursor:pointer}
+.vk-table__empty{padding:2rem;text-align:center;color:var(--ui-muted)}
+.vk-sort{appearance:none;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer;display:inline-flex;gap:.3rem;align-items:center;text-transform:inherit;letter-spacing:inherit}
+.vk-sort__ind{color:var(--ui-primary)}
+.vk-datatable{display:flex;flex-direction:column;gap:.75rem}
+.vk-datatable__bar{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.vk-datatable__search{flex:1;min-width:12rem;max-width:20rem;padding:.45rem .6rem;border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg)}
+.vk-datatable__foot{display:flex;gap:.75rem;align-items:center;justify-content:space-between;flex-wrap:wrap;color:var(--ui-muted);font-size:.875rem}
+.vk-pager{display:flex;gap:.25rem;align-items:center}
+.vk-pager button,.vk-pager a{appearance:none;cursor:pointer;min-width:2rem;padding:.35rem .55rem;border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg);text-decoration:none;text-align:center;font:inherit}
+.vk-pager button:hover:not(:disabled),.vk-pager a:hover{border-color:var(--ui-ring)}
+.vk-pager button:disabled{opacity:.5;cursor:default}
+.vk-pager [aria-current="page"]{background:var(--ui-primary);color:var(--ui-primary-fg);border-color:var(--ui-primary)}
+.vk-datatable__bar-left{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.vk-datatable__bar-right{display:flex;align-items:center;gap:.5rem;margin-left:auto}
+.vk-datatable__searchbox{position:relative;display:inline-flex;align-items:center;flex:1;min-width:12rem;max-width:22rem}
+.vk-datatable__searchicon{position:absolute;left:.6rem;color:var(--ui-muted);pointer-events:none}
+.vk-datatable__search{width:100%;padding-left:2rem}
+.vk-sort__ind{color:var(--ui-muted)}
+.vk-sort__ind--active{color:var(--ui-primary)}
+
+/* Icon + spinner */
+.vk-icon{display:inline-block;vertical-align:-.125em;width:1em;height:1em;flex:none}
+.vk-icon--spin{animation:vk-spin .8s linear infinite}
+.vk-spinner{display:inline-block;width:1em;height:1em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:vk-spin .6s linear infinite}
+@keyframes vk-spin{to{transform:rotate(360deg)}}
+
+/* Button */
+.vk-btn{--_fg:var(--ui-fg);--_bg:var(--ui-subtle);--_bd:var(--ui-border);display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  font:inherit;font-weight:600;font-size:.9rem;line-height:1.2;padding:.5rem .9rem;border:1px solid var(--_bd);border-radius:var(--ui-radius);
+  background:var(--_bg);color:var(--_fg);cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-appearance:none;appearance:none;transition:filter .12s,background .12s,border-color .12s}
+.vk-btn:hover:not(:disabled):not([aria-disabled="true"]){filter:brightness(.97)}
+.vk-btn:focus-visible{outline:2px solid var(--ui-ring);outline-offset:2px}
+.vk-btn:disabled,.vk-btn[aria-disabled="true"]{opacity:.55;cursor:default}
+.vk-btn--sm{padding:.3rem .6rem;font-size:.8rem}
+.vk-btn--lg{padding:.65rem 1.2rem;font-size:1rem}
+.vk-btn--icon{padding:.45rem;aspect-ratio:1}
+.vk-btn--primary{--_bg:var(--ui-primary);--_fg:var(--ui-primary-fg);--_bd:var(--ui-primary)}
+.vk-btn--success{--_bg:var(--ui-success);--_fg:#fff;--_bd:var(--ui-success)}
+.vk-btn--danger{--_bg:var(--ui-danger);--_fg:#fff;--_bd:var(--ui-danger)}
+.vk-btn--warning{--_bg:var(--ui-warning);--_fg:#fff;--_bd:var(--ui-warning)}
+.vk-btn--info{--_bg:var(--ui-info);--_fg:#fff;--_bd:var(--ui-info)}
+.vk-btn--ghost{--_bg:transparent;--_bd:transparent}
+.vk-btn--ghost:hover:not(:disabled){background:var(--ui-subtle)}
+.vk-btn__icon{display:inline-flex;align-items:center;font-size:1.05em}
+.vk-btn[aria-busy="true"]{pointer-events:none}
+.vk-btn[aria-busy="true"] .vk-btn__icon,.vk-form[aria-busy="true"] .vk-btn--submit .vk-btn__icon{display:none}
+.vk-btn[aria-busy="true"]::before,.vk-form[aria-busy="true"] .vk-btn--submit::before{content:"";width:1em;height:1em;margin-right:.1rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:vk-spin .6s linear infinite}
+.vk-form[aria-busy="true"] .vk-btn--submit{pointer-events:none;opacity:.85}
+
+/* Actions */
+.vk-actions{display:flex;gap:.5rem;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+
+/* Card */
+.vk-card{background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.vk-card__header{display:flex;align-items:center;gap:1rem;padding:.9rem 1.15rem;border-bottom:1px solid var(--ui-border)}
+.vk-card__title{font-weight:600;font-size:1rem;display:flex;align-items:center;gap:.5rem}
+.vk-card__header-actions{margin-left:auto;display:flex;align-items:center;gap:.5rem}
+.vk-card__body{padding:1.15rem}
+.vk-card__body--flush{padding:0}
+
+/* Tile */
+.vk-tile-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.vk-tile{display:flex;align-items:center;gap:.9rem;padding:1rem 1.15rem;background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:var(--ui-radius)}
+.vk-tile__icon{display:inline-flex;align-items:center;justify-content:center;width:2.6rem;height:2.6rem;border-radius:50%;font-size:1.3rem;flex:none;
+  background:color-mix(in srgb,var(--ui-primary) 12%,transparent);color:var(--ui-primary)}
+.vk-tile__icon--success{background:color-mix(in srgb,var(--ui-success) 14%,transparent);color:var(--ui-success)}
+.vk-tile__icon--danger{background:color-mix(in srgb,var(--ui-danger) 14%,transparent);color:var(--ui-danger)}
+.vk-tile__icon--warning{background:color-mix(in srgb,var(--ui-warning) 14%,transparent);color:var(--ui-warning)}
+.vk-tile__icon--info{background:color-mix(in srgb,var(--ui-info) 14%,transparent);color:var(--ui-info)}
+.vk-tile__value{font-size:1.5rem;font-weight:700;line-height:1.1}
+.vk-tile__label{color:var(--ui-muted);font-size:.85rem;margin-top:.1rem}
+
+/* Badge */
+.vk-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .5rem;font-size:.75rem;font-weight:600;line-height:1.4;border-radius:999px;background:var(--ui-subtle);color:var(--ui-fg)}
+.vk-badge--primary{background:var(--ui-primary);color:var(--ui-primary-fg)}
+.vk-badge--success{background:var(--ui-success);color:#fff}
+.vk-badge--danger{background:var(--ui-danger);color:#fff}
+.vk-badge--warning{background:var(--ui-warning);color:#fff}
+.vk-badge--info{background:var(--ui-info);color:#fff}
+.vk-badge--soft.vk-badge--primary{color:var(--ui-primary);background:color-mix(in srgb,var(--ui-primary) 14%,transparent)}
+.vk-badge--soft.vk-badge--success{color:var(--ui-success);background:color-mix(in srgb,var(--ui-success) 14%,transparent)}
+.vk-badge--soft.vk-badge--danger{color:var(--ui-danger);background:color-mix(in srgb,var(--ui-danger) 14%,transparent)}
+.vk-badge--soft.vk-badge--warning{color:var(--ui-warning);background:color-mix(in srgb,var(--ui-warning) 14%,transparent)}
+.vk-badge--soft.vk-badge--info{color:var(--ui-info);background:color-mix(in srgb,var(--ui-info) 14%,transparent)}
+
+/* Tabs */
+.vk-tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--ui-border);margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.vk-tabs::-webkit-scrollbar{width:0;height:0;display:none}
+.vk-tab{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem .9rem;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ui-muted);
+  font:inherit;font-weight:600;font-size:.9rem;cursor:pointer;text-decoration:none;white-space:nowrap;margin-bottom:-1px}
+.vk-tab:hover{color:var(--ui-fg)}
+.vk-tab--active{color:var(--ui-primary);border-bottom-color:var(--ui-primary)}
+.vk-tab:focus-visible{outline:2px solid var(--ui-ring);outline-offset:-2px}
+.vk-tab__count{display:inline-flex;align-items:center;justify-content:center;min-width:1.4em;padding:0 .35em;font-size:.72rem;border-radius:999px;
+  background:color-mix(in srgb,var(--ui-primary) 14%,transparent);color:var(--ui-primary)}
+
+/* Form + fields */
+.vk-form{display:flex;flex-direction:column;gap:1rem}
+.vk-field{display:flex;flex-direction:column;gap:.35rem}
+.vk-field__label{font-weight:600;font-size:.85rem}
+.vk-field__req{color:var(--ui-danger);margin-left:.15rem}
+.vk-input,.vk-select,.vk-textarea{width:100%;font:inherit;font-size:.9rem;padding:.5rem .65rem;border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg)}
+.vk-input,.vk-textarea{-webkit-appearance:none;appearance:none}
+.vk-textarea{resize:vertical;min-height:4.5rem}
+.vk-input::placeholder,.vk-textarea::placeholder{color:var(--ui-muted)}
+.vk-input:focus,.vk-select:focus,.vk-textarea:focus{outline:2px solid var(--ui-ring);outline-offset:-1px;border-color:var(--ui-ring)}
+.vk-input:disabled,.vk-select:disabled,.vk-textarea:disabled{opacity:.6;cursor:not-allowed}
+.vk-input--invalid,.vk-select--invalid,.vk-textarea--invalid{border-color:var(--ui-danger)}
+.vk-input--invalid:focus,.vk-select--invalid:focus,.vk-textarea--invalid:focus{outline-color:var(--ui-danger);border-color:var(--ui-danger)}
+.vk-field__help{font-size:.8rem;color:var(--ui-muted)}
+.vk-field__error{font-size:.8rem;color:var(--ui-danger)}
+.vk-check{display:inline-flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem}
+.vk-check__box{width:1rem;height:1rem;accent-color:var(--ui-primary);flex:none}
+
+/* Table additions */
+.vk-table--flush{border:0}
+.vk-col--select,.vk-col--index{width:1px;white-space:nowrap}
+.vk-col--index{color:var(--ui-muted)}
+.vk-table tbody tr.vk-row--selected{background:color-mix(in srgb,var(--ui-primary) 8%,transparent)}
+.vk-empty{display:flex;flex-direction:column;align-items:center;gap:.5rem;color:var(--ui-muted)}
+.vk-empty__icon{font-size:2rem;opacity:.65}
+.vk-empty__msg{font-size:.9rem}
+
+/* Modal additions */
+.vk-modal--xl{max-width:64rem}
+.vk-modal__header{justify-content:flex-start;gap:.75rem}
+.vk-modal__icon{display:inline-flex;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:var(--ui-radius);font-size:1.2rem;flex:none;
+  background:color-mix(in srgb,var(--ui-primary) 12%,transparent);color:var(--ui-primary)}
+.vk-modal__heading{flex:1;min-width:0}
+.vk-modal__subtitle{margin:.15rem 0 0;color:var(--ui-muted);font-size:.85rem}
+.vk-modal__close .vk-icon{font-size:1.15rem}
+
+@media (prefers-reduced-motion:reduce){.vk-spinner,.vk-icon--spin,.vk-btn[aria-busy="true"]::before,.vk-form[aria-busy="true"] .vk-btn--submit::before{animation-duration:1.4s}}
+@media (max-width:960px){.vk-tile-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){
+  .vk-table thead th{font-size:.72rem}
+  .vk-datatable__bar,.vk-datatable__foot{gap:.5rem}
+  .vk-datatable__bar{flex-direction:column;align-items:stretch}
+  .vk-datatable__bar-right{margin-left:0}
+  .vk-tile-grid{grid-template-columns:1fr}
+}
+.vk-img{background-color:#e2e8f0;background-image:linear-gradient(90deg,transparent,rgb(255 255 255/.6),transparent);background-size:200% 100%;background-repeat:no-repeat;animation:vk-img-shimmer 1.3s ease infinite}
+.vk-img--plain{background:none;animation:none}
+@keyframes vk-img-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.vk-img-wrap{position:relative;overflow:hidden}
+.vk-img-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to top,rgb(0 0 0/.6),rgb(0 0 0/.08),transparent)}
+.vk-img-overlay{position:absolute;inset:0}
+@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}</style>
+--- live
+<main><style data-vk-ui>:root{
+  --ui-bg:#ffffff; --ui-fg:#0f172a; --ui-muted:#64748b; --ui-subtle:#f1f5f9;
+  --ui-border:#e2e8f0; --ui-ring:#94a3b8; --ui-overlay:rgba(15,23,42,.45);
+  --ui-primary:#2563eb; --ui-primary-fg:#ffffff;
+  --ui-info:#0ea5e9; --ui-success:#16a34a; --ui-warning:#d97706; --ui-danger:#dc2626;
+  --ui-info-bg:#f0f9ff; --ui-success-bg:#f0fdf4; --ui-warning-bg:#fffbeb; --ui-danger-bg:#fef2f2;
+  --ui-radius:.5rem; --ui-shadow:0 10px 30px -10px rgba(15,23,42,.35);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ui-bg:#0f172a; --ui-fg:#e2e8f0; --ui-muted:#94a3b8; --ui-subtle:#1e293b;
+  --ui-border:#334155; --ui-ring:#64748b; --ui-overlay:rgba(0,0,0,.6);
+  --ui-primary:#3b82f6; --ui-primary-fg:#ffffff;
+  --ui-info-bg:#082f49; --ui-success-bg:#052e16; --ui-warning-bg:#451a03; --ui-danger-bg:#450a0a;
+}}
+:root[data-theme="dark"]{
+  --ui-bg:#0f172a; --ui-fg:#e2e8f0; --ui-muted:#94a3b8; --ui-subtle:#1e293b;
+  --ui-border:#334155; --ui-ring:#64748b; --ui-overlay:rgba(0,0,0,.6);
+  --ui-primary:#3b82f6; --ui-primary-fg:#ffffff;
+  --ui-info-bg:#082f49; --ui-success-bg:#052e16; --ui-warning-bg:#451a03; --ui-danger-bg:#450a0a;
+}
+
+/* Modal */
+.vk-modal-root{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem}
+.vk-modal-backdrop{position:absolute;inset:0;background:var(--ui-overlay)}
+.vk-modal{position:relative;z-index:1;display:flex;flex-direction:column;width:100%;max-width:32rem;max-height:calc(100vh - 2rem);
+  overflow:auto;background:var(--ui-bg);color:var(--ui-fg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
+.vk-modal--sm{max-width:24rem} .vk-modal--lg{max-width:48rem}
+.vk-modal__header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid var(--ui-border)}
+.vk-modal__title{margin:0;font-size:1.05rem;font-weight:600}
+.vk-modal__body{padding:1.25rem;overflow:auto}
+.vk-modal__footer{display:flex;gap:.5rem;justify-content:flex-end;padding:1rem 1.25rem;border-top:1px solid var(--ui-border)}
+.vk-modal__close{appearance:none;border:0;background:transparent;color:var(--ui-muted);font-size:1.25rem;line-height:1;cursor:pointer;padding:.25rem}
+.vk-modal__close:hover{color:var(--ui-fg)}
+
+/* Alert */
+.vk-alert{display:flex;gap:.75rem;align-items:flex-start;padding:.75rem 1rem;border:1px solid var(--ui-border);
+  border-left-width:4px;border-radius:var(--ui-radius);background:var(--ui-subtle);color:var(--ui-fg)}
+.vk-alert__body{flex:1;min-width:0}
+.vk-alert__title{font-weight:600;margin:0 0 .15rem}
+.vk-alert__close{appearance:none;border:0;background:transparent;color:inherit;opacity:.6;cursor:pointer;font-size:1.1rem;line-height:1}
+.vk-alert__close:hover{opacity:1}
+.vk-alert--info{border-left-color:var(--ui-info);background:var(--ui-info-bg)}
+.vk-alert--success{border-left-color:var(--ui-success);background:var(--ui-success-bg)}
+.vk-alert--warning{border-left-color:var(--ui-warning);background:var(--ui-warning-bg)}
+.vk-alert--error{border-left-color:var(--ui-danger);background:var(--ui-danger-bg)}
+
+/* Toasts */
+.vk-toasts{position:fixed;z-index:60;display:flex;flex-direction:column;gap:.5rem;padding:1rem;max-width:min(24rem,100vw);pointer-events:none}
+.vk-toasts--top-right{top:0;right:0} .vk-toasts--top-left{top:0;left:0}
+.vk-toasts--bottom-right{bottom:0;right:0;flex-direction:column-reverse}
+.vk-toasts--bottom-left{bottom:0;left:0;flex-direction:column-reverse}
+.vk-toast{pointer-events:auto;display:flex;gap:.75rem;align-items:flex-start;padding:.75rem 1rem;border:1px solid var(--ui-border);
+  border-left-width:4px;border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg);box-shadow:var(--ui-shadow)}
+.vk-toast__body{flex:1;min-width:0}
+.vk-toast__title{font-weight:600;margin:0 0 .15rem}
+.vk-toast__close{appearance:none;border:0;background:transparent;color:inherit;opacity:.6;cursor:pointer;font-size:1.1rem;line-height:1}
+.vk-toast__close:hover{opacity:1}
+.vk-toast--info{border-left-color:var(--ui-info)} .vk-toast--success{border-left-color:var(--ui-success)}
+.vk-toast--warning{border-left-color:var(--ui-warning)} .vk-toast--error{border-left-color:var(--ui-danger)}
+.vk-toast[style*="--vk-toast-life"]{animation:vk-toast-out .4s var(--vk-toast-life) forwards}
+@keyframes vk-toast-out{to{opacity:0;transform:translateY(-.25rem);visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.vk-toast{animation:none}}
+
+/* Table + DataTable */
+.vk-table-wrap{width:100%;overflow-x:auto}
+.vk-table{width:100%;border-collapse:collapse;color:var(--ui-fg);font-size:.925rem}
+.vk-table th,.vk-table td{padding:.6rem .75rem;text-align:left;border-bottom:1px solid var(--ui-border);vertical-align:middle}
+.vk-table thead th{color:var(--ui-muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.03em}
+.vk-table tbody tr:hover{background:var(--ui-subtle)}
+.vk-table td.vk-col--right,.vk-table th.vk-col--right{text-align:right}
+.vk-table td.vk-col--center,.vk-table th.vk-col--center{text-align:center}
+.vk-table tr.vk-row--link{cursor:pointer}
+.vk-table__empty{padding:2rem;text-align:center;color:var(--ui-muted)}
+.vk-sort{appearance:none;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer;display:inline-flex;gap:.3rem;align-items:center;text-transform:inherit;letter-spacing:inherit}
+.vk-sort__ind{color:var(--ui-primary)}
+.vk-datatable{display:flex;flex-direction:column;gap:.75rem}
+.vk-datatable__bar{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.vk-datatable__search{flex:1;min-width:12rem;max-width:20rem;padding:.45rem .6rem;border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg)}
+.vk-datatable__foot{display:flex;gap:.75rem;align-items:center;justify-content:space-between;flex-wrap:wrap;color:var(--ui-muted);font-size:.875rem}
+.vk-pager{display:flex;gap:.25rem;align-items:center}
+.vk-pager button,.vk-pager a{appearance:none;cursor:pointer;min-width:2rem;padding:.35rem .55rem;border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg);text-decoration:none;text-align:center;font:inherit}
+.vk-pager button:hover:not(:disabled),.vk-pager a:hover{border-color:var(--ui-ring)}
+.vk-pager button:disabled{opacity:.5;cursor:default}
+.vk-pager [aria-current="page"]{background:var(--ui-primary);color:var(--ui-primary-fg);border-color:var(--ui-primary)}
+.vk-datatable__bar-left{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.vk-datatable__bar-right{display:flex;align-items:center;gap:.5rem;margin-left:auto}
+.vk-datatable__searchbox{position:relative;display:inline-flex;align-items:center;flex:1;min-width:12rem;max-width:22rem}
+.vk-datatable__searchicon{position:absolute;left:.6rem;color:var(--ui-muted);pointer-events:none}
+.vk-datatable__search{width:100%;padding-left:2rem}
+.vk-sort__ind{color:var(--ui-muted)}
+.vk-sort__ind--active{color:var(--ui-primary)}
+
+/* Icon + spinner */
+.vk-icon{display:inline-block;vertical-align:-.125em;width:1em;height:1em;flex:none}
+.vk-icon--spin{animation:vk-spin .8s linear infinite}
+.vk-spinner{display:inline-block;width:1em;height:1em;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:vk-spin .6s linear infinite}
+@keyframes vk-spin{to{transform:rotate(360deg)}}
+
+/* Button */
+.vk-btn{--_fg:var(--ui-fg);--_bg:var(--ui-subtle);--_bd:var(--ui-border);display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  font:inherit;font-weight:600;font-size:.9rem;line-height:1.2;padding:.5rem .9rem;border:1px solid var(--_bd);border-radius:var(--ui-radius);
+  background:var(--_bg);color:var(--_fg);cursor:pointer;text-decoration:none;white-space:nowrap;-webkit-appearance:none;appearance:none;transition:filter .12s,background .12s,border-color .12s}
+.vk-btn:hover:not(:disabled):not([aria-disabled="true"]){filter:brightness(.97)}
+.vk-btn:focus-visible{outline:2px solid var(--ui-ring);outline-offset:2px}
+.vk-btn:disabled,.vk-btn[aria-disabled="true"]{opacity:.55;cursor:default}
+.vk-btn--sm{padding:.3rem .6rem;font-size:.8rem}
+.vk-btn--lg{padding:.65rem 1.2rem;font-size:1rem}
+.vk-btn--icon{padding:.45rem;aspect-ratio:1}
+.vk-btn--primary{--_bg:var(--ui-primary);--_fg:var(--ui-primary-fg);--_bd:var(--ui-primary)}
+.vk-btn--success{--_bg:var(--ui-success);--_fg:#fff;--_bd:var(--ui-success)}
+.vk-btn--danger{--_bg:var(--ui-danger);--_fg:#fff;--_bd:var(--ui-danger)}
+.vk-btn--warning{--_bg:var(--ui-warning);--_fg:#fff;--_bd:var(--ui-warning)}
+.vk-btn--info{--_bg:var(--ui-info);--_fg:#fff;--_bd:var(--ui-info)}
+.vk-btn--ghost{--_bg:transparent;--_bd:transparent}
+.vk-btn--ghost:hover:not(:disabled){background:var(--ui-subtle)}
+.vk-btn__icon{display:inline-flex;align-items:center;font-size:1.05em}
+.vk-btn[aria-busy="true"]{pointer-events:none}
+.vk-btn[aria-busy="true"] .vk-btn__icon,.vk-form[aria-busy="true"] .vk-btn--submit .vk-btn__icon{display:none}
+.vk-btn[aria-busy="true"]::before,.vk-form[aria-busy="true"] .vk-btn--submit::before{content:"";width:1em;height:1em;margin-right:.1rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:vk-spin .6s linear infinite}
+.vk-form[aria-busy="true"] .vk-btn--submit{pointer-events:none;opacity:.85}
+
+/* Actions */
+.vk-actions{display:flex;gap:.5rem;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+
+/* Card */
+.vk-card{background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.vk-card__header{display:flex;align-items:center;gap:1rem;padding:.9rem 1.15rem;border-bottom:1px solid var(--ui-border)}
+.vk-card__title{font-weight:600;font-size:1rem;display:flex;align-items:center;gap:.5rem}
+.vk-card__header-actions{margin-left:auto;display:flex;align-items:center;gap:.5rem}
+.vk-card__body{padding:1.15rem}
+.vk-card__body--flush{padding:0}
+
+/* Tile */
+.vk-tile-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.vk-tile{display:flex;align-items:center;gap:.9rem;padding:1rem 1.15rem;background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:var(--ui-radius)}
+.vk-tile__icon{display:inline-flex;align-items:center;justify-content:center;width:2.6rem;height:2.6rem;border-radius:50%;font-size:1.3rem;flex:none;
+  background:color-mix(in srgb,var(--ui-primary) 12%,transparent);color:var(--ui-primary)}
+.vk-tile__icon--success{background:color-mix(in srgb,var(--ui-success) 14%,transparent);color:var(--ui-success)}
+.vk-tile__icon--danger{background:color-mix(in srgb,var(--ui-danger) 14%,transparent);color:var(--ui-danger)}
+.vk-tile__icon--warning{background:color-mix(in srgb,var(--ui-warning) 14%,transparent);color:var(--ui-warning)}
+.vk-tile__icon--info{background:color-mix(in srgb,var(--ui-info) 14%,transparent);color:var(--ui-info)}
+.vk-tile__value{font-size:1.5rem;font-weight:700;line-height:1.1}
+.vk-tile__label{color:var(--ui-muted);font-size:.85rem;margin-top:.1rem}
+
+/* Badge */
+.vk-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .5rem;font-size:.75rem;font-weight:600;line-height:1.4;border-radius:999px;background:var(--ui-subtle);color:var(--ui-fg)}
+.vk-badge--primary{background:var(--ui-primary);color:var(--ui-primary-fg)}
+.vk-badge--success{background:var(--ui-success);color:#fff}
+.vk-badge--danger{background:var(--ui-danger);color:#fff}
+.vk-badge--warning{background:var(--ui-warning);color:#fff}
+.vk-badge--info{background:var(--ui-info);color:#fff}
+.vk-badge--soft.vk-badge--primary{color:var(--ui-primary);background:color-mix(in srgb,var(--ui-primary) 14%,transparent)}
+.vk-badge--soft.vk-badge--success{color:var(--ui-success);background:color-mix(in srgb,var(--ui-success) 14%,transparent)}
+.vk-badge--soft.vk-badge--danger{color:var(--ui-danger);background:color-mix(in srgb,var(--ui-danger) 14%,transparent)}
+.vk-badge--soft.vk-badge--warning{color:var(--ui-warning);background:color-mix(in srgb,var(--ui-warning) 14%,transparent)}
+.vk-badge--soft.vk-badge--info{color:var(--ui-info);background:color-mix(in srgb,var(--ui-info) 14%,transparent)}
+
+/* Tabs */
+.vk-tabs{display:flex;gap:.25rem;border-bottom:1px solid var(--ui-border);margin-bottom:1rem;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
+.vk-tabs::-webkit-scrollbar{width:0;height:0;display:none}
+.vk-tab{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem .9rem;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ui-muted);
+  font:inherit;font-weight:600;font-size:.9rem;cursor:pointer;text-decoration:none;white-space:nowrap;margin-bottom:-1px}
+.vk-tab:hover{color:var(--ui-fg)}
+.vk-tab--active{color:var(--ui-primary);border-bottom-color:var(--ui-primary)}
+.vk-tab:focus-visible{outline:2px solid var(--ui-ring);outline-offset:-2px}
+.vk-tab__count{display:inline-flex;align-items:center;justify-content:center;min-width:1.4em;padding:0 .35em;font-size:.72rem;border-radius:999px;
+  background:color-mix(in srgb,var(--ui-primary) 14%,transparent);color:var(--ui-primary)}
+
+/* Form + fields */
+.vk-form{display:flex;flex-direction:column;gap:1rem}
+.vk-field{display:flex;flex-direction:column;gap:.35rem}
+.vk-field__label{font-weight:600;font-size:.85rem}
+.vk-field__req{color:var(--ui-danger);margin-left:.15rem}
+.vk-input,.vk-select,.vk-textarea{width:100%;font:inherit;font-size:.9rem;padding:.5rem .65rem;border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg)}
+.vk-input,.vk-textarea{-webkit-appearance:none;appearance:none}
+.vk-textarea{resize:vertical;min-height:4.5rem}
+.vk-input::placeholder,.vk-textarea::placeholder{color:var(--ui-muted)}
+.vk-input:focus,.vk-select:focus,.vk-textarea:focus{outline:2px solid var(--ui-ring);outline-offset:-1px;border-color:var(--ui-ring)}
+.vk-input:disabled,.vk-select:disabled,.vk-textarea:disabled{opacity:.6;cursor:not-allowed}
+.vk-input--invalid,.vk-select--invalid,.vk-textarea--invalid{border-color:var(--ui-danger)}
+.vk-input--invalid:focus,.vk-select--invalid:focus,.vk-textarea--invalid:focus{outline-color:var(--ui-danger);border-color:var(--ui-danger)}
+.vk-field__help{font-size:.8rem;color:var(--ui-muted)}
+.vk-field__error{font-size:.8rem;color:var(--ui-danger)}
+.vk-check{display:inline-flex;align-items:center;gap:.5rem;cursor:pointer;font-size:.9rem}
+.vk-check__box{width:1rem;height:1rem;accent-color:var(--ui-primary);flex:none}
+
+/* Table additions */
+.vk-table--flush{border:0}
+.vk-col--select,.vk-col--index{width:1px;white-space:nowrap}
+.vk-col--index{color:var(--ui-muted)}
+.vk-table tbody tr.vk-row--selected{background:color-mix(in srgb,var(--ui-primary) 8%,transparent)}
+.vk-empty{display:flex;flex-direction:column;align-items:center;gap:.5rem;color:var(--ui-muted)}
+.vk-empty__icon{font-size:2rem;opacity:.65}
+.vk-empty__msg{font-size:.9rem}
+
+/* Modal additions */
+.vk-modal--xl{max-width:64rem}
+.vk-modal__header{justify-content:flex-start;gap:.75rem}
+.vk-modal__icon{display:inline-flex;align-items:center;justify-content:center;width:2.2rem;height:2.2rem;border-radius:var(--ui-radius);font-size:1.2rem;flex:none;
+  background:color-mix(in srgb,var(--ui-primary) 12%,transparent);color:var(--ui-primary)}
+.vk-modal__heading{flex:1;min-width:0}
+.vk-modal__subtitle{margin:.15rem 0 0;color:var(--ui-muted);font-size:.85rem}
+.vk-modal__close .vk-icon{font-size:1.15rem}
+
+@media (prefers-reduced-motion:reduce){.vk-spinner,.vk-icon--spin,.vk-btn[aria-busy="true"]::before,.vk-form[aria-busy="true"] .vk-btn--submit::before{animation-duration:1.4s}}
+@media (max-width:960px){.vk-tile-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){
+  .vk-table thead th{font-size:.72rem}
+  .vk-datatable__bar,.vk-datatable__foot{gap:.5rem}
+  .vk-datatable__bar{flex-direction:column;align-items:stretch}
+  .vk-datatable__bar-right{margin-left:0}
+  .vk-tile-grid{grid-template-columns:1fr}
+}
+.vk-img{background-color:#e2e8f0;background-image:linear-gradient(90deg,transparent,rgb(255 255 255/.6),transparent);background-size:200% 100%;background-repeat:no-repeat;animation:vk-img-shimmer 1.3s ease infinite}
+.vk-img--plain{background:none;animation:none}
+@keyframes vk-img-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.vk-img-wrap{position:relative;overflow:hidden}
+.vk-img-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to top,rgb(0 0 0/.6),rgb(0 0 0/.08),transparent)}
+.vk-img-overlay{position:absolute;inset:0}
+@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}</style></main>
+=== tile
+<div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--primary"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="file-text"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">1,234,567</div><div class="vk-tile__label">Applications</div></div></div>
+--- live
+<main><div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--primary"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="file-text"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">1,234,567</div><div class="vk-tile__label">Applications</div></div></div></main>
+=== tile/variants
+<div class="vk-tile-grid"><div class="vk-tile x"><span class="vk-tile__icon vk-tile__icon--success"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check"><path d="M5 13l4 4L19 7"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">5</div><div class="vk-tile__label">A</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value">-12,840</div><div class="vk-tile__label">B</div></div></div><div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--danger"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">1,000</div><div class="vk-tile__label">C</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value">n/a</div><div class="vk-tile__label">D</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value">3.5</div><div class="vk-tile__label">E</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value"></div><div class="vk-tile__label">F</div></div></div><div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--info"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="info"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">7</div><div class="vk-tile__label">G</div></div></div><div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--warning"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="warning"><path d="M12 3L2.5 20h19z"/><path d="M12 10v4M12 17h.01"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">-1,000</div><div class="vk-tile__label">H</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value">999</div><div class="vk-tile__label">I</div></div></div></div>
+--- live
+<main><div class="vk-tile-grid"><div class="vk-tile x"><span class="vk-tile__icon vk-tile__icon--success"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check"><path d="M5 13l4 4L19 7"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">5</div><div class="vk-tile__label">A</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value">-12,840</div><div class="vk-tile__label">B</div></div></div><div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--danger"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="x"><path d="M6 6l12 12M18 6L6 18"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">1,000</div><div class="vk-tile__label">C</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value">n/a</div><div class="vk-tile__label">D</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value">3.5</div><div class="vk-tile__label">E</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value"></div><div class="vk-tile__label">F</div></div></div><div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--info"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="info"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">7</div><div class="vk-tile__label">G</div></div></div><div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--warning"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="warning"><path d="M12 3L2.5 20h19z"/><path d="M12 10v4M12 17h.01"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">-1,000</div><div class="vk-tile__label">H</div></div></div><div class="vk-tile"><div class="vk-tile__body"><div class="vk-tile__value">999</div><div class="vk-tile__label">I</div></div></div></div></main>
+=== tilegrid/empty
+<div class="vk-tile-grid"></div>
+--- live
+<main><div class="vk-tile-grid"></div></main>
+=== toasts
+<div data-vk-ref="toasts" class="vk-toasts vk-toasts--top-right" role="region" aria-label="Notifications" aria-live="polite"></div>
+--- live
+<main><div data-vk-ref="toasts" class="vk-toasts vk-toasts--top-right" role="region" aria-label="Notifications" aria-live="polite"></div></main>
+=== toasts/all
+<div data-vk-ref="n" class="vk-toasts vk-toasts--bottom-left x" role="region" aria-label="Notifications" aria-live="polite"><div class="vk-toast vk-toast--info" role="status"><div class="vk-toast__body">plain</div><button type="button" class="vk-toast__close" aria-label="Dismiss" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;closest&#34;:&#34;.vk-toast&#34;}}]]">×</button></div><div class="vk-toast vk-toast--success y" role="status" id="saved" data-vk-ref="saved" style="--vk-toast-life:4000ms;"><div class="vk-toast__body"><div class="vk-toast__title">Saved</div>Done</div><button type="button" class="vk-toast__close" aria-label="Dismiss" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;closest&#34;:&#34;.vk-toast&#34;}}]]">×</button></div><div class="vk-toast vk-toast--error" role="status"><div class="vk-toast__body"><div class="vk-toast__title">No</div></div></div></div>
+--- live
+<main><div data-vk-ref="n" class="vk-toasts vk-toasts--bottom-left x" role="region" aria-label="Notifications" aria-live="polite"><div class="vk-toast vk-toast--info" role="status"><div class="vk-toast__body">plain</div><button type="button" class="vk-toast__close" aria-label="Dismiss" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;closest&#34;:&#34;.vk-toast&#34;}}]]">×</button></div><div class="vk-toast vk-toast--success y" role="status" id="saved" data-vk-ref="saved" style="--vk-toast-life:4000ms;"><div class="vk-toast__body"><div class="vk-toast__title">Saved</div>Done</div><button type="button" class="vk-toast__close" aria-label="Dismiss" data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;closest&#34;:&#34;.vk-toast&#34;}}]]">×</button></div><div class="vk-toast vk-toast--error" role="status"><div class="vk-toast__body"><div class="vk-toast__title">No</div></div></div></div></main>
+=== toast/commands
+<div><button data-vk-js-click="[[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;t&#34;}}]]"></button><button data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;closest&#34;:&#34;.vk-toast&#34;}}]]"></button><button data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;t&#34;}}]]"></button></div>
+--- live
+<main><div><button data-vk-js-click="[[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;t&#34;}}]]"></button><button data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;closest&#34;:&#34;.vk-toast&#34;}}]]"></button><button data-vk-js-click="[[&#34;hide&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;t&#34;}}]]"></button></div></main>
+=== form
+<form class="vk-form" method="post">x</form>
+--- live
+<main><form class="vk-form" method="post">x</form></main>
+=== form/all
+<form class="vk-form grid" method="get" id="sign" action="/sign" data-vk-js-input="[[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;x&#34;}}]]"><div class="vk-alert vk-alert--error" role="alert"><div class="vk-alert__body">Could not reach the provider.</div></div><input type="hidden" name="csrf"><div class="vk-field"><label class="vk-field__label" for="f-username">Username</label><input class="vk-input" type="text" value="ada" id="f-username" name="username" disabled></div><button class="vk-btn vk-btn--primary vk-btn--submit" type="submit"><span class="vk-btn__label">Sign</span></button></form>
+--- live
+<main><form class="vk-form grid" method="get" id="sign" action="/sign" data-vk-on-submit="c0:0" data-vk-js-input="[[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;x&#34;}}]]"><div class="vk-alert vk-alert--error" role="alert"><div class="vk-alert__body">Could not reach the provider.</div></div><input type="hidden" name="csrf"><div class="vk-field"><label class="vk-field__label" for="f-username">Username</label><input class="vk-input" type="text" value="ada" id="f-username" name="username" disabled></div><button class="vk-btn vk-btn--primary vk-btn--submit" type="submit"><span class="vk-btn__label">Sign</span></button></form></main>
+=== form/nochildren
+<form class="vk-form" method="post"></form>
+--- live
+<main><form class="vk-form" method="post"></form></main>
+=== field
+<div class="vk-field"><label class="vk-field__label" for="f-n">N</label><input class="vk-input" type="number" value="3" id="f-n" name="n" min="1" max="9" step="2"></div>
+--- live
+<main><div class="vk-field"><label class="vk-field__label" for="f-n">N</label><input class="vk-input" type="number" value="3" id="f-n" name="n" min="1" max="9" step="2"></div></main>
+=== field/nolabel
+<div class="vk-field"><input class="vk-input" type="text" value="" id="f-q" name="q"></div>
+--- live
+<main><div class="vk-field"><input class="vk-input" type="text" value="" id="f-q" name="q"></div></main>
+=== input/all
+<div class="vk-field c"><label class="vk-field__label" for="f-email">Email<span class="vk-field__req" aria-hidden="true">*</span></label><input class="vk-input" type="email" value="a@b" id="f-email" name="email" required autocomplete="email" data-x="1" placeholder="you@x"><div class="vk-field__help" id="f-email-help">We never share it.</div></div>
+--- live
+<main><div class="vk-field c"><label class="vk-field__label" for="f-email">Email<span class="vk-field__req" aria-hidden="true">*</span></label><input class="vk-input" type="email" value="a@b" id="f-email" name="email" required autocomplete="email" data-x="1" placeholder="you@x"><div class="vk-field__help" id="f-email-help">We never share it.</div></div></main>
+=== input/error
+<div class="vk-field vk-field--invalid"><label class="vk-field__label" for="f-name">Name<span class="vk-field__req" aria-hidden="true">*</span></label><input class="vk-input vk-input--invalid" type="text" value="" id="f-name" name="name" required aria-invalid="true" aria-describedby="f-name-error"><div class="vk-field__help" id="f-name-help">h</div><div class="vk-field__error" id="f-name-error" role="alert">required</div></div>
+--- live
+<main><div class="vk-field vk-field--invalid"><label class="vk-field__label" for="f-name">Name<span class="vk-field__req" aria-hidden="true">*</span></label><input class="vk-input vk-input--invalid" type="text" value="" id="f-name" name="name" required aria-invalid="true" aria-describedby="f-name-error"><div class="vk-field__help" id="f-name-help">h</div><div class="vk-field__error" id="f-name-error" role="alert">required</div></div></main>
+=== password
+<div class="vk-field"><label class="vk-field__label" for="f-password">Password<span class="vk-field__req" aria-hidden="true">*</span></label><input class="vk-input" type="password" value="" id="f-password" name="password" required autocomplete="current-password"></div>
+--- live
+<main><div class="vk-field"><label class="vk-field__label" for="f-password">Password<span class="vk-field__req" aria-hidden="true">*</span></label><input class="vk-input" type="password" value="" id="f-password" name="password" required autocomplete="current-password"></div></main>
+=== password/autocomplete
+<div class="vk-field vk-field--invalid"><input class="vk-input vk-input--invalid" type="password" value="" id="f-pw" name="pw" aria-invalid="true" aria-describedby="f-pw-error" autocomplete="new-password"><div class="vk-field__error" id="f-pw-error" role="alert">short</div></div>
+--- live
+<main><div class="vk-field vk-field--invalid"><input class="vk-input vk-input--invalid" type="password" value="" id="f-pw" name="pw" aria-invalid="true" aria-describedby="f-pw-error" autocomplete="new-password"><div class="vk-field__error" id="f-pw-error" role="alert">short</div></div></main>
+=== textarea
+<div class="vk-field"><label class="vk-field__label" for="f-note">Note</label><textarea class="vk-textarea" rows="3" id="f-note" name="note">hi &lt;b&gt;</textarea></div>
+--- live
+<main><div class="vk-field"><label class="vk-field__label" for="f-note">Note</label><textarea class="vk-textarea" rows="3" id="f-note" name="note">hi &lt;b&gt;</textarea></div></main>
+=== textarea/rows
+<div class="vk-field vk-field--invalid"><textarea class="vk-textarea vk-textarea--invalid" rows="5" id="f-note" name="note" disabled aria-invalid="true" aria-describedby="f-note-error" placeholder="…"></textarea><div class="vk-field__error" id="f-note-error" role="alert">e</div></div>
+--- live
+<main><div class="vk-field vk-field--invalid"><textarea class="vk-textarea vk-textarea--invalid" rows="5" id="f-note" name="note" disabled aria-invalid="true" aria-describedby="f-note-error" placeholder="…"></textarea><div class="vk-field__error" id="f-note-error" role="alert">e</div></div></main>
+=== select
+<div class="vk-field"><label class="vk-field__label" for="f-cat">Category</label><select class="vk-select" id="f-cat" name="cat"><option value="a">A</option><option value="b" selected>B</option></select></div>
+--- live
+<main><div class="vk-field"><label class="vk-field__label" for="f-cat">Category</label><select class="vk-select" id="f-cat" name="cat"><option value="a">A</option><option value="b" selected>B</option></select></div></main>
+=== select/placeholder
+<div class="vk-field vk-field--invalid"><select class="vk-select vk-select--invalid" id="f-cat" name="cat" required aria-invalid="true" aria-describedby="f-cat-error"><option value="" disabled selected>Pick</option><option value="a">A</option></select><div class="vk-field__error" id="f-cat-error" role="alert">e</div></div>
+--- live
+<main><div class="vk-field vk-field--invalid"><select class="vk-select vk-select--invalid" id="f-cat" name="cat" required aria-invalid="true" aria-describedby="f-cat-error"><option value="" disabled selected>Pick</option><option value="a">A</option></select><div class="vk-field__error" id="f-cat-error" role="alert">e</div></div></main>
+=== select/placeholder-chosen
+<div class="vk-field"><select class="vk-select" id="f-cat" name="cat"><option value="" disabled>Pick</option><option value="a" selected>A</option></select></div>
+--- live
+<main><div class="vk-field"><select class="vk-select" id="f-cat" name="cat"><option value="" disabled>Pick</option><option value="a" selected>A</option></select></div></main>
+=== checkbox
+<div class="vk-field vk-field--check"><label class="vk-check" for="f-agree"><input type="checkbox" class="vk-check__box" id="f-agree" name="agree" value="true" checked><span class="vk-check__label">I agree</span></label></div>
+--- live
+<main><div class="vk-field vk-field--check"><label class="vk-check" for="f-agree"><input type="checkbox" class="vk-check__box" id="f-agree" name="agree" value="true" checked><span class="vk-check__label">I agree</span></label></div></main>
+=== checkbox/off
+<div class="vk-field vk-field--check vk-field--invalid c"><label class="vk-check" for="f-agree"><input type="checkbox" class="vk-check__box" id="f-agree" name="agree" value="true" disabled data-z="z"><span class="vk-check__label">No</span></label><div class="vk-field__help" id="f-agree-help">h</div><div class="vk-field__error" id="f-agree-error" role="alert">e</div></div>
+--- live
+<main><div class="vk-field vk-field--check vk-field--invalid c"><label class="vk-check" for="f-agree"><input type="checkbox" class="vk-check__box" id="f-agree" name="agree" value="true" disabled data-z="z"><span class="vk-check__label">No</span></label><div class="vk-field__help" id="f-agree-help">h</div><div class="vk-field__error" id="f-agree-error" role="alert">e</div></div></main>
+=== table
+<div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div>
+--- live
+<main><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div></main>
+=== table/all
+<div class="vk-table-wrap"><table class="vk-table vk-table--flush x"><thead><tr><th class="vk-col--center vk-col--select" scope="col"><input type="checkbox" class="vk-check__box" aria-label="Select all" aria-checked="mixed" data-vk-mixed="true"></th><th class="vk-col--center vk-col--index" scope="col">#</th><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th><th class="vk-col--right" scope="col" aria-label="Actions"></th></tr></thead><tbody><tr class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/books/Dune&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="1"></td><td class="vk-col--center vk-col--index">11</td><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td><td class="vk-col--right vk-col--actions"><button class="vk-btn vk-btn--sm" type="button"><span class="vk-btn__label">Edit</span></button></td></tr><tr class="vk-row--link vk-row--selected" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/books/Emma&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="2" checked></td><td class="vk-col--center vk-col--index">12</td><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td><td class="vk-col--right vk-col--actions"><button class="vk-btn vk-btn--sm" type="button"><span class="vk-btn__label">Edit</span></button></td></tr><tr class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/books/Ulysses &amp; Co&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="3"></td><td class="vk-col--center vk-col--index">13</td><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td><td class="vk-col--right vk-col--actions"><button class="vk-btn vk-btn--sm" type="button"><span class="vk-btn__label">Edit</span></button></td></tr></tbody></table></div>
+--- live
+<main><div class="vk-table-wrap"><table class="vk-table vk-table--flush x"><thead><tr><th class="vk-col--center vk-col--select" scope="col"><input type="checkbox" class="vk-check__box" aria-label="Select all" aria-checked="mixed" data-vk-mixed="true" data-vk-on-change="c0:0"></th><th class="vk-col--center vk-col--index" scope="col">#</th><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th><th class="vk-col--right" scope="col" aria-label="Actions"></th></tr></thead><tbody><tr data-vk-key="1" class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/books/Dune&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="1" data-vk-on-change="c0:1"></td><td class="vk-col--center vk-col--index">11</td><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td><td class="vk-col--right vk-col--actions"><button class="vk-btn vk-btn--sm" type="button"><span class="vk-btn__label">Edit</span></button></td></tr><tr data-vk-key="2" class="vk-row--link vk-row--selected" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/books/Emma&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="2" checked data-vk-on-change="c0:2"></td><td class="vk-col--center vk-col--index">12</td><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td><td class="vk-col--right vk-col--actions"><button class="vk-btn vk-btn--sm" type="button"><span class="vk-btn__label">Edit</span></button></td></tr><tr data-vk-key="3" class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/books/Ulysses &amp; Co&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="3" data-vk-on-change="c0:3"></td><td class="vk-col--center vk-col--index">13</td><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td><td class="vk-col--right vk-col--actions"><button class="vk-btn vk-btn--sm" type="button"><span class="vk-btn__label">Edit</span></button></td></tr></tbody></table></div></main>
+=== table/plain-select
+<div class="vk-table-wrap"><table class="vk-table"><thead><tr><th class="vk-col--center vk-col--select" scope="col"><input type="checkbox" class="vk-check__box" aria-label="Select all" checked></th><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th></tr></thead><tbody><tr class="vk-row--selected"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="1" name="ids"></td><td class="vk-col--right">1</td><td class="w-1/2">Dune</td></tr><tr class="vk-row--selected"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="2" name="ids"></td><td class="vk-col--right">2</td><td class="w-1/2">Emma</td></tr></tbody></table></div>
+--- live
+<main><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th class="vk-col--center vk-col--select" scope="col"><input type="checkbox" class="vk-check__box" aria-label="Select all" checked data-vk-on-change="c0:0"></th><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th></tr></thead><tbody><tr data-vk-key="1" class="vk-row--selected"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="1" name="ids"></td><td class="vk-col--right">1</td><td class="w-1/2">Dune</td></tr><tr data-vk-key="2" class="vk-row--selected"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="2" name="ids"></td><td class="vk-col--right">2</td><td class="w-1/2">Emma</td></tr></tbody></table></div></main>
+=== table/select-nokey
+<div class="vk-table-wrap"><table class="vk-table"><thead><tr><th class="vk-col--center vk-col--select" scope="col"></th><th scope="col" class="vk-col--right">ID</th></tr></thead><tbody><tr><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" name="selected"></td><td class="vk-col--right">1</td></tr></tbody></table></div>
+--- live
+<main><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th class="vk-col--center vk-col--select" scope="col"></th><th scope="col" class="vk-col--right">ID</th></tr></thead><tbody><tr><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" name="selected"></td><td class="vk-col--right">1</td></tr></tbody></table></div></main>
+=== table/empty
+<div class="vk-table-wrap"><table class="vk-table"><thead><tr><th class="vk-col--center vk-col--select" scope="col"></th><th class="vk-col--center vk-col--index" scope="col">#</th><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td colspan="6" class="vk-table__empty">Nothing to show.</td></tr></tbody></table></div>
+--- live
+<main><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th class="vk-col--center vk-col--select" scope="col"></th><th class="vk-col--center vk-col--index" scope="col">#</th><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td colspan="6" class="vk-table__empty">Nothing to show.</td></tr></tbody></table></div></main>
+=== table/empty-icon
+<div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th class="vk-col--right" scope="col" aria-label="Actions"></th></tr></thead><tbody><tr><td colspan="2" class="vk-table__empty"><div class="vk-empty"><span class="vk-empty__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="list-checks"><path d="M4 6l1.4 1.4L8 5M4 16l1.4 1.4L8 14"/><path d="M11 6h9M11 12h9M11 18h9"/></svg></span><span class="vk-empty__msg">No tasks available.</span></div></td></tr></tbody></table></div>
+--- live
+<main><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th class="vk-col--right" scope="col" aria-label="Actions"></th></tr></thead><tbody><tr><td colspan="2" class="vk-table__empty"><div class="vk-empty"><span class="vk-empty__icon"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="list-checks"><path d="M4 6l1.4 1.4L8 5M4 16l1.4 1.4L8 14"/><path d="M11 6h9M11 12h9M11 18h9"/></svg></span><span class="vk-empty__msg">No tasks available.</span></div></td></tr></tbody></table></div></main>
+=== table/empty-custom
+<div class="vk-table-wrap"><table class="vk-table"><thead><tr></tr></thead><tbody><tr><td colspan="0" class="vk-table__empty">none</td></tr></tbody></table></div>
+--- live
+<main><div class="vk-table-wrap"><table class="vk-table"><thead><tr></tr></thead><tbody><tr><td colspan="0" class="vk-table__empty">none</td></tr></tbody></table></div></main>
+=== datatable
+<div class="vk-datatable"><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 1–3 of 3</div><div class="vk-pager"></div></div></div>
+--- live
+<main><div class="vk-datatable"><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 1–3 of 3</div><div class="vk-pager"></div></div></div></main>
+=== datatable/empty
+<div class="vk-datatable x"><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td colspan="4" class="vk-table__empty">Nothing to show.</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">No results</div><div class="vk-pager"></div></div></div>
+--- live
+<main><div class="vk-datatable x"><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td colspan="4" class="vk-table__empty">Nothing to show.</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">No results</div><div class="vk-pager"></div></div></div></main>
+=== datatable/all
+<div class="vk-datatable x"><div class="vk-datatable__bar"><div class="vk-datatable__bar-left"><div class="vk-tabs" role="tablist"><a class="vk-tab vk-tab--active" href="/" data-vk-link role="tab" aria-selected="true"><span class="vk-tab__label">All</span></a></div><div class="vk-datatable__searchbox"><svg class="vk-icon vk-datatable__searchicon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="search"><circle cx="11" cy="11" r="6"/><path d="M20 20l-3.6-3.6"/></svg><input type="search" class="vk-datatable__search" name="q" placeholder="Find books" aria-label="Search" value="du"></div></div><div class="vk-datatable__bar-right"><button class="vk-btn" type="button"><span class="vk-btn__label">New</span></button></div></div><div class="vk-table-wrap"><table class="vk-table vk-table--flush"><thead><tr><th class="vk-col--center vk-col--select" scope="col"><input type="checkbox" class="vk-check__box" aria-label="Select all"></th><th class="vk-col--center vk-col--index" scope="col">#</th><th scope="col" class="vk-col--right"><button type="button" class="vk-sort" aria-sort="none" data-vk-js-click="[[&#34;push&#34;,{}]]">ID<svg class="vk-icon vk-sort__ind" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-up-down"><path d="M8 10l4-4 4 4M8 14l4 4 4-4"/></svg></button></th><th scope="col" class="w-1/2"><button type="button" class="vk-sort" aria-sort="descending" data-vk-js-click="[[&#34;push&#34;,{}]]">Title<svg class="vk-icon vk-sort__ind vk-sort__ind--active" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-down"><path d="M6 9l6 6 6-6"/></svg></button></th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/b&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="1"></td><td class="vk-col--center vk-col--index">61</td><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/b&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="2"></td><td class="vk-col--center vk-col--index">62</td><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/b&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="3"></td><td class="vk-col--center vk-col--index">63</td><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 61–63 of 200<label class="vk-datatable__size">Per page <select aria-label="Rows per page"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option></select></label></div><nav class="vk-pager" aria-label="Pagination"><button type="button" aria-label="Previous page" data-vk-js-click="[[&#34;push&#34;,{}]]">‹</button><button type="button" aria-label="Page 6" data-vk-js-click="[[&#34;push&#34;,{}]]">6</button><button type="button" aria-label="Page 7" aria-current="page" data-vk-js-click="[[&#34;push&#34;,{}]]">7</button><button type="button" aria-label="Page 8" data-vk-js-click="[[&#34;push&#34;,{}]]">8</button><button type="button" aria-label="Next page" data-vk-js-click="[[&#34;push&#34;,{}]]">›</button></nav></div></div>
+--- live
+<main><div class="vk-datatable x"><div class="vk-datatable__bar"><div class="vk-datatable__bar-left"><div class="vk-tabs" role="tablist"><a class="vk-tab vk-tab--active" href="/" data-vk-link role="tab" aria-selected="true"><span class="vk-tab__label">All</span></a></div><div class="vk-datatable__searchbox"><svg class="vk-icon vk-datatable__searchicon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="search"><circle cx="11" cy="11" r="6"/><path d="M20 20l-3.6-3.6"/></svg><input type="search" class="vk-datatable__search" name="q" placeholder="Find books" aria-label="Search" value="du" data-vk-on-input="c0:0"></div></div><div class="vk-datatable__bar-right"><button class="vk-btn" type="button"><span class="vk-btn__label">New</span></button></div></div><div class="vk-table-wrap"><table class="vk-table vk-table--flush"><thead><tr><th class="vk-col--center vk-col--select" scope="col"><input type="checkbox" class="vk-check__box" aria-label="Select all" data-vk-on-change="c0:1"></th><th class="vk-col--center vk-col--index" scope="col">#</th><th scope="col" class="vk-col--right"><button type="button" class="vk-sort" aria-sort="none" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:2&#34;,&#34;value&#34;:&#34;id&#34;}]]">ID<svg class="vk-icon vk-sort__ind" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-up-down"><path d="M8 10l4-4 4 4M8 14l4 4 4-4"/></svg></button></th><th scope="col" class="w-1/2"><button type="button" class="vk-sort" aria-sort="descending" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:3&#34;,&#34;value&#34;:&#34;title&#34;}]]">Title<svg class="vk-icon vk-sort__ind vk-sort__ind--active" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-down"><path d="M6 9l6 6 6-6"/></svg></button></th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr data-vk-key="1" class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/b&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="1" data-vk-on-change="c0:4"></td><td class="vk-col--center vk-col--index">61</td><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr data-vk-key="2" class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/b&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="2" data-vk-on-change="c0:5"></td><td class="vk-col--center vk-col--index">62</td><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr data-vk-key="3" class="vk-row--link" data-vk-js-click="[[&#34;navigate&#34;,{&#34;href&#34;:&#34;/b&#34;}]]"><td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value="3" data-vk-on-change="c0:6"></td><td class="vk-col--center vk-col--index">63</td><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 61–63 of 200<label class="vk-datatable__size">Per page <select aria-label="Rows per page" data-vk-on-change="c0:7"><option value="10" selected>10</option><option value="25">25</option><option value="50">50</option></select></label></div><nav class="vk-pager" aria-label="Pagination"><button type="button" aria-label="Previous page" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:8&#34;,&#34;value&#34;:&#34;6&#34;}]]">‹</button><button type="button" aria-label="Page 6" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:9&#34;,&#34;value&#34;:&#34;6&#34;}]]">6</button><button type="button" aria-label="Page 7" aria-current="page" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:10&#34;,&#34;value&#34;:&#34;7&#34;}]]">7</button><button type="button" aria-label="Page 8" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:11&#34;,&#34;value&#34;:&#34;8&#34;}]]">8</button><button type="button" aria-label="Next page" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:12&#34;,&#34;value&#34;:&#34;8&#34;}]]">›</button></nav></div></div></main>
+=== datatable/sort-asc-search
+<div class="vk-datatable"><div class="vk-datatable__bar"><div class="vk-datatable__bar-left"><div class="vk-datatable__searchbox"><svg class="vk-icon vk-datatable__searchicon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="search"><circle cx="11" cy="11" r="6"/><path d="M20 20l-3.6-3.6"/></svg><input type="search" class="vk-datatable__search" name="q" placeholder="Search…" aria-label="Search" value="" data-vk-js-input="[[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;x&#34;}}]]"></div></div></div><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right"><button type="button" class="vk-sort" aria-sort="ascending" data-vk-js-click="[[&#34;push&#34;,{}]]">ID<svg class="vk-icon vk-sort__ind vk-sort__ind--active" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-up"><path d="M6 15l6-6 6 6"/></svg></button></th><th scope="col" class="w-1/2"><button type="button" class="vk-sort" aria-sort="none" data-vk-js-click="[[&#34;push&#34;,{}]]">Title<svg class="vk-icon vk-sort__ind" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-up-down"><path d="M8 10l4-4 4 4M8 14l4 4 4-4"/></svg></button></th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 1–3 of 30</div><nav class="vk-pager" aria-label="Pagination"><button type="button" aria-label="Previous page" disabled>‹</button><button type="button" aria-label="Page 1" aria-current="page" data-vk-js-click="[[&#34;push&#34;,{}]]">1</button><button type="button" aria-label="Page 2" data-vk-js-click="[[&#34;push&#34;,{}]]">2</button><button type="button" aria-label="Page 3" data-vk-js-click="[[&#34;push&#34;,{}]]">3</button><button type="button" aria-label="Next page" data-vk-js-click="[[&#34;push&#34;,{}]]">›</button></nav></div></div>
+--- live
+<main><div class="vk-datatable"><div class="vk-datatable__bar"><div class="vk-datatable__bar-left"><div class="vk-datatable__searchbox"><svg class="vk-icon vk-datatable__searchicon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="search"><circle cx="11" cy="11" r="6"/><path d="M20 20l-3.6-3.6"/></svg><input type="search" class="vk-datatable__search" name="q" placeholder="Search…" aria-label="Search" value="" data-vk-js-input="[[&#34;show&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;x&#34;}}]]"></div></div></div><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right"><button type="button" class="vk-sort" aria-sort="ascending" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:0&#34;,&#34;value&#34;:&#34;id&#34;}]]">ID<svg class="vk-icon vk-sort__ind vk-sort__ind--active" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-up"><path d="M6 15l6-6 6 6"/></svg></button></th><th scope="col" class="w-1/2"><button type="button" class="vk-sort" aria-sort="none" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:1&#34;,&#34;value&#34;:&#34;title&#34;}]]">Title<svg class="vk-icon vk-sort__ind" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-up-down"><path d="M8 10l4-4 4 4M8 14l4 4 4-4"/></svg></button></th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 1–3 of 30</div><nav class="vk-pager" aria-label="Pagination"><button type="button" aria-label="Previous page" disabled>‹</button><button type="button" aria-label="Page 1" aria-current="page" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:2&#34;,&#34;value&#34;:&#34;1&#34;}]]">1</button><button type="button" aria-label="Page 2" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:3&#34;,&#34;value&#34;:&#34;2&#34;}]]">2</button><button type="button" aria-label="Page 3" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:4&#34;,&#34;value&#34;:&#34;3&#34;}]]">3</button><button type="button" aria-label="Next page" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:5&#34;,&#34;value&#34;:&#34;2&#34;}]]">›</button></nav></div></div></main>
+=== datatable/toolbar-static-pager
+<div class="vk-datatable"><div class="vk-datatable__bar"><div class="vk-datatable__bar-left"></div><div class="vk-datatable__bar-right">t</div></div><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 21–23 of 30</div><nav class="vk-pager" aria-label="Pagination"><button type="button" aria-label="Previous page" disabled>‹</button><button type="button" aria-label="Page 1" disabled>1</button><button type="button" aria-label="Page 2" disabled>2</button><button type="button" aria-label="Page 3" aria-current="page" disabled>3</button><button type="button" aria-label="Next page" disabled>›</button></nav></div></div>
+--- live
+<main><div class="vk-datatable"><div class="vk-datatable__bar"><div class="vk-datatable__bar-left"></div><div class="vk-datatable__bar-right">t</div></div><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right">ID</th><th scope="col" class="w-1/2">Title</th><th scope="col" class="vk-col--center x">Center</th><th scope="col" class="">Plain</th></tr></thead><tbody><tr><td class="vk-col--right">1</td><td class="w-1/2">Dune</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">2</td><td class="w-1/2">Emma</td><td class="vk-col--center x"></td><td class="">·</td></tr><tr><td class="vk-col--right">3</td><td class="w-1/2">Ulysses &amp; Co</td><td class="vk-col--center x"></td><td class="">·</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 21–23 of 30</div><nav class="vk-pager" aria-label="Pagination"><button type="button" aria-label="Previous page" disabled>‹</button><button type="button" aria-label="Page 1" disabled>1</button><button type="button" aria-label="Page 2" disabled>2</button><button type="button" aria-label="Page 3" aria-current="page" disabled>3</button><button type="button" aria-label="Next page" disabled>›</button></nav></div></div></main>
+=== datatable/tabs-only
+<div class="vk-datatable"><div class="vk-datatable__bar"><div class="vk-datatable__bar-left">tabs</div></div><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right"><button type="button" class="vk-sort" aria-sort="none" data-vk-js-click="[[&#34;push&#34;,{}]]">ID<svg class="vk-icon vk-sort__ind" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-up-down"><path d="M8 10l4-4 4 4M8 14l4 4 4-4"/></svg></button></th></tr></thead><tbody><tr><td class="vk-col--right">1</td></tr><tr><td class="vk-col--right">2</td></tr><tr><td class="vk-col--right">3</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 1–3 of 3</div><div class="vk-pager"></div></div></div>
+--- live
+<main><div class="vk-datatable"><div class="vk-datatable__bar"><div class="vk-datatable__bar-left">tabs</div></div><div class="vk-table-wrap"><table class="vk-table"><thead><tr><th scope="col" class="vk-col--right"><button type="button" class="vk-sort" aria-sort="none" data-vk-js-click="[[&#34;push&#34;,{&#34;h&#34;:&#34;c0:0&#34;,&#34;value&#34;:&#34;id&#34;}]]">ID<svg class="vk-icon vk-sort__ind" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="caret-up-down"><path d="M8 10l4-4 4 4M8 14l4 4 4-4"/></svg></button></th></tr></thead><tbody><tr><td class="vk-col--right">1</td></tr><tr><td class="vk-col--right">2</td></tr><tr><td class="vk-col--right">3</td></tr></tbody></table></div><div class="vk-datatable__foot"><div class="vk-datatable__count">Showing 1–3 of 3</div><div class="vk-pager"></div></div></div></main>
