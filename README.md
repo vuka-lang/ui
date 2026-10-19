@@ -148,8 +148,9 @@ The former props types are aliases of the components, deprecated:
 `ButtonProps`, `DataTableProps[T]`, `FieldProps`, `FormProps`, `ImageProps`,
 `ModalProps`, `TableProps[T]`, `TabsProps`, `TileProps`,
 `ToastContainerProps` and `ToastProps`. A call of the former function,
-`ui.Card(ui.CardProps{…})`, is now `ui.Card{…}.Render()`; tags are
-unchanged.
+`ui.Card(ui.CardProps{…})`, is now `ui.Card{…}.Render()` — `vuka fix
+ui-structs` rewrites those calls; tags are unchanged, with a `vuka` command
+that lowers a tag naming a struct to its `Render`.
 
 ## Working on ui
 
