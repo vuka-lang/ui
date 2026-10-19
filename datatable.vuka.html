@@ -1,4 +1,4 @@
-func (d DataTable[T]) Render()
+func (d DataTable[T]) View()
 <div class={withClass("vk-datatable", d.Class)}>
   if d.OnSearch != nil || d.Tabs != nil || d.Toolbar != nil {
     <div class="vk-datatable__bar">
@@ -16,7 +16,7 @@ func (d DataTable[T]) Render()
       }
     </div>
   }
-  {d.table().Render()}
+  {d.table()}
   <div class="vk-datatable__foot">
     <div class="vk-datatable__count">
       if d.Page.Total > 0 {

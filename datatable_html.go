@@ -4,11 +4,13 @@
 package ui
 
 import (
+	"context"
+	"io"
 	"strconv"
 )
 
 //line datatable.vuka.html:1
-func (d DataTable[T]) Render() Node {
+func (d DataTable[T]) View() Node {
 	var div []Node
 	if d.OnSearch != nil || d.Tabs != nil || d.Toolbar != nil {
 		var div2 []Node
@@ -61,7 +63,7 @@ func (d DataTable[T]) Render() Node {
 	return HTML(`
 <div class={withClass("vk-datatable", d.Class)}>
   {div}
-  {d.table().Render()}
+  {d.table()}
   <div class="vk-datatable__foot">
     <div class="vk-datatable__count">
       {from2}
@@ -72,17 +74,18 @@ func (d DataTable[T]) Render() Node {
 </div>`,
 		withClass("vk-datatable", d.Class),
 		div,
-		d.table().Render(),
+		d.table(),
 		from2,
 		label2,
 		pager(d.Page, d.Window, d.OnPage),
 	)
 }
 
+//line datatable.vuka.html:40
+func (d DataTable[T]) Render(ctx context.Context, w io.Writer) error { return d.View().Render(ctx, w) }
+
 // sortHeader is a sortable column's header: a button calling onSort with its
 // key, marked when its column is the sorted one.
-//
-//line datatable.vuka.html:44
 func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
 	var icon []Node
 //line datatable.vuka.html:47

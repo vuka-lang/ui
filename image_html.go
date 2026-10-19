@@ -3,8 +3,13 @@
 //line image.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line image.vuka.html:1
-func (im Image) Render() Node {
+func (im Image) View() Node {
 	var img2 []Node
 //line image.vuka.html:2
 	if im.Overlay == nil {
@@ -26,7 +31,9 @@ func (im Image) Render() Node {
 	return HTML(`{img2}`, img2)
 }
 
-//line image.vuka.html:14
+//line image.vuka.html:12
+func (im Image) Render(ctx context.Context, w io.Writer) error { return im.View().Render(ctx, w) }
+
 func (im Image) img() Node {
 //line image.vuka.html:14
 	return HTML(`<img src={im.Src} alt={im.Alt} loading={im.loading()} decoding="async" class={im.classes()} fetchpriority={when(im.Priority, "high")} srcset={nonEmpty(im.Srcset)} sizes={nonEmpty(im.Sizes)} width={when(im.Width > 0, im.Width)} height={when(im.Height > 0, im.Height)}/>`,

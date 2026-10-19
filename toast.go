@@ -35,7 +35,7 @@ type ToastContainer struct {
 
 // ToastContainerProps is ToastContainer, by its former name.
 //
-// Deprecated: use ToastContainer: ui.ToastContainer{…}.Render(), or
+// Deprecated: use ToastContainer: ui.ToastContainer{…}, or
 // <ui.ToastContainer …> in a template.
 type ToastContainerProps = ToastContainer
 
@@ -78,7 +78,7 @@ type Toast struct {
 
 // ToastProps is Toast, by its former name.
 //
-// Deprecated: use Toast: ui.Toast{…}.Render(), or <ui.Toast …> in a template.
+// Deprecated: use Toast: ui.Toast{…}, or <ui.Toast …> in a template.
 type ToastProps = Toast
 
 func (t Toast) classes() string {

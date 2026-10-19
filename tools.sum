@@ -14,10 +14,16 @@ github.com/vuka-lang/vuka v0.50.0 h1:5Ip4RRYVmGjnAHkfjTdzXsCYKQeCnKCQg7fnjsTp9Qs
 github.com/vuka-lang/vuka v0.50.0/go.mod h1:X+ml+FftmyBqmfBxh4mMOUVaUZS3preV80KzmYpGlpE=
 github.com/vuka-lang/vuka v0.50.1-0.20261019171329-c57f074765c0 h1:g4ardGwMVoqa4WvKlSm67Vky/ZUed4INCM8FajDytn8=
 github.com/vuka-lang/vuka v0.50.1-0.20261019171329-c57f074765c0/go.mod h1:X+ml+FftmyBqmfBxh4mMOUVaUZS3preV80KzmYpGlpE=
+github.com/vuka-lang/vuka v0.50.1-0.20261019182111-0418398fe877 h1:LJuljQumJpveqXxsSEBFD5pm6s86scJuVWmkJt2dJwY=
+github.com/vuka-lang/vuka v0.50.1-0.20261019182111-0418398fe877/go.mod h1:X+ml+FftmyBqmfBxh4mMOUVaUZS3preV80KzmYpGlpE=
 github.com/vuka-lang/vuka/cmd/vuka v0.50.1-0.20261019171329-c57f074765c0 h1:rAhQjuxuVU35bUqlBd3hpiy1bzccOmdmQOm4HBnJb4g=
 github.com/vuka-lang/vuka/cmd/vuka v0.50.1-0.20261019171329-c57f074765c0/go.mod h1:hbV4op+MdoICOusJ/py9YPb9tuh3UvsLFnbvr+pQnJ0=
+github.com/vuka-lang/vuka/cmd/vuka v0.50.1-0.20261019182111-0418398fe877 h1:Mh6Z1ON+dbpCOwQY4P8T2vCgtUv6IGdIF42hePygqDM=
+github.com/vuka-lang/vuka/cmd/vuka v0.50.1-0.20261019182111-0418398fe877/go.mod h1:hbV4op+MdoICOusJ/py9YPb9tuh3UvsLFnbvr+pQnJ0=
 github.com/vuka-lang/vuka/cmd/vukavet v0.0.0-20261019171329-c57f074765c0 h1:tzLp3r9VN01/BZpn79mHoE9g+20tU1Wo4iSHKKcsuCg=
 github.com/vuka-lang/vuka/cmd/vukavet v0.0.0-20261019171329-c57f074765c0/go.mod h1:Y71pPJnvPY9WflMhUj6Fao8FANMwW5UyjNXIbUCgaeM=
+github.com/vuka-lang/vuka/cmd/vukavet v0.0.0-20261019182111-0418398fe877 h1:k2ls28gGErk2ZSYgl4P8BZkvjhBYik8WZAtycGJxGJA=
+github.com/vuka-lang/vuka/cmd/vukavet v0.0.0-20261019182111-0418398fe877/go.mod h1:Y71pPJnvPY9WflMhUj6Fao8FANMwW5UyjNXIbUCgaeM=
 golang.org/x/mod v0.42.0 h1:ICeL3t2L30ljSPHHxDnR4fqVcBt/zR2zJAb9juavmQg=
 golang.org/x/mod v0.42.0/go.mod h1:u5fzIrRInkL8MaO1cbRkUHT64v303YIT5KEqpNr7jRs=
 golang.org/x/sync v0.24.0 h1:iqiDrGoDgyuvAKrhLQthUEzU/R378N78gXbBjxed7oA=

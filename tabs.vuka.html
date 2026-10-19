@@ -1,4 +1,4 @@
-func (t Tabs) Render()
+func (t Tabs) View()
 <div class={withClass("vk-tabs", t.Class)} role="tablist">
   for _, tab := range t.Tabs {
     {tab.node()}

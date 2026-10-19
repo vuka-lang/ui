@@ -16,7 +16,7 @@ type Badge struct {
 
 // BadgeProps is Badge, by its former name.
 //
-// Deprecated: use Badge: ui.Badge{…}.Render(), or <ui.Badge …> in a template.
+// Deprecated: use Badge: ui.Badge{…}, or <ui.Badge …> in a template.
 type BadgeProps = Badge
 
 func (b Badge) classes() string {

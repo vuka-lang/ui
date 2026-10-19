@@ -70,7 +70,7 @@ type DataTable[T any] struct {
 
 // DataTableProps is DataTable, by its former name.
 //
-// Deprecated: use DataTable: ui.DataTable[T]{…}.Render(), or
+// Deprecated: use DataTable: ui.DataTable[T]{…}, or
 // <ui.DataTable …> in a template.
 type DataTableProps[T any] = DataTable[T]
 

@@ -3,11 +3,16 @@
 //line form.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line form.vuka.html:1
-func (f Form) Render() Node {
+func (f Form) View() Node {
 	var alert []Node
 	if f.Error != "" {
-		alert = append(alert, Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)}.Render())
+		alert = append(alert, Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)})
 	}
 //line form.vuka.html:1
 	return HTML(`
@@ -27,3 +32,6 @@ func (f Form) Render() Node {
 		f.Children,
 	)
 }
+
+//line form.vuka.html:8
+func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

@@ -35,29 +35,29 @@ func kitCols() []ui.Column[book] {
 }
 
 func kitCases() []kitCase {
-	btn := func(b ui.Button) func() ui.Node { return b.Render }
-	field := func(c interface{ Render() ui.Node }) func() ui.Node { return c.Render }
+	btn := func(b ui.Button) func() ui.Node { return func() ui.Node { return b } }
+	field := func(c ui.Node) func() ui.Node { return func() ui.Node { return c } }
 	cs := []kitCase{
 		{"actions", func() ui.Node {
-			return ui.Actions(ui.Cancel(ui.CloseModal("m")), ui.Button{Variant: ui.Primary, Children: ui.Text("Save")}.Render())
+			return ui.Actions(ui.Cancel(ui.CloseModal("m")), ui.Button{Variant: ui.Primary, Children: ui.Text("Save")})
 		}},
 		{"actions/empty", func() ui.Node { return ui.Actions() }},
 		{"cancel/label", func() ui.Node { return ui.Cancel(kitSave, "Close") }},
 		{"cancel/empty-label", func() ui.Node { return ui.Cancel(ui.CloseModal("m"), "") }},
 
-		{"alert", func() ui.Node { return ui.Alert{Children: ui.Text("hi")}.Render() }},
+		{"alert", func() ui.Node { return ui.Alert{Children: ui.Text("hi")} }},
 		{"alert/success-title", func() ui.Node {
-			return ui.Alert{Variant: ui.AlertSuccess, Title: "Saved", Children: ui.Text("live")}.Render()
+			return ui.Alert{Variant: ui.AlertSuccess, Title: "Saved", Children: ui.Text("live")}
 		}},
 		{"alert/warning-dismiss-class", func() ui.Node {
-			return ui.Alert{Variant: ui.AlertWarning, Dismissible: true, Class: "mt-2", Children: ui.Text("careful")}.Render()
+			return ui.Alert{Variant: ui.AlertWarning, Dismissible: true, Class: "mt-2", Children: ui.Text("careful")}
 		}},
-		{"alert/error-nochildren", func() ui.Node { return ui.Alert{Variant: ui.AlertError, Title: "Oops"}.Render() }},
+		{"alert/error-nochildren", func() ui.Node { return ui.Alert{Variant: ui.AlertError, Title: "Oops"} }},
 
-		{"badge", func() ui.Node { return ui.Badge{Children: ui.Text("New")}.Render() }},
-		{"badge/success", func() ui.Node { return ui.Badge{Variant: ui.Success, Children: ui.Text("Signed")}.Render() }},
+		{"badge", func() ui.Node { return ui.Badge{Children: ui.Text("New")} }},
+		{"badge/success", func() ui.Node { return ui.Badge{Variant: ui.Success, Children: ui.Text("Signed")} }},
 		{"badge/danger-soft-class", func() ui.Node {
-			return ui.Badge{Variant: ui.Danger, Soft: true, Class: "ml-1", Children: ui.Text("Failed")}.Render()
+			return ui.Badge{Variant: ui.Danger, Soft: true, Class: "ml-1", Children: ui.Text("Failed")}
 		}},
 
 		{"button", btn(ui.Button{Children: ui.Text("Go")})},
@@ -77,54 +77,54 @@ func kitCases() []kitCase {
 			Attrs: []ui.Attr{{Name: "data-y", Value: "2"}}, Children: ui.Text("Books")})},
 		{"button/href-disabled-icon", btn(ui.Button{Href: "/x", Disabled: true, Icon: ui.Icon("check"), Children: ui.Text("X")})},
 		{"button/nochildren", btn(ui.Button{})},
-		{"submit", func() ui.Node { return ui.Submit{Children: ui.Text("Save")}.Render() }},
+		{"submit", func() ui.Node { return ui.Submit{Children: ui.Text("Save")} }},
 		{"submit/variant-loading", func() ui.Node {
-			return ui.Submit{Variant: ui.Danger, Loading: true, Form: "f", Children: ui.Text("Delete")}.Render()
+			return ui.Submit{Variant: ui.Danger, Loading: true, Form: "f", Children: ui.Text("Delete")}
 		}},
 		{"spinner", ui.Spinner},
 
-		{"card", func() ui.Node { return ui.Card{Children: ui.Text("body")}.Render() }},
-		{"card/title", func() ui.Node { return ui.Card{Title: ui.Text("Members"), Children: ui.Text("body")}.Render() }},
+		{"card", func() ui.Node { return ui.Card{Children: ui.Text("body")} }},
+		{"card/title", func() ui.Node { return ui.Card{Title: ui.Text("Members"), Children: ui.Text("body")} }},
 		{"card/header", func() ui.Node {
-			return ui.Card{Header: ui.Badge{Children: ui.Text("3")}.Render(), Children: ui.Text("body")}.Render()
+			return ui.Card{Header: ui.Badge{Children: ui.Text("3")}, Children: ui.Text("body")}
 		}},
 		{"card/all", func() ui.Node {
-			return ui.Card{Title: ui.Text("Members"), Header: ui.Actions(ui.Button{Children: ui.Text("Invite")}.Render()),
-				NoPad: true, Class: "shadow", Children: ui.Text("body")}.Render()
+			return ui.Card{Title: ui.Text("Members"), Header: ui.Actions(ui.Button{Children: ui.Text("Invite")}),
+				NoPad: true, Class: "shadow", Children: ui.Text("body")}
 		}},
-		{"card/empty", func() ui.Node { return ui.Card{}.Render() }},
+		{"card/empty", func() ui.Node { return ui.Card{} }},
 
 		{"icon", func() ui.Node { return ui.Icon("check") }},
 		{"icon/classes", func() ui.Node { return ui.Icon("search", "a", "", "b") }},
 		{"icon/unknown", func() ui.Node { return ui.Icon("nope") }},
 
-		{"image", func() ui.Node { return ui.Image{Src: "/a.webp", Alt: "A"}.Render() }},
+		{"image", func() ui.Node { return ui.Image{Src: "/a.webp", Alt: "A"} }},
 		{"image/priority-all", func() ui.Node {
 			return ui.Image{Src: "/a.webp", Srcset: "/a-1.webp 1x, /a-2.webp 2x", Sizes: "100vw", Alt: "A", Width: 1600, Height: 600,
-				Class: "rounded", Priority: true}.Render()
+				Class: "rounded", Priority: true}
 		}},
 		{"image/eager-plain", func() ui.Node {
-			return ui.Image{Src: "/logo.svg", Eager: true, Plain: true, Class: "h-8"}.Render()
+			return ui.Image{Src: "/logo.svg", Eager: true, Plain: true, Class: "h-8"}
 		}},
 		{"image/overlay", func() ui.Node {
-			return ui.Image{Src: "/hero.webp", Overlay: ui.El("h1", nil, ui.Text("Hi"))}.Render()
+			return ui.Image{Src: "/hero.webp", Overlay: ui.El("h1", nil, ui.Text("Hi"))}
 		}},
 		{"image/overlay-scrim", func() ui.Node {
-			return ui.Image{Src: "/hero.webp", Width: 10, Scrim: true, WrapClass: "h-64", Overlay: ui.Text("Over")}.Render()
+			return ui.Image{Src: "/hero.webp", Width: 10, Scrim: true, WrapClass: "h-64", Overlay: ui.Text("Over")}
 		}},
 
-		{"modal", func() ui.Node { return ui.Modal{Children: ui.Text("body")}.Render() }},
+		{"modal", func() ui.Node { return ui.Modal{Children: ui.Text("body")} }},
 		{"modal/full", func() ui.Node {
 			return ui.Modal{Ref: "approval", Icon: ui.Icon("check-circle"), Title: ui.Text("Preview"), Subtitle: "Review before signing",
-				Footer: ui.Actions(ui.Cancel(ui.CloseModal("approval"))), Size: "lg", Class: "x", Children: ui.Text("body")}.Render()
+				Footer: ui.Actions(ui.Cancel(ui.CloseModal("approval"))), Size: "lg", Class: "x", Children: ui.Text("body")}
 		}},
-		{"modal/subtitle-only-sm", func() ui.Node { return ui.Modal{Subtitle: "Sub", Size: "sm", Children: ui.Text("b")}.Render() }},
+		{"modal/subtitle-only-sm", func() ui.Node { return ui.Modal{Subtitle: "Sub", Size: "sm", Children: ui.Text("b")} }},
 		{"modal/closed-xl-open", func() ui.Node {
-			return ui.Modal{Ref: "c", Closed: true, Open: true, Size: "xl", Children: ui.Text("b")}.Render()
+			return ui.Modal{Ref: "c", Closed: true, Open: true, Size: "xl", Children: ui.Text("b")}
 		}},
-		{"modal/closed-notitle", func() ui.Node { return ui.Modal{Closed: true, Size: "md"}.Render() }},
+		{"modal/closed-notitle", func() ui.Node { return ui.Modal{Closed: true, Size: "md"} }},
 		{"modal/onclose", func() ui.Node {
-			return ui.Modal{Ref: "srv", Open: true, OnClose: kitSave, Title: ui.Text("Server"), Children: ui.Text("b")}.Render()
+			return ui.Modal{Ref: "srv", Open: true, OnClose: kitSave, Title: ui.Text("Server"), Children: ui.Text("b")}
 		}},
 		{"modal/commands", func() ui.Node {
 			return ui.El("div", nil, ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.OpenModal("m")}}), ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.CloseModal("m")}}))
@@ -134,44 +134,44 @@ func kitCases() []kitCase {
 			return ui.Tabs{Tabs: []ui.Tab{
 				{Label: "Placements", Href: "/tasks?type=placements", Active: true, Count: ui.Count(42)},
 				{Label: "Permits", Href: "/tasks?type=permits", Patch: true, Icon: "users", ID: "t2", Count: ui.Count(1234)},
-			}, Class: "mb-0"}.Render()
+			}, Class: "mb-0"}
 		}},
 		{"tabs/live", func() ui.Node {
 			return ui.Tabs{Tabs: []ui.Tab{
 				{Label: "A", On: func() { kitPick("a") }, Active: true, ID: "a"},
 				{Label: "B", Icon: "list"},
 				{Label: "C & D", On: ui.JS.Show(ui.Ref("x")), Count: ui.Count(0)},
-			}}.Render()
+			}}
 		}},
-		{"tabs/empty", func() ui.Node { return ui.Tabs{}.Render() }},
+		{"tabs/empty", func() ui.Node { return ui.Tabs{} }},
 
 		{"theme/styletag", ui.StyleTag},
 
 		{"tile", func() ui.Node {
-			return ui.Tile{Label: "Applications", Icon: "file-text", Value: int64(1234567)}.Render()
+			return ui.Tile{Label: "Applications", Icon: "file-text", Value: int64(1234567)}
 		}},
 		{"tile/variants", func() ui.Node {
 			return ui.TileGrid(
-				ui.Tile{Label: "A", Value: 5, Variant: ui.Success, Icon: "check", Class: "x"}.Render(),
-				ui.Tile{Label: "B", Value: -12840}.Render(),
-				ui.Tile{Label: "C", Value: uint32(1000), Variant: ui.Danger, Icon: "x"}.Render(),
-				ui.Tile{Label: "D", Value: "n/a"}.Render(),
-				ui.Tile{Label: "E", Value: 3.5}.Render(),
-				ui.Tile{Label: "F", Value: nil}.Render(),
-				ui.Tile{Label: "G", Value: uint(7), Icon: "info", Variant: ui.Info}.Render(),
-				ui.Tile{Label: "H", Value: int32(-1000), Icon: "warning", Variant: ui.Warning}.Render(),
-				ui.Tile{Label: "I", Value: uint64(999)}.Render(),
+				ui.Tile{Label: "A", Value: 5, Variant: ui.Success, Icon: "check", Class: "x"},
+				ui.Tile{Label: "B", Value: -12840},
+				ui.Tile{Label: "C", Value: uint32(1000), Variant: ui.Danger, Icon: "x"},
+				ui.Tile{Label: "D", Value: "n/a"},
+				ui.Tile{Label: "E", Value: 3.5},
+				ui.Tile{Label: "F", Value: nil},
+				ui.Tile{Label: "G", Value: uint(7), Icon: "info", Variant: ui.Info},
+				ui.Tile{Label: "H", Value: int32(-1000), Icon: "warning", Variant: ui.Warning},
+				ui.Tile{Label: "I", Value: uint64(999)},
 			)
 		}},
 		{"tilegrid/empty", func() ui.Node { return ui.TileGrid() }},
 
-		{"toasts", func() ui.Node { return ui.ToastContainer{}.Render() }},
+		{"toasts", func() ui.Node { return ui.ToastContainer{} }},
 		{"toasts/all", func() ui.Node {
 			return ui.ToastContainer{Ref: "n", Position: ui.ToastBottomLeft, Class: "x", Children: ui.Fragment(
-				ui.Toast{Children: ui.Text("plain")}.Render(),
-				ui.Toast{ID: "saved", Variant: ui.AlertSuccess, Title: "Saved", Timeout: 4 * time.Second, Class: "y", Children: ui.Text("Done")}.Render(),
-				ui.Toast{Variant: ui.AlertError, Closed: true, Title: "No"}.Render(),
-			)}.Render()
+				ui.Toast{Children: ui.Text("plain")},
+				ui.Toast{ID: "saved", Variant: ui.AlertSuccess, Title: "Saved", Timeout: 4 * time.Second, Class: "y", Children: ui.Text("Done")},
+				ui.Toast{Variant: ui.AlertError, Closed: true, Title: "No"},
+			)}
 		}},
 		{"toast/commands", func() ui.Node {
 			return ui.El("div", nil,
@@ -180,16 +180,16 @@ func kitCases() []kitCase {
 				ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.DismissToastRef("t")}}))
 		}},
 
-		{"form", func() ui.Node { return ui.Form{Children: ui.Text("x")}.Render() }},
+		{"form", func() ui.Node { return ui.Form{Children: ui.Text("x")} }},
 		{"form/all", func() ui.Node {
 			return ui.Form{ID: "sign", OnSubmit: func(struct{}) {}, OnChange: ui.JS.Show(ui.Ref("x")), Method: "get", Action: "/sign",
 				Error: "Could not reach the provider.", CSRF: ui.El("input", []ui.Attr{{Name: "type", Value: "hidden"}, {Name: "name", Value: "csrf"}}),
 				Class: "grid", Children: ui.Fragment(
-					ui.Input{Name: "username", Label: "Username", Value: "ada", Disabled: true}.Render(),
-					ui.Submit{Children: ui.Text("Sign")}.Render(),
-				)}.Render()
+					ui.Input{Name: "username", Label: "Username", Value: "ada", Disabled: true},
+					ui.Submit{Children: ui.Text("Sign")},
+				)}
 		}},
-		{"form/nochildren", func() ui.Node { return ui.Form{}.Render() }},
+		{"form/nochildren", func() ui.Node { return ui.Form{} }},
 		{"field", field(ui.Field{Name: "n", Label: "N", Type: "number", Min: "1", Max: "9", Step: "2", Value: "3"})},
 		{"field/nolabel", field(ui.Field{Name: "q"})},
 		{"input/all", field(ui.Input{Name: "email", Label: "Email", Type: "email", Value: "a@b", Required: true, Help: "We never share it.",
@@ -207,39 +207,39 @@ func kitCases() []kitCase {
 		{"checkbox/off", field(ui.Checkbox{Name: "agree", Label: "No", Disabled: true, Help: "h", Error: "e", Class: "c",
 			Attrs: []ui.Attr{{Name: "data-z", Value: "z"}}})},
 
-		{"table", func() ui.Node { return ui.Table[book]{Columns: kitCols(), Rows: kitBooks}.Render() }},
+		{"table", func() ui.Node { return ui.Table[book]{Columns: kitCols(), Rows: kitBooks} }},
 		{"table/all", func() ui.Node {
 			return ui.Table[book]{Columns: kitCols(), Rows: kitBooks,
 				RowKey:      func(b book) any { return b.ID },
 				RowHref:     func(b book) string { return "/books/" + b.Title },
-				RowActions:  func(b book) ui.Node { return ui.Button{Size: ui.SizeSm, Children: ui.Text("Edit")}.Render() },
+				RowActions:  func(b book) ui.Node { return ui.Button{Size: ui.SizeSm, Children: ui.Text("Edit")} },
 				Selectable:  true,
 				RowSelected: func(b book) bool { return b.ID == 2 },
 				OnSelect:    func(b book) any { return kitSel },
 				OnSelectAll: kitSel, SomeSelected: true,
-				Index: true, IndexFrom: 10, Flush: true, Class: "x"}.Render()
+				Index: true, IndexFrom: 10, Flush: true, Class: "x"}
 		}},
 		{"table/plain-select", func() ui.Node {
 			return ui.Table[book]{Columns: kitCols()[:2], Rows: kitBooks[:2], Selectable: true, SelectName: "ids",
-				RowKey: func(b book) any { return b.ID }, RowSelected: func(b book) bool { return true }, OnSelectAll: kitSel, AllSelected: true, SomeSelected: true}.Render()
+				RowKey: func(b book) any { return b.ID }, RowSelected: func(b book) bool { return true }, OnSelectAll: kitSel, AllSelected: true, SomeSelected: true}
 		}},
 		{"table/select-nokey", func() ui.Node {
-			return ui.Table[book]{Columns: kitCols()[:1], Rows: kitBooks[:1], Selectable: true}.Render()
+			return ui.Table[book]{Columns: kitCols()[:1], Rows: kitBooks[:1], Selectable: true}
 		}},
 		{"table/empty", func() ui.Node {
-			return ui.Table[book]{Columns: kitCols(), Selectable: true, Index: true}.Render()
+			return ui.Table[book]{Columns: kitCols(), Selectable: true, Index: true}
 		}},
 		{"table/empty-icon", func() ui.Node {
 			return ui.Table[book]{Columns: kitCols()[:1], EmptyIcon: ui.Icon("list-checks"), Empty: ui.Text("No tasks available."),
-				RowActions: func(book) ui.Node { return nil }}.Render()
+				RowActions: func(book) ui.Node { return nil }}
 		}},
-		{"table/empty-custom", func() ui.Node { return ui.Table[book]{Empty: ui.Text("none")}.Render() }},
+		{"table/empty-custom", func() ui.Node { return ui.Table[book]{Empty: ui.Text("none")} }},
 
 		{"datatable", func() ui.Node {
-			return ui.DataTable[book]{Columns: kitCols(), Page: ui.NewPage(kitBooks, 3, 1, 10)}.Render()
+			return ui.DataTable[book]{Columns: kitCols(), Page: ui.NewPage(kitBooks, 3, 1, 10)}
 		}},
 		{"datatable/empty", func() ui.Node {
-			return ui.DataTable[book]{Columns: kitCols(), Page: ui.NewPage([]book{}, 0, 1, 10), Class: "x"}.Render()
+			return ui.DataTable[book]{Columns: kitCols(), Page: ui.NewPage([]book{}, 0, 1, 10), Class: "x"}
 		}},
 		{"datatable/all", func() ui.Node {
 			return ui.DataTable[book]{Columns: kitCols(), Page: ui.NewPage(kitBooks, 200, 7, 10),
@@ -248,18 +248,18 @@ func kitCases() []kitCase {
 				RowKey: func(b book) any { return b.ID }, RowHref: func(b book) string { return "/b" },
 				Selectable: true, OnSelect: func(b book) any { return kitSel }, RowSelected: func(b book) bool { return false },
 				OnSelectAll: kitSel, Index: true, Empty: ui.Text("none"), Flush: true, Class: "x",
-				Toolbar: ui.Button{Children: ui.Text("New")}.Render(),
-				Tabs:    ui.Tabs{Tabs: []ui.Tab{{Label: "All", Href: "/", Active: true}}}.Render()}.Render()
+				Toolbar: ui.Button{Children: ui.Text("New")},
+				Tabs:    ui.Tabs{Tabs: []ui.Tab{{Label: "All", Href: "/", Active: true}}}}
 		}},
 		{"datatable/sort-asc-search", func() ui.Node {
 			return ui.DataTable[book]{Columns: kitCols(), Page: ui.NewPage(kitBooks, 30, 1, 10),
-				OnSearch: ui.JS.Show(ui.Ref("x")), OnSort: kitPick, Sort: "id", SortDir: "asc", OnPage: kitPage, OnSize: kitPage}.Render()
+				OnSearch: ui.JS.Show(ui.Ref("x")), OnSort: kitPick, Sort: "id", SortDir: "asc", OnPage: kitPage, OnSize: kitPage}
 		}},
 		{"datatable/toolbar-static-pager", func() ui.Node {
-			return ui.DataTable[book]{Columns: kitCols(), Page: ui.NewPage(kitBooks, 30, 3, 10), Toolbar: ui.Text("t"), Window: -1}.Render()
+			return ui.DataTable[book]{Columns: kitCols(), Page: ui.NewPage(kitBooks, 30, 3, 10), Toolbar: ui.Text("t"), Window: -1}
 		}},
 		{"datatable/tabs-only", func() ui.Node {
-			return ui.DataTable[book]{Columns: kitCols()[:1], Page: ui.NewPage(kitBooks, 3, 1, 10), Tabs: ui.Text("tabs"), OnSort: kitPick}.Render()
+			return ui.DataTable[book]{Columns: kitCols()[:1], Page: ui.NewPage(kitBooks, 3, 1, 10), Tabs: ui.Text("tabs"), OnSort: kitPick}
 		}},
 	}
 	return cs

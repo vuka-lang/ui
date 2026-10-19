@@ -91,7 +91,8 @@ The kit — `Button`, `Submit`, `Badge`, `Card`, `Alert`, `Modal`, `Tabs`,
 `Textarea`, `Select`, `Checkbox`), `Image`, `Tile`, `Toast` and
 `ToastContainer`, with the partials `Actions`, `Cancel`, `Icon`, `Spinner` and
 `TileGrid` — is styled by the `--ui-*` tokens `StyleTag` puts in a page. Each
-component is a struct whose fields are its props. In markup it is a tag, its
+component is a struct whose fields are its props, and itself a `ui.Node`
+(a `templ.Component`). In markup it is a tag, its
 attributes camelCase, its children the `Children` field and
 `<slot:x>` the `X` field:
 
@@ -102,14 +103,18 @@ attributes camelCase, its children the `Children` field and
 </ui.Card>
 ```
 
-In Go it is a struct literal and its `Render`:
+In Go it is the struct literal, given to a hole, returned or passed as it
+is:
 
 ```go
-ui.Card{Title: ui.Text("Members"), NoPad: true, Children: table}.Render()
+ui.Card{Title: ui.Text("Members"), NoPad: true, Children: table}
 ```
 
 The kit is written the way an app's components are: `card.go` declares the
-type, `card.vuka.html` is its `Render`.
+type, `card.vuka.html` is its markup, the `View` method; the compiler adds
+the templ method, `Render(ctx, w)`, that renders it. HTML rendering and live
+sessions read the `View` itself, so a component renders, diffs and keys as
+its markup does.
 
 ```go
 // card.go
@@ -124,7 +129,7 @@ type Card struct {
 
 ```html
 <!-- card.vuka.html -->
-func (c Card) Render()
+func (c Card) View()
 <div class={withClass("vk-card", c.Class)}>
   if c.Title != nil || c.Header != nil {
     <div class="vk-card__header">
@@ -147,10 +152,11 @@ The former props types are aliases of the components, deprecated:
 `ui.CardProps` is `ui.Card`, and so on for `AlertProps`, `BadgeProps`,
 `ButtonProps`, `DataTableProps[T]`, `FieldProps`, `FormProps`, `ImageProps`,
 `ModalProps`, `TableProps[T]`, `TabsProps`, `TileProps`,
-`ToastContainerProps` and `ToastProps`. A call of the former function,
-`ui.Card(ui.CardProps{…})`, is now `ui.Card{…}.Render()` — `vuka fix
-ui-structs` rewrites those calls; tags are unchanged, with a `vuka` command
-that lowers a tag naming a struct to its `Render`.
+`ToastContainerProps` and `ToastProps`. So a call of the former function,
+`ui.Card(ui.CardProps{…})`, still compiles — a conversion of the literal to
+the component — except for the generic ones, `ui.Table[Row]{…}`; `vuka fix
+ui-structs` writes them all as literals. Tags are unchanged, with a `vuka`
+command that lowers a tag naming a struct component to the literal.
 
 ## Working on ui
 

@@ -6,7 +6,7 @@ package ui
 // Actions is a right-aligned row of buttons, for a modal footer or a card
 // header:
 //
-//	{ui.Actions(ui.Cancel(m.Close), ui.Button{Variant: ui.Primary, On: m.Save, Children: ui.Text("Save")}.Render())}
+//	{ui.Actions(ui.Cancel(m.Close), ui.Button{Variant: ui.Primary, On: m.Save, Children: ui.Text("Save")})}
 //
 //line actions.vuka.html:5
 func Actions(buttons ...Node) Node { return HTML(`<div class="vk-actions">{buttons}</div>`, buttons) }

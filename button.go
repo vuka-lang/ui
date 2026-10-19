@@ -1,5 +1,10 @@
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 // Variant is a component's tone, shared by Button and Badge. It maps to the
 // --ui-* colour tokens, not to any framework's class names.
 type Variant string
@@ -76,7 +81,7 @@ type Button struct {
 
 // ButtonProps is Button, by its former name.
 //
-// Deprecated: use Button: ui.Button{…}.Render(), or <ui.Button …> in a template.
+// Deprecated: use Button: ui.Button{…}, or <ui.Button …> in a template.
 type ButtonProps = Button
 
 func (b Button) classes() string {
@@ -119,12 +124,15 @@ func (b Button) lead() Node {
 //	<ui.Submit>Save</ui.Submit>
 type Submit Button
 
-// Render is the Button the submit button is.
-func (s Submit) Render() Node {
+// View is the Button the submit button is.
+func (s Submit) View() Node {
 	b := Button(s)
 	b.Type = "submit"
 	if b.Variant == "" {
 		b.Variant = Primary
 	}
-	return b.Render()
+	return b.View()
 }
+
+// Render renders the submit button's View.
+func (s Submit) Render(ctx context.Context, w io.Writer) error { return s.View().Render(ctx, w) }

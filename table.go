@@ -80,7 +80,7 @@ type Table[T any] struct {
 
 // TableProps is Table, by its former name.
 //
-// Deprecated: use Table: ui.Table[T]{…}.Render(), or <ui.Table …> in a
+// Deprecated: use Table: ui.Table[T]{…}, or <ui.Table …> in a
 // template.
 type TableProps[T any] = Table[T]
 

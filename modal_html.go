@@ -3,8 +3,13 @@
 //line modal.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line modal.vuka.html:1
-func (m Modal) Render() Node {
+func (m Modal) View() Node {
 	var div []Node
 //line modal.vuka.html:5
 	if m.Icon != nil || m.Title != nil || m.Subtitle != "" || !m.Closed {
@@ -67,3 +72,6 @@ func (m Modal) Render() Node {
 		div3,
 	)
 }
+
+//line modal.vuka.html:30
+func (m Modal) Render(ctx context.Context, w io.Writer) error { return m.View().Render(ctx, w) }

@@ -3,8 +3,13 @@
 //line table.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line table.vuka.html:1
-func (t Table[T]) Render() Node {
+func (t Table[T]) View() Node {
 	var th2 []Node
 //line table.vuka.html:6
 	if t.Selectable {
@@ -93,9 +98,10 @@ func (t Table[T]) Render() Node {
 	)
 }
 
+//line table.vuka.html:47
+func (t Table[T]) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }
+
 // emptyState is what the body shows when there are no rows.
-//
-//line table.vuka.html:50
 func (t Table[T]) emptyState() Node {
 	var empty2 []Node
 //line table.vuka.html:51

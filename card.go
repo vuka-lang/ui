@@ -8,7 +8,7 @@ package ui
 //		{table}
 //	</ui.Card>
 //
-// or in Go, ui.Card{Title: ui.Text("Members"), Children: table}.Render().
+// or in Go, ui.Card{Title: ui.Text("Members"), Children: table}.
 type Card struct {
 	// Title is the header's left content; a string becomes a heading, any
 	// other Node is placed as is.
@@ -23,5 +23,5 @@ type Card struct {
 
 // CardProps is Card, by its former name.
 //
-// Deprecated: use Card: ui.Card{…}.Render(), or <ui.Card …> in a template.
+// Deprecated: use Card: ui.Card{…}, or <ui.Card …> in a template.
 type CardProps = Card

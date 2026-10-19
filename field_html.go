@@ -3,8 +3,13 @@
 //line field.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line field.vuka.html:1
-func (f Field) Render() Node {
+func (f Field) View() Node {
 	var label2 []Node
 	if f.kind == kindCheckbox {
 //line field.vuka.html:5
@@ -60,9 +65,10 @@ func (f Field) Render() Node {
 </div>`, f.classes(), label2, div, div2)
 }
 
+//line field.vuka.html:25
+func (f Field) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }
+
 // input is the field's control: a textarea, a select or an input.
-//
-//line field.vuka.html:28
 func (f Field) input() Node {
 	var textarea []Node
 //line field.vuka.html:29

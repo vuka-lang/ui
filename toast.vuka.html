@@ -1,4 +1,4 @@
-func (t Toast) Render()
+func (t Toast) View()
 <div class={t.classes()} role="status" id={nonEmpty(t.ID)} ref={nonEmpty(t.ID)} style={t.life()}>
   <div class="vk-toast__body">
     if t.Title != "" {

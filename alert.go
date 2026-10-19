@@ -31,7 +31,7 @@ type Alert struct {
 
 // AlertProps is Alert, by its former name.
 //
-// Deprecated: use Alert: ui.Alert{…}.Render(), or <ui.Alert …> in a template.
+// Deprecated: use Alert: ui.Alert{…}, or <ui.Alert …> in a template.
 type AlertProps = Alert
 
 func (a Alert) classes() string {

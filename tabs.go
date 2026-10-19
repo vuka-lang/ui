@@ -37,7 +37,7 @@ type Tabs struct {
 
 // TabsProps is Tabs, by its former name.
 //
-// Deprecated: use Tabs: ui.Tabs{…}.Render(), or <ui.Tabs …> in a template.
+// Deprecated: use Tabs: ui.Tabs{…}, or <ui.Tabs …> in a template.
 type TabsProps = Tabs
 
 func (t Tab) classes() string {

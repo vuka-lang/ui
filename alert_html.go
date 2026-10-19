@@ -3,8 +3,13 @@
 //line alert.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line alert.vuka.html:1
-func (a Alert) Render() Node {
+func (a Alert) View() Node {
 	var div []Node
 //line alert.vuka.html:4
 	if a.Title != "" {
@@ -25,3 +30,6 @@ func (a Alert) Render() Node {
   {button}
 </div>`, a.classes(), div, a.Children, button)
 }
+
+//line alert.vuka.html:12
+func (a Alert) Render(ctx context.Context, w io.Writer) error { return a.View().Render(ctx, w) }

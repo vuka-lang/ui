@@ -23,7 +23,7 @@ type Tile struct {
 
 // TileProps is Tile, by its former name.
 //
-// Deprecated: use Tile: ui.Tile{…}.Render(), or <ui.Tile …> in a template.
+// Deprecated: use Tile: ui.Tile{…}, or <ui.Tile …> in a template.
 type TileProps = Tile
 
 func (t Tile) badgeClass() string {

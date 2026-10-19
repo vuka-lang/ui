@@ -3,8 +3,13 @@
 //line toast.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line toast.vuka.html:1
-func (t Toast) Render() Node {
+func (t Toast) View() Node {
 	value2 := nonEmpty(t.ID)
 	var div []Node
 	if t.Title != "" {
@@ -33,3 +38,6 @@ func (t Toast) Render() Node {
 		button,
 	)
 }
+
+//line toast.vuka.html:12
+func (t Toast) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }

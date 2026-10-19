@@ -3,8 +3,13 @@
 //line tabs.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line tabs.vuka.html:1
-func (t Tabs) Render() Node {
+func (t Tabs) View() Node {
 	var nodes2 []Node
 	for _, tab := range t.Tabs {
 		nodes2 = append(nodes2, tab.node())
@@ -13,7 +18,9 @@ func (t Tabs) Render() Node {
 	return HTML(`<div class={withClass("vk-tabs", t.Class)} role="tablist">{nodes2}</div>`, withClass("vk-tabs", t.Class), nodes2)
 }
 
-//line tabs.vuka.html:8
+//line tabs.vuka.html:6
+func (t Tabs) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }
+
 func (t Tab) node() Node {
 	var a2 []Node
 //line tabs.vuka.html:9

@@ -3,8 +3,13 @@
 //line card.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line card.vuka.html:1
-func (c Card) Render() Node {
+func (c Card) View() Node {
 	var div []Node
 	if c.Title != nil || c.Header != nil {
 		var div2 []Node
@@ -25,3 +30,6 @@ func (c Card) Render() Node {
   <div class="vk-card__body" class:vk-card__body--flush={c.NoPad}>{c.Children}</div>
 </div>`, withClass("vk-card", c.Class), div, c.NoPad, c.Children)
 }
+
+//line card.vuka.html:12
+func (c Card) Render(ctx context.Context, w io.Writer) error { return c.View().Render(ctx, w) }

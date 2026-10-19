@@ -3,8 +3,13 @@
 //line button.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line button.vuka.html:1
-func (b Button) Render() Node {
+func (b Button) View() Node {
 	var a2 []Node
 //line button.vuka.html:2
 	if b.Href != "" {
@@ -36,9 +41,10 @@ func (b Button) Render() Node {
 	return HTML(`{a2}`, a2)
 }
 
+//line button.vuka.html:10
+func (b Button) Render(ctx context.Context, w io.Writer) error { return b.View().Render(ctx, w) }
+
 // content is the button's icon (or spinner) and label.
-//
-//line button.vuka.html:13
 func (b Button) content() Node {
 	lead := b.lead()
 	var span2 []Node

@@ -39,7 +39,7 @@ type Image struct {
 
 // ImageProps is Image, by its former name.
 //
-// Deprecated: use Image: ui.Image{…}.Render(), or <ui.Image …> in a template.
+// Deprecated: use Image: ui.Image{…}, or <ui.Image …> in a template.
 type ImageProps = Image
 
 func (im Image) loading() string {

@@ -47,7 +47,7 @@ type Modal struct {
 
 // ModalProps is Modal, by its former name.
 //
-// Deprecated: use Modal: ui.Modal{…}.Render(), or <ui.Modal …> in a template.
+// Deprecated: use Modal: ui.Modal{…}, or <ui.Modal …> in a template.
 type ModalProps = Modal
 
 func (m Modal) ref() string {

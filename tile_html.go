@@ -3,8 +3,13 @@
 //line tile.vuka.html:1
 package ui
 
+import (
+	"context"
+	"io"
+)
+
 //line tile.vuka.html:1
-func (t Tile) Render() Node {
+func (t Tile) View() Node {
 	var span2 []Node
 	if t.Icon != "" {
 		span2 = append(span2, HTML(`<span class={t.badgeClass()}>{Icon(t.Icon)}</span>`, t.badgeClass(), Icon(t.Icon)))
@@ -19,3 +24,6 @@ func (t Tile) Render() Node {
   </div>
 </div>`, withClass("vk-tile", t.Class), span2, tileValue(t.Value), t.Label)
 }
+
+//line tile.vuka.html:10
+func (t Tile) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }
