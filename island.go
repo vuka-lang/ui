@@ -54,7 +54,10 @@ var islandReg sync.Map // reflect.Type (the props struct) -> *islandInfo
 //	@ui.Island("islands/Chart.vue", ui.Strategy("load"))
 //
 // A second string is a strategy too: @ui.Island("", "load").
-func Island(args ...any) func(*vuka.Type) {
+//
+// Beside a route decorator (@web.Live, @web.Get) it is the route's option,
+// as in Go: app.Live("/board", NewBoard, ui.Island(ui.Layout(page))).
+func Island(args ...any) IslandDecorator {
 	return func(t *vuka.Type) {
 		info := &islandInfo{Name: shortName(t.Name)}
 		strs := 0
@@ -85,6 +88,14 @@ func Island(args ...any) func(*vuka.Type) {
 		islandReg.Store(t.Reflect, info)
 	}
 }
+
+// IslandDecorator is what Island returns: a type decorator, which registers
+// the type it is given as an island, and an option of a route serving the
+// type as a page backed by its island, which applies it to the page's type.
+type IslandDecorator func(*vuka.Type)
+
+// Attrs makes the decorator a route's option: it is its one attribute.
+func (d IslandDecorator) Attrs() []any { return []any{d} }
 
 func (i *islandInfo) fail(err error) {
 	if i.err == nil {
