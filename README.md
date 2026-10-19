@@ -41,12 +41,13 @@ statics and dynamics that diffs as JSX does.
 
 ```go
 func (p *Orders) row(o Order) ui.Node {
+	cancel := func() { p.Cancel(o.ID) }
 	return ui.HTML(`
 <tr key={o.ID} class="row" class:late={o.Late}>
   <td>{o.Ref}</td>
   <td class="tabular-nums">{money(o.Total)}</td>
   <td><button onClick={cancel}>Cancel</button></td>
-</tr>`, o.ID, o.Late, o.Ref, money(o.Total), func() { p.Cancel(o.ID) })
+</tr>`, o.ID, o.Late, o.Ref, money(o.Total), cancel)
 }
 
 func (p *Orders) Render() ui.Node {
@@ -55,7 +56,7 @@ func (p *Orders) Render() ui.Node {
 }
 ```
 
-A label appearing twice is one value. Each hole is escaped for its place,
+A label appearing twice is one value; vukavet checks each value is written as its label. Each hole is escaped for its place,
 and a value of the wrong kind fails the render with the file, line and
 hole:
 
