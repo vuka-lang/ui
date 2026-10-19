@@ -10,9 +10,9 @@ import (
 
 //line form.vuka.html:1
 func (f Form) View() Node {
-	var alert []Node
+	var alert Node
 	if f.Error != "" {
-		alert = append(alert, Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)})
+		alert = Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)}
 	}
 //line form.vuka.html:1
 	return HTML(`

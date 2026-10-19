@@ -10,10 +10,10 @@ import (
 
 //line button.vuka.html:1
 func (b Button) View() Node {
-	var a2 []Node
+	var a2 Node
 //line button.vuka.html:2
 	if b.Href != "" {
-		a2 = append(a2, HTML(`<a class={b.classes()} href={b.Href} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} data-vk-link={b.Nav} aria-disabled={when(b.Loading || b.Disabled, "true")} {b.Attrs...}>{b.content()}</a>`,
+		a2 = HTML(`<a class={b.classes()} href={b.Href} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} data-vk-link={b.Nav} aria-disabled={when(b.Loading || b.Disabled, "true")} {b.Attrs...}>{b.content()}</a>`,
 			b.classes(),
 			b.Href,
 			nonEmpty(b.ID),
@@ -22,9 +22,9 @@ func (b Button) View() Node {
 			when(b.Loading || b.Disabled, "true"),
 			b.Attrs,
 			b.content(),
-		))
+		)
 	} else {
-		a2 = append(a2, HTML(`<button class={b.classes()} type={b.typ()} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} form={nonEmpty(b.Form)} disabled={b.Disabled || b.Loading} aria-busy={when(b.Loading, "true")} {on("onClick", b.On)...} {b.Attrs...}>{b.content()}</button>`,
+		a2 = HTML(`<button class={b.classes()} type={b.typ()} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} form={nonEmpty(b.Form)} disabled={b.Disabled || b.Loading} aria-busy={when(b.Loading, "true")} {on("onClick", b.On)...} {b.Attrs...}>{b.content()}</button>`,
 			b.classes(),
 			b.typ(),
 			nonEmpty(b.ID),
@@ -35,10 +35,10 @@ func (b Button) View() Node {
 			on("onClick", b.On),
 			b.Attrs,
 			b.content(),
-		))
+		)
 	}
 //line button.vuka.html:1
-	return HTML(`{a2}`, a2)
+	return a2
 }
 
 //line button.vuka.html:10
@@ -47,17 +47,17 @@ func (b Button) Render(ctx context.Context, w io.Writer) error { return b.View()
 // content is the button's icon (or spinner) and label.
 func (b Button) content() Node {
 	lead := b.lead()
-	var span2 []Node
+	var span2 Node
 //line button.vuka.html:15
 	if lead != nil {
-		span2 = append(span2, HTML(`<span class="vk-btn__icon">{lead}</span>`, lead))
+		span2 = HTML(`<span class="vk-btn__icon">{lead}</span>`, lead)
 	}
-	var span22 []Node
+	var span22 Node
 //line button.vuka.html:18
 	if b.Children != nil && !b.IconOnly {
-		span22 = append(span22, HTML(`<span class="vk-btn__label">{b.Children}</span>`, b.Children))
+		span22 = HTML(`<span class="vk-btn__label">{b.Children}</span>`, b.Children)
 	} else {
-		span22 = append(span22, b.Children)
+		span22 = b.Children
 	}
 //line button.vuka.html:13
 	return HTML(`

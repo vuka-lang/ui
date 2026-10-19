@@ -184,7 +184,7 @@ func (b *Board) Render() ui.Node {
 				<li key={it.ID}>{it.Name} <Counter Label={it.Name} /><button onClick={func() { b.Remove(it.ID) }}>x</button></li>
 			}}
 		</ul>
-		<ol>{for i, it := range b.items { <li>{i}: {it.Name}</li> }}</ol>
+		<ol>{for i, it := range b.items { <li key={it.ID}>{i}: {it.Name}</li> }}</ol>
 		{if b.open {
 			<p onClick={b.Toggle}>open {b.note}</p>
 		} else if len(b.items) == 0 {

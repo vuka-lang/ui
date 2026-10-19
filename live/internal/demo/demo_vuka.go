@@ -69,16 +69,16 @@ func (t *Table) Render() ui.Node {
 	var texts []ui.Node
 //line demo.vuka:53
 	for i := range t.N {
-		var plainRow []ui.Node
+		var plainRow ui.Node
 //line demo.vuka:54
 		if t.Plain {
 //line demo.vuka:54
-			plainRow = append(plainRow, ui.Key(i, &PlainRow{ID: i, Name: "row " + strconv.Itoa(i)}))
+			plainRow = ui.Key(i, &PlainRow{ID: i, Name: "row " + strconv.Itoa(i)})
 		} else {
 //line demo.vuka:54
-			plainRow = append(plainRow, ui.Key(i, &Row{ID: i, Name: "row " + strconv.Itoa(i)}))
+			plainRow = ui.Key(i, &Row{ID: i, Name: "row " + strconv.Itoa(i)})
 		}
-		texts = append(texts, ui.HTML(`{plainRow}`, plainRow))
+		texts = append(texts, plainRow)
 	}
 //line demo.vuka:51
 	return ui.HTML(`
@@ -236,28 +236,28 @@ func (b *Board) Render() ui.Node {
 //line demo.vuka:187
 	for i, it := range b.items {
 //line demo.vuka:187
-		lis2 = append(lis2, ui.HTML(`<li>{i}: {it.Name}</li>`, i, it.Name))
+		lis2 = append(lis2, ui.HTML(`<li key={it.ID}>{i}: {it.Name}</li>`, it.ID, i, it.Name))
 	}
-	var p []ui.Node
+	var p ui.Node
 //line demo.vuka:188
 	if b.open {
-		p = append(p, ui.HTML(`<p onClick={b.Toggle}>open {b.note}</p>`, b.Toggle, b.note))
+		p = ui.HTML(`<p onClick={b.Toggle}>open {b.note}</p>`, b.Toggle, b.note)
 	} else if len(b.items) == 0 {
-		p = append(p, ui.HTML(`<p>empty</p>`))
+		p = ui.HTML(`<p>empty</p>`)
 	} else {
-		p = append(p, ui.HTML(`<p>closed</p>`))
+		p = ui.HTML(`<p>closed</p>`)
 	}
-	var b2 []ui.Node
+	var b2 ui.Node
 //line demo.vuka:195
 	if m1 := b.mode; false {
 		panic(m1)
 	} else if m1 == "big" {
-		b2 = append(b2, ui.HTML(`<b>BIG</b>`))
+		b2 = ui.HTML(`<b>BIG</b>`)
 	} else if m1 == "note" {
 //line demo.vuka:199
-		b2 = append(b2, ui.HTML(`<input onInput={b.Note} value={b.note}/>`, b.Note, b.note))
+		b2 = ui.HTML(`<input onInput={b.Note} value={b.note}/>`, b.Note, b.note)
 	} else if true {
-		b2 = append(b2, ui.El("i", nil, ui.Text("opaque "+b.mode), ui.Component("demo#opaque", nil, &Counter{Label: "inner"})))
+		b2 = ui.El("i", nil, ui.Text("opaque "+b.mode), ui.Component("demo#opaque", nil, &Counter{Label: "inner"}))
 	} else {
 		panic("vuka: no case matched")
 	}

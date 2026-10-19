@@ -10,18 +10,18 @@ import (
 
 //line card.vuka.html:1
 func (c Card) View() Node {
-	var div []Node
+	var div Node
 	if c.Title != nil || c.Header != nil {
-		var div2 []Node
+		var div2 Node
 //line card.vuka.html:6
 		if c.Header != nil {
-			div2 = append(div2, HTML(`<div class="vk-card__header-actions">{c.Header}</div>`, c.Header))
+			div2 = HTML(`<div class="vk-card__header-actions">{c.Header}</div>`, c.Header)
 		}
-		div = append(div, HTML(`
+		div = HTML(`
 <div class="vk-card__header">
   <div class="vk-card__title">{c.Title}</div>
   {div2}
-</div>`, c.Title, div2))
+</div>`, c.Title, div2)
 	}
 //line card.vuka.html:1
 	return HTML(`

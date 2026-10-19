@@ -46,3 +46,10 @@ func TestStates(t *testing.T) {
 		t.Fatalf("got %s %v", got, err)
 	}
 }
+
+func TestCSSVars(t *testing.T) {
+	got, err := ui.String(context.Background(), ui.El("p", []ui.Attr{{Name: "style", Value: ui.CSSVars("color: red", "--accent", "#0a0", "--n", 3)}}))
+	if want := `<p style="--accent:#0a0;--n:3;color:red;"></p>`; err != nil || got != want {
+		t.Fatalf("got %s %v, want %s", got, err, want)
+	}
+}

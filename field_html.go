@@ -10,11 +10,11 @@ import (
 
 //line field.vuka.html:1
 func (f Field) View() Node {
-	var label2 []Node
+	var label2 Node
 	if f.kind == kindCheckbox {
 //line field.vuka.html:5
 		value2 := f.id()
-		label2 = append(label2, HTML(`
+		label2 = HTML(`
 <label class="vk-check" for={f.id()}>
   <input type="checkbox" class="vk-check__box" id={value2} name={f.Name} value="true" checked={f.Value == "true"} disabled={f.Disabled} {f.Attrs...}/>
   <span class="vk-check__label">{f.Label}</span>
@@ -26,35 +26,35 @@ func (f Field) View() Node {
 			f.Disabled,
 			f.Attrs,
 			f.Label,
-		))
+		)
 	} else {
-		var label22 []Node
+		var label22 Node
 //line field.vuka.html:9
 		if f.Label != "" {
-			var span2 []Node
+			var span2 Node
 //line field.vuka.html:12
 			if f.Required {
-				span2 = append(span2, HTML(`<span class="vk-field__req" aria-hidden="true">*</span>`))
+				span2 = HTML(`<span class="vk-field__req" aria-hidden="true">*</span>`)
 			}
-			label22 = append(label22, HTML(`
+			label22 = HTML(`
 <label class="vk-field__label" for={f.id()}>
   {f.Label}
   {span2}
-</label>`, f.id(), f.Label, span2))
+</label>`, f.id(), f.Label, span2)
 		}
-		label2 = append(label2, HTML(`
+		label2 = HTML(`
 {label22}
-{f.input()}`, label22, f.input()))
+{f.input()}`, label22, f.input())
 	}
-	var div []Node
+	var div Node
 //line field.vuka.html:19
 	if f.Help != "" {
-		div = append(div, HTML(`<div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>`, f.id()+"-help", f.Help))
+		div = HTML(`<div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>`, f.id()+"-help", f.Help)
 	}
-	var div2 []Node
+	var div2 Node
 //line field.vuka.html:22
 	if f.invalid() {
-		div2 = append(div2, HTML(`<div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>`, f.id()+"-error", f.Error))
+		div2 = HTML(`<div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>`, f.id()+"-error", f.Error)
 	}
 //line field.vuka.html:1
 	return HTML(`
@@ -70,29 +70,29 @@ func (f Field) Render(ctx context.Context, w io.Writer) error { return f.View().
 
 // input is the field's control: a textarea, a select or an input.
 func (f Field) input() Node {
-	var textarea []Node
+	var textarea Node
 //line field.vuka.html:29
 	switch f.kind {
 	case kindTextarea:
-		textarea = append(textarea, HTML(`<textarea class={f.control("vk-textarea")} rows={f.rows()} {f.common()...} placeholder={nonEmpty(f.Placeholder)}>{f.Value}</textarea>`, f.control("vk-textarea"), f.rows(), f.common(), nonEmpty(f.Placeholder), f.Value))
+		textarea = HTML(`<textarea class={f.control("vk-textarea")} rows={f.rows()} {f.common()...} placeholder={nonEmpty(f.Placeholder)}>{f.Value}</textarea>`, f.control("vk-textarea"), f.rows(), f.common(), nonEmpty(f.Placeholder), f.Value)
 	case kindSelect:
-		var option []Node
+		var option Node
 		if f.Placeholder != "" {
-			option = append(option, HTML(`<option value="" disabled selected={f.Value == ""}>{f.Placeholder}</option>`, f.Value == "", f.Placeholder))
+			option = HTML(`<option value="" disabled selected={f.Value == ""}>{f.Placeholder}</option>`, f.Value == "", f.Placeholder)
 		}
 		var options []Node
 //line field.vuka.html:37
 		for _, o := range f.Options {
 			options = append(options, HTML(`<option value={o.Value} selected={o.Value == f.Value}>{o.Label}</option>`, o.Value, o.Value == f.Value, o.Label))
 		}
-		textarea = append(textarea, HTML(`
+		textarea = HTML(`
 <select class={f.control("vk-select")} {f.common()...}>
   {option}
   {options}
-</select>`, f.control("vk-select"), f.common(), option, options))
+</select>`, f.control("vk-select"), f.common(), option, options)
 //line field.vuka.html:41
 	default:
-		textarea = append(textarea, HTML(`<input class={f.control("vk-input")} type={f.inputType()} value={f.Value} {f.common()...} placeholder={nonEmpty(f.Placeholder)} min={nonEmpty(f.Min)} max={nonEmpty(f.Max)} step={nonEmpty(f.Step)}/>`,
+		textarea = HTML(`<input class={f.control("vk-input")} type={f.inputType()} value={f.Value} {f.common()...} placeholder={nonEmpty(f.Placeholder)} min={nonEmpty(f.Min)} max={nonEmpty(f.Max)} step={nonEmpty(f.Step)}/>`,
 			f.control("vk-input"),
 			f.inputType(),
 			f.Value,
@@ -101,8 +101,8 @@ func (f Field) input() Node {
 			nonEmpty(f.Min),
 			nonEmpty(f.Max),
 			nonEmpty(f.Step),
-		))
+		)
 	}
 //line field.vuka.html:28
-	return HTML(`{textarea}`, textarea)
+	return textarea
 }

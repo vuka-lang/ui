@@ -10,9 +10,9 @@ import (
 
 //line tile.vuka.html:1
 func (t Tile) View() Node {
-	var span2 []Node
+	var span2 Node
 	if t.Icon != "" {
-		span2 = append(span2, HTML(`<span class={t.badgeClass()}>{Icon(t.Icon)}</span>`, t.badgeClass(), Icon(t.Icon)))
+		span2 = HTML(`<span class={t.badgeClass()}>{Icon(t.Icon)}</span>`, t.badgeClass(), Icon(t.Icon))
 	}
 //line tile.vuka.html:1
 	return HTML(`
