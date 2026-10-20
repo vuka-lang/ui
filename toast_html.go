@@ -8,20 +8,20 @@ import (
 	"io"
 )
 
-//line toast.vuka.html:1
+//line toast.vuka.html:3
 func (t Toast) View() Node {
-//line toast.vuka.html:1
+//line toast.vuka.html:3
 	value2 := nonEmpty(t.ID)
 	var div Node
 	if t.Title != "" {
 		div = HTML(`<div class="vk-toast__title">{t.Title}</div>`, t.Title)
 	}
 	var button Node
-//line toast.vuka.html:8
+//line toast.vuka.html:10
 	if !t.Closed {
 		button = HTML(`<button type="button" class="vk-toast__close" aria-label="Dismiss" onClick={DismissToast()}>×</button>`, DismissToast())
 	}
-//line toast.vuka.html:1
+//line toast.vuka.html:3
 	return HTML(`
 <div class={t.classes()} role="status" id={nonEmpty(t.ID)} ref={value2} style={t.life()}>
   <div class="vk-toast__body">
@@ -40,5 +40,5 @@ func (t Toast) View() Node {
 	)
 }
 
-//line toast.vuka.html:11
+//line toast.vuka.html:13
 func (t Toast) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }

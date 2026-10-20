@@ -8,10 +8,10 @@ import (
 	"io"
 )
 
-//line button.vuka.html:1
+//line button.vuka.html:3
 func (b Button) View() Node {
 	var a2 Node
-//line button.vuka.html:2
+//line button.vuka.html:4
 	if b.Href != "" {
 		a2 = HTML(`<a class={b.classes()} href={b.Href} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} data-vk-link={b.Nav} aria-disabled={when(b.Loading || b.Disabled, "true")} {b.Attrs...}>{b.content()}</a>`,
 			b.classes(),
@@ -37,29 +37,29 @@ func (b Button) View() Node {
 			b.content(),
 		)
 	}
-//line button.vuka.html:1
+//line button.vuka.html:3
 	return a2
 }
 
-//line button.vuka.html:10
+//line button.vuka.html:12
 func (b Button) Render(ctx context.Context, w io.Writer) error { return b.View().Render(ctx, w) }
 
 // content is the button's icon (or spinner) and label.
 func (b Button) content() Node {
 	lead := b.lead()
 	var span2 Node
-//line button.vuka.html:15
+//line button.vuka.html:17
 	if lead != nil {
 		span2 = HTML(`<span class="vk-btn__icon">{lead}</span>`, lead)
 	}
 	var span22 Node
-//line button.vuka.html:18
+//line button.vuka.html:20
 	if b.Children != nil && !b.IconOnly {
 		span22 = HTML(`<span class="vk-btn__label">{b.Children}</span>`, b.Children)
 	} else {
 		span22 = b.Children
 	}
-//line button.vuka.html:13
+//line button.vuka.html:15
 	return HTML(`
 {span2}
 {span22}`, span2, span22)
@@ -68,5 +68,5 @@ func (b Button) content() Node {
 // Spinner is the busy indicator Button and the form controls use: a spinning
 // ring drawn in CSS, so it needs no script.
 //
-//line button.vuka.html:26
+//line button.vuka.html:28
 func Spinner() Node { return HTML(`<span class="vk-spinner" aria-hidden="true"/>`) }

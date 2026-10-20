@@ -8,14 +8,14 @@ import (
 	"io"
 )
 
-//line toast_container.vuka.html:1
+//line toast_container.vuka.html:3
 func (t ToastContainer) View() Node {
-//line toast_container.vuka.html:1
+//line toast_container.vuka.html:3
 	return HTML(`<div ref={t.ref()} class={t.classes()} role="region" aria-label="Notifications" aria-live="polite">{t.Children}</div>`, t.ref(), t.classes(), t.Children)
 }
 
-//line toast_container.vuka.html:1
+//line toast_container.vuka.html:3
 func (t ToastContainer) Render(ctx context.Context, w io.Writer) error {
-//line toast_container.vuka.html:1
+//line toast_container.vuka.html:3
 	return t.View().Render(ctx, w)
 }

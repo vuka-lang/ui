@@ -8,11 +8,11 @@ import (
 	"io"
 )
 
-//line field.vuka.html:1
+//line field.vuka.html:3
 func (f Field) View() Node {
 	var label2 Node
 	if f.kind == kindCheckbox {
-//line field.vuka.html:5
+//line field.vuka.html:7
 		value2 := f.id()
 		label2 = HTML(`
 <label class="vk-check" for={f.id()}>
@@ -29,10 +29,10 @@ func (f Field) View() Node {
 		)
 	} else {
 		var label22 Node
-//line field.vuka.html:9
+//line field.vuka.html:11
 		if f.Label != "" {
 			var span2 Node
-//line field.vuka.html:12
+//line field.vuka.html:14
 			if f.Required {
 				span2 = HTML(`<span class="vk-field__req" aria-hidden="true">*</span>`)
 			}
@@ -47,16 +47,16 @@ func (f Field) View() Node {
 {f.input()}`, label22, f.input())
 	}
 	var div Node
-//line field.vuka.html:19
+//line field.vuka.html:21
 	if f.Help != "" {
 		div = HTML(`<div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>`, f.id()+"-help", f.Help)
 	}
 	var div2 Node
-//line field.vuka.html:22
+//line field.vuka.html:24
 	if f.invalid() {
 		div2 = HTML(`<div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>`, f.id()+"-error", f.Error)
 	}
-//line field.vuka.html:1
+//line field.vuka.html:3
 	return HTML(`
 <div class={f.classes()}>
   {label2}
@@ -65,13 +65,13 @@ func (f Field) View() Node {
 </div>`, f.classes(), label2, div, div2)
 }
 
-//line field.vuka.html:25
+//line field.vuka.html:27
 func (f Field) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }
 
 // input is the field's control: a textarea, a select or an input.
 func (f Field) input() Node {
 	var textarea Node
-//line field.vuka.html:29
+//line field.vuka.html:31
 	switch f.kind {
 	case kindTextarea:
 		textarea = HTML(`<textarea class={f.control("vk-textarea")} rows={f.rows()} {f.common()...} placeholder={nonEmpty(f.Placeholder)}>{f.Value}</textarea>`, f.control("vk-textarea"), f.rows(), f.common(), nonEmpty(f.Placeholder), f.Value)
@@ -81,7 +81,7 @@ func (f Field) input() Node {
 			option = HTML(`<option value="" disabled selected={f.Value == ""}>{f.Placeholder}</option>`, f.Value == "", f.Placeholder)
 		}
 		var options []Node
-//line field.vuka.html:37
+//line field.vuka.html:39
 		for _, o := range f.Options {
 			options = append(options, HTML(`<option value={o.Value} selected={o.Value == f.Value}>{o.Label}</option>`, o.Value, o.Value == f.Value, o.Label))
 		}
@@ -90,7 +90,7 @@ func (f Field) input() Node {
   {option}
   {options}
 </select>`, f.control("vk-select"), f.common(), option, options)
-//line field.vuka.html:41
+//line field.vuka.html:43
 	default:
 		textarea = HTML(`<input class={f.control("vk-input")} type={f.inputType()} value={f.Value} {f.common()...} placeholder={nonEmpty(f.Placeholder)} min={nonEmpty(f.Min)} max={nonEmpty(f.Max)} step={nonEmpty(f.Step)}/>`,
 			f.control("vk-input"),
@@ -103,6 +103,6 @@ func (f Field) input() Node {
 			nonEmpty(f.Step),
 		)
 	}
-//line field.vuka.html:28
+//line field.vuka.html:30
 	return textarea
 }

@@ -1,3 +1,5 @@
+package ui
+
 func (d DataTable[T]) View()
 <div class={withClass("vk-datatable", d.Class)}>
   if d.OnSearch != nil || d.Tabs != nil || d.Toolbar != nil {

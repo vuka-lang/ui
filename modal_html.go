@@ -8,24 +8,24 @@ import (
 	"io"
 )
 
-//line modal.vuka.html:1
+//line modal.vuka.html:3
 func (m Modal) View() Node {
 	var div Node
-//line modal.vuka.html:5
+//line modal.vuka.html:7
 	if m.Icon != nil || m.Title != nil || m.Subtitle != "" || !m.Closed {
 		var span2 Node
 		if m.Icon != nil {
 			span2 = HTML(`<span class="vk-modal__icon">{m.Icon}</span>`, m.Icon)
 		}
 		var div2 Node
-//line modal.vuka.html:10
+//line modal.vuka.html:12
 		if m.Title != nil || m.Subtitle != "" {
 			var h2 Node
 			if m.Title != nil {
 				h2 = HTML(`<h2 class="vk-modal__title">{m.Title}</h2>`, m.Title)
 			}
 			var p2 Node
-//line modal.vuka.html:15
+//line modal.vuka.html:17
 			if m.Subtitle != "" {
 				p2 = HTML(`<p class="vk-modal__subtitle">{m.Subtitle}</p>`, m.Subtitle)
 			}
@@ -36,7 +36,7 @@ func (m Modal) View() Node {
 </div>`, h2, p2)
 		}
 		var button Node
-//line modal.vuka.html:20
+//line modal.vuka.html:22
 		if !m.Closed {
 			button = HTML(`<button type="button" class="vk-modal__close" aria-label="Close" onClick={m.close()}>{Icon("x")}</button>`, m.close(), Icon("x"))
 		}
@@ -48,11 +48,11 @@ func (m Modal) View() Node {
 </div>`, span2, div2, button)
 	}
 	var div3 Node
-//line modal.vuka.html:26
+//line modal.vuka.html:28
 	if m.Footer != nil {
 		div3 = HTML(`<div class="vk-modal__footer">{m.Footer}</div>`, m.Footer)
 	}
-//line modal.vuka.html:1
+//line modal.vuka.html:3
 	return HTML(`
 <div ref={m.ref()} class="vk-modal-root" style={m.hidden()}>
   <div class="vk-modal-backdrop" {on("onClick", m.dismiss())...}/>
@@ -73,5 +73,5 @@ func (m Modal) View() Node {
 	)
 }
 
-//line modal.vuka.html:30
+//line modal.vuka.html:32
 func (m Modal) Render(ctx context.Context, w io.Writer) error { return m.View().Render(ctx, w) }

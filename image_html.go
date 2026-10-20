@@ -8,15 +8,15 @@ import (
 	"io"
 )
 
-//line image.vuka.html:1
+//line image.vuka.html:3
 func (im Image) View() Node {
 	var img2 Node
-//line image.vuka.html:2
+//line image.vuka.html:4
 	if im.Overlay == nil {
 		img2 = im.img()
 	} else {
 		var div Node
-//line image.vuka.html:7
+//line image.vuka.html:9
 		if im.Scrim {
 			div = HTML(`<div class="vk-img-scrim"/>`)
 		}
@@ -27,15 +27,15 @@ func (im Image) View() Node {
   <div class="vk-img-overlay">{im.Overlay}</div>
 </div>`, withClass("vk-img-wrap", im.WrapClass), im.img(), div, im.Overlay)
 	}
-//line image.vuka.html:1
+//line image.vuka.html:3
 	return img2
 }
 
-//line image.vuka.html:12
+//line image.vuka.html:14
 func (im Image) Render(ctx context.Context, w io.Writer) error { return im.View().Render(ctx, w) }
 
 func (im Image) img() Node {
-//line image.vuka.html:14
+//line image.vuka.html:16
 	return HTML(`<img src={im.Src} alt={im.Alt} loading={im.loading()} decoding="async" class={im.classes()} fetchpriority={when(im.Priority, "high")} srcset={nonEmpty(im.Srcset)} sizes={nonEmpty(im.Sizes)} width={when(im.Width > 0, im.Width)} height={when(im.Height > 0, im.Height)}/>`,
 		im.Src,
 		im.Alt,

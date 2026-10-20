@@ -8,13 +8,13 @@ import (
 	"io"
 )
 
-//line form.vuka.html:1
+//line form.vuka.html:3
 func (f Form) View() Node {
 	var alert Node
 	if f.Error != "" {
 		alert = Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)}
 	}
-//line form.vuka.html:1
+//line form.vuka.html:3
 	return HTML(`
 <form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...}>
   {alert}
@@ -33,5 +33,5 @@ func (f Form) View() Node {
 	)
 }
 
-//line form.vuka.html:8
+//line form.vuka.html:10
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

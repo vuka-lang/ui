@@ -9,14 +9,14 @@ import (
 	"strconv"
 )
 
-//line datatable.vuka.html:1
+//line datatable.vuka.html:3
 func (d DataTable[T]) View() Node {
 	var div Node
 	if d.OnSearch != nil || d.Tabs != nil || d.Toolbar != nil {
 		var div2 Node
-//line datatable.vuka.html:7
-		if d.OnSearch != nil {
 //line datatable.vuka.html:9
+		if d.OnSearch != nil {
+//line datatable.vuka.html:11
 			value2 := Icon("search", "vk-datatable__searchicon")
 			div2 = HTML(`
 <div class="vk-datatable__searchbox">
@@ -25,7 +25,7 @@ func (d DataTable[T]) View() Node {
 </div>`, value2, d.placeholder(), d.Search, on("onInput", d.OnSearch))
 		}
 		var div3 Node
-//line datatable.vuka.html:14
+//line datatable.vuka.html:16
 		if d.Toolbar != nil {
 			div3 = HTML(`<div class="vk-datatable__bar-right">{d.Toolbar}</div>`, d.Toolbar)
 		}
@@ -39,17 +39,17 @@ func (d DataTable[T]) View() Node {
 </div>`, d.Tabs, div2, div3)
 	}
 	var from2 Node
-//line datatable.vuka.html:22
+//line datatable.vuka.html:24
 	if d.Page.Total > 0 {
 		from2 = HTML(`Showing {d.Page.From()}–{d.Page.To()} of {d.Page.Total}`, d.Page.From(), d.Page.To(), d.Page.Total)
 	} else {
 		from2 = HTML(`No results`)
 	}
 	var label2 Node
-//line datatable.vuka.html:27
+//line datatable.vuka.html:29
 	if d.OnSize != nil && len(d.Sizes) > 0 {
 		var options []Node
-//line datatable.vuka.html:31
+//line datatable.vuka.html:33
 		for _, n := range d.Sizes {
 			options = append(options, HTML(`<option value={n} selected={n == d.Page.Size}>{n}</option>`, n, n == d.Page.Size))
 		}
@@ -59,7 +59,7 @@ func (d DataTable[T]) View() Node {
   <select aria-label="Rows per page" {on("onChange", d.OnSize)...}>{options}</select>
 </label>`, "Per page ", on("onChange", d.OnSize), options)
 	}
-//line datatable.vuka.html:1
+//line datatable.vuka.html:3
 	return HTML(`
 <div class={withClass("vk-datatable", d.Class)}>
   {div}
@@ -81,14 +81,14 @@ func (d DataTable[T]) View() Node {
 	)
 }
 
-//line datatable.vuka.html:40
+//line datatable.vuka.html:42
 func (d DataTable[T]) Render(ctx context.Context, w io.Writer) error { return d.View().Render(ctx, w) }
 
 // sortHeader is a sortable column's header: a button calling onSort with its
 // key, marked when its column is the sorted one.
 func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
 	var icon Node
-//line datatable.vuka.html:47
+//line datatable.vuka.html:49
 	if c.Sort != sort {
 		icon = Icon("caret-up-down", "vk-sort__ind")
 	} else if dir == "desc" {
@@ -96,7 +96,7 @@ func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
 	} else {
 		icon = Icon("caret-up", "vk-sort__ind vk-sort__ind--active")
 	}
-//line datatable.vuka.html:44
+//line datatable.vuka.html:46
 	return HTML(`
 <button type="button" class="vk-sort" aria-sort={sortAria(c.Sort == sort, dir)} onClick={JS.Push(onSort, Value(c.Sort))}>
   {c.Header}
@@ -106,15 +106,15 @@ func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
 
 // pager is a page's numbered buttons between previous and next.
 //
-//line datatable.vuka.html:57
+//line datatable.vuka.html:59
 func pager[T any](page Page[T], window int, onPage any) Node {
 	var div Node
-//line datatable.vuka.html:58
+//line datatable.vuka.html:60
 	if page.Pages <= 1 {
 		div = HTML(`<div class="vk-pager"/>`)
 	} else {
 		var pagerButtons []Node
-//line datatable.vuka.html:63
+//line datatable.vuka.html:65
 		for _, n := range page.Window(pagerWindow(window)) {
 			pagerButtons = append(pagerButtons, pagerButton(strconv.Itoa(n), "Page "+strconv.Itoa(n), n, true, n == page.Page, onPage))
 		}
@@ -125,12 +125,12 @@ func pager[T any](page Page[T], window int, onPage any) Node {
   {pagerButton("›", "Next page", page.Page+1, page.HasNext, false, onPage)}
 </nav>`, pagerButton("‹", "Previous page", page.Page-1, page.HasPrev, false, onPage), pagerButtons, pagerButton("›", "Next page", page.Page+1, page.HasNext, false, onPage))
 	}
-//line datatable.vuka.html:57
+//line datatable.vuka.html:59
 	return div
 }
 
-//line datatable.vuka.html:70
+//line datatable.vuka.html:72
 func pagerButton(label, aria string, target int, enabled, current bool, onPage any) Node {
-//line datatable.vuka.html:70
+//line datatable.vuka.html:72
 	return HTML(`<button type="button" aria-label={aria} aria-current={when(current, "page")} disabled={!enabled || onPage == nil} {pageTo(onPage, target, enabled)...}>{label}</button>`, aria, when(current, "page"), !enabled || onPage == nil, pageTo(onPage, target, enabled), label)
 }
