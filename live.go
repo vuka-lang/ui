@@ -26,8 +26,9 @@ import (
 // live) it is an instance that keeps its state between renders and answers
 // the events of the elements it renders.
 type Live struct {
-	inst  LiveInstance
-	loads *Loads // a page backed by its island: its deferred fields
+	inst    LiveInstance
+	loads   *Loads // a page backed by its island: its deferred fields
+	hookErr error  // a mistake of the hooks its constructor declares
 }
 
 // LiveInstance is a session's side of a component instance. Package live
@@ -176,13 +177,14 @@ func CopyLive(c Stateful) Stateful {
 // earlier releases, its Mount method: Mount(), Mount() error,
 // Mount(context.Context) or Mount(context.Context) error.
 func MountLive(ctx context.Context, c Stateful) error {
-	if s := liveSchemaOf(reflect.TypeOf(c)); s != nil {
-		if len(s.errs) > 0 {
-			return s.errs[0]
-		}
-		if s.mount != nil {
-			return liveHooks(reflect.ValueOf(c)).mount(ctx)
-		}
+	if l, ok := c.(interface{ vukaLive() *Live }); ok && l.vukaLive().hookErr != nil {
+		return l.vukaLive().hookErr
+	}
+	if err := schemaErr(reflect.TypeOf(c)); err != nil {
+		return err
+	}
+	if hasMount(reflect.TypeOf(c)) {
+		return liveHooks(reflect.ValueOf(c)).mount(ctx)
 	}
 	switch m := c.(type) {
 	case interface{ Mount(context.Context) error }:

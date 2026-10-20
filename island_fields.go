@@ -393,8 +393,16 @@ func fieldsJSON(fields []IslandField) string {
 	return string(j)
 }
 
-// hasOnChange reports whether t's LiveSchema sets an OnChange hook.
+// hasOnChange reports whether t's LiveSchema or constructor sets an
+// OnChange hook.
 func hasOnChange(t reflect.Type) bool {
-	s := liveSchemaOf(t)
-	return s != nil && s.onChange != nil
+	if s := liveSchemaOf(t); s != nil && s.onChange != nil {
+		return true
+	}
+	h := ctorHooksOf(t)
+	if h == nil {
+		return false
+	}
+	_, onChange, _, _ := h.snapshot()
+	return onChange.IsValid()
 }
