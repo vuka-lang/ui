@@ -1,3 +1,5 @@
+package ui
+
 func (m Modal) View()
 <div ref={m.ref()} class="vk-modal-root" style={m.hidden()}>
   <div class="vk-modal-backdrop" {on("onClick", m.dismiss())...}></div>

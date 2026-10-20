@@ -8,12 +8,12 @@ import (
 	"io"
 )
 
-//line card.vuka.html:1
+//line card.vuka.html:3
 func (c Card) View() Node {
 	var div Node
 	if c.Title != nil || c.Header != nil {
 		var div2 Node
-//line card.vuka.html:6
+//line card.vuka.html:8
 		if c.Header != nil {
 			div2 = HTML(`<div class="vk-card__header-actions">{c.Header}</div>`, c.Header)
 		}
@@ -23,7 +23,7 @@ func (c Card) View() Node {
   {div2}
 </div>`, c.Title, div2)
 	}
-//line card.vuka.html:1
+//line card.vuka.html:3
 	return HTML(`
 <div class={withClass("vk-card", c.Class)}>
   {div}
@@ -31,5 +31,5 @@ func (c Card) View() Node {
 </div>`, withClass("vk-card", c.Class), div, c.NoPad, c.Children)
 }
 
-//line card.vuka.html:12
+//line card.vuka.html:14
 func (c Card) Render(ctx context.Context, w io.Writer) error { return c.View().Render(ctx, w) }

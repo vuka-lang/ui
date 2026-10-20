@@ -8,18 +8,18 @@ import (
 	"io"
 )
 
-//line alert.vuka.html:1
+//line alert.vuka.html:3
 func (a Alert) View() Node {
 	var div Node
 	if a.Title != "" {
 		div = HTML(`<div class="vk-alert__title">{a.Title}</div>`, a.Title)
 	}
 	var button Node
-//line alert.vuka.html:8
+//line alert.vuka.html:10
 	if a.Dismissible {
 		button = HTML(`<button type="button" class="vk-alert__close" aria-label="Dismiss" onClick={JS.Hide(Closest(".vk-alert"))}>×</button>`, JS.Hide(Closest(".vk-alert")))
 	}
-//line alert.vuka.html:1
+//line alert.vuka.html:3
 	return HTML(`
 <div class={a.classes()} role="alert">
   <div class="vk-alert__body">

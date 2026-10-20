@@ -1,3 +1,5 @@
+package ui
+
 func (b Button) View()
 if b.Href != "" {
   <a class={b.classes()} href={b.Href} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} data-vk-link={b.Nav} aria-disabled={when(b.Loading || b.Disabled, "true")} {b.Attrs...}>

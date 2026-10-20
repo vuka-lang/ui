@@ -8,13 +8,13 @@ import (
 	"io"
 )
 
-//line tile.vuka.html:1
+//line tile.vuka.html:3
 func (t Tile) View() Node {
 	var span2 Node
 	if t.Icon != "" {
 		span2 = HTML(`<span class={t.badgeClass()}>{Icon(t.Icon)}</span>`, t.badgeClass(), Icon(t.Icon))
 	}
-//line tile.vuka.html:1
+//line tile.vuka.html:3
 	return HTML(`
 <div class={withClass("vk-tile", t.Class)}>
   {span2}
@@ -25,5 +25,5 @@ func (t Tile) View() Node {
 </div>`, withClass("vk-tile", t.Class), span2, tileValue(t.Value), t.Label)
 }
 
-//line tile.vuka.html:10
+//line tile.vuka.html:12
 func (t Tile) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }

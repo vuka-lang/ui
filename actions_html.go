@@ -7,6 +7,4 @@ package ui
 // header:
 //
 //	{ui.Actions(ui.Cancel(m.Close), ui.Button{Variant: ui.Primary, On: m.Save, Children: ui.Text("Save")})}
-//
-//line actions.vuka.html:5
 func Actions(buttons ...Node) Node { return HTML(`<div class="vk-actions">{buttons}</div>`, buttons) }

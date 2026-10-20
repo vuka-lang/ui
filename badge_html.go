@@ -8,11 +8,11 @@ import (
 	"io"
 )
 
-//line badge.vuka.html:1
+//line badge.vuka.html:3
 func (b Badge) View() Node {
-//line badge.vuka.html:1
+//line badge.vuka.html:3
 	return HTML(`<span class={b.classes()}>{b.Children}</span>`, b.classes(), b.Children)
 }
 
-//line badge.vuka.html:1
+//line badge.vuka.html:3
 func (b Badge) Render(ctx context.Context, w io.Writer) error { return b.View().Render(ctx, w) }
