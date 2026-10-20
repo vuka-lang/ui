@@ -249,20 +249,15 @@ func (b *Board) Render() ui.Node {
 	}
 	var b2 ui.Node
 //line demo.vuka:195
-	if m1 := b.mode; false {
-		panic(m1)
-	} else if m1 == "big" {
+	switch b.mode {
+	case "big":
 		b2 = ui.HTML(`<b>BIG</b>`)
-	} else if m1 == "note" {
-//line demo.vuka:199
+	case "note":
 		b2 = ui.HTML(`<input onInput={b.Note} value={b.note}/>`, b.Note, b.note)
-	} else if true {
+	default:
 		b2 = ui.El("i", nil, ui.Text("opaque "+b.mode), ui.Component("demo#opaque", nil, &Counter{Label: "inner"}))
-	} else {
-		panic("vuka: no case matched")
 	}
 	var counters []ui.Node
-//line demo.vuka:204
 	for _, it := range b.items {
 		counters = append(counters, ui.Key(it.ID, &Counter{Label: "k" + it.Name}))
 	}
