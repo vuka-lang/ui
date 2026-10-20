@@ -100,10 +100,19 @@ func AttachLive(c Stateful, inst LiveInstance) { c.vukaLive().inst = inst }
 // a fresh value carrying the attributes, never mounted itself. Site (the tag's
 // place in the source), Key and the instance rendering it identify the
 // instance a session keeps.
+//
+// A tag sets its props on the instance each time it renders: a parent owns
+// the exported fields of the components it renders. A routed page's tag
+// (Routed, what web.Live renders) has no parent: the page owns its exported
+// fields once mounted, so the tag rendered again sets none of them, and a new
+// tag in its place, a patch to another URL of the route, sets only URL, the
+// fields its URL binds.
 type ComponentNode struct {
-	Site  string
-	Key   any
-	Props Stateful
+	Site   string
+	Key    any
+	Props  Stateful
+	Routed bool
+	URL    []string
 }
 
 // Component is a stateful component's tag.
