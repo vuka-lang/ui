@@ -102,6 +102,39 @@ func (p *twoHooks) mount() error    { return nil }
 func (p *twoHooks) start() error    { return nil }
 func (p *twoHooks) Render() ui.Node { return nil }
 
+type exportedHook struct {
+	ui.Live
+}
+
+func (p *exportedHook) Start()          {}
+func (p *exportedHook) Render() ui.Node { return nil }
+
+type lateLoader struct {
+	ui.Live
+	Rows []string `json:"rows"`
+}
+
+func newLateLoader() *lateLoader {
+	p := &lateLoader{}
+	p.Loads("rows", (*lateLoader).loadRows)
+	return p
+}
+
+func (p *lateLoader) LiveSchema(l *ui.LiveSchema) { l.Field(&p.Rows, ui.Defer("rows")) }
+func (p *lateLoader) loadRows()                   {}
+func (p *lateLoader) Render() ui.Node             { return nil }
+
+func TestConstructorHooksAfterBoot(t *testing.T) {
+	typ := reflect.TypeFor[*lateLoader]()
+	if err := ui.CheckIsland(typ); err == nil || !strings.Contains(err.Error(), "E0324") {
+		t.Fatalf("before the constructor: %v, want E0324", err)
+	}
+	newLateLoader()
+	if err := ui.CheckIsland(typ); err != nil {
+		t.Errorf("after the constructor: %v", err)
+	}
+}
+
 type bothHooks struct {
 	ui.Live
 }
@@ -120,6 +153,8 @@ func TestConstructorHookErrors(t *testing.T) {
 	first, second := &twoHooks{}, &twoHooks{}
 	first.OnMount((*twoHooks).mount)
 	second.OnMount((*twoHooks).start)
+	exported := &exportedHook{}
+	exported.OnMount((*exportedHook).Start)
 	both := &bothHooks{}
 	both.OnMount((*bothHooks).mount)
 	for _, c := range []struct {
@@ -132,6 +167,7 @@ func TestConstructorHookErrors(t *testing.T) {
 		{"a group that isn't a name", group, "a group is a name"},
 		{"two mount hooks for a type", second, "declared twice"},
 		{"a constructor and a LiveSchema", both, "by its constructor and by its LiveSchema"},
+		{"an exported method", exported, "an exported method"},
 	} {
 		err := ui.MountLive(context.Background(), c.page)
 		if err == nil || !strings.Contains(err.Error(), "E0336") || !strings.Contains(err.Error(), c.want) {

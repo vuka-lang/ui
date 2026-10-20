@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/vuka-lang/vuka/diag"
 )
@@ -21,9 +22,11 @@ import (
 //		return l
 //	}
 //
-// The hooks are the page type's: the first instance to declare one sets it,
-// and an instance declaring another for the same type is an error (E0336).
-// A page built without its constructor has the hooks its type already set.
+// The hook is an unexported method: the browser calls the page's exported
+// ones. The hooks are the page type's: the first instance to declare one
+// sets it, and an instance declaring another for the same type is an error
+// (E0336). A page built without its constructor has the hooks its type
+// already set.
 func (l *Live) OnMount(fn any) { l.declare("OnMount", "", fn) }
 
 // Loads sets the loader of the deferred group from the page's constructor,
@@ -83,6 +86,11 @@ func (l *Live) declare(kind, group string, fn any) {
 	if page == nil {
 		l.fail(fn, diag.New("E0336", "%s is given %s, which doesn't take the page first", what, ft).
 			WithHelp("pass a method expression of the type embedding ui.Live: (*Login).mount, not l.mount"))
+		return
+	}
+	if name := funcName(rv); name != "" && unicode.IsUpper([]rune(name)[0]) {
+		l.fail(fn, diag.New("E0336", "%s.%s is given %s, an exported method", page.Name(), what, name).
+			WithHelp("hook an unexported method: the browser calls a page's exported methods"))
 		return
 	}
 	if !hookSignature(kind, ft) {
