@@ -242,6 +242,40 @@ func TestPayloads(t *testing.T) {
 	}
 }
 
+type Reply struct {
+	Text string `form:"text" json:"body" validate:"required,max=5"`
+}
+
+type Answers struct {
+	ui.Live
+	got []string
+}
+
+func (r *Answers) Render() ui.Node {
+	return ui.El("form", []ui.Attr{a("onSubmit", ui.On(func(f Reply) { r.got = append(r.got, f.Text) }))},
+		ui.El("button", []ui.Attr{a("onClick", ui.On(func(f *Reply) { r.got = append(r.got, f.Text) }))}),
+		ui.El("p", nil, ui.Text(strings.Join(r.got, ","))))
+}
+
+func TestPayloadValidated(t *testing.T) {
+	c := join(t, func(context.Context) ui.Node { return ui.Component("t:1", nil, &Answers{}) })
+	submit := func(text string) live.ServerMessage {
+		return c.event(ui.Event{Target: c.handler("submit", 0), Type: "submit", Form: url.Values{"text": {text}}})
+	}
+	for text, want := range map[string]string{"": "invalid: text: required", "shouting": "invalid: text: at most 5 characters"} {
+		if m := submit(text); m.Error != want || len(m.Updates) != 0 {
+			t.Errorf("submit %q: %+v, want the error %q", text, m, want)
+		}
+	}
+	if m := c.event(ui.Event{Target: c.handler("click", 0), Type: "click", Data: []byte(`{"body":""}`)}); m.Error != "invalid: body: required" {
+		t.Errorf("emit: %+v", m)
+	}
+	submit("hi")
+	if !strings.Contains(c.html, "<p>hi</p>") {
+		t.Fatalf("want only the valid reply: %s", c.html)
+	}
+}
+
 type List struct {
 	ui.Live
 	items []string
