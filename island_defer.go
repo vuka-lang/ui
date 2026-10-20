@@ -37,7 +37,8 @@ type deferResult struct {
 var deferGroupsOf sync.Map // pointer type → deferResult
 
 // deferGroups are the deferred groups of t (an island's struct, or a
-// pointer to one), in the order of their first fields.
+// pointer to one), in the order of their first fields. A failed check
+// isn't kept: the page's constructor may declare a loader after it.
 func deferGroups(t reflect.Type) ([]deferGroup, error) {
 	if t.Kind() != reflect.Pointer {
 		t = reflect.PointerTo(t)
@@ -47,7 +48,9 @@ func deferGroups(t reflect.Type) ([]deferGroup, error) {
 		return r.groups, r.err
 	}
 	groups, err := deferGroupsFor(t)
-	deferGroupsOf.Store(t, deferResult{groups, err})
+	if err == nil {
+		deferGroupsOf.Store(t, deferResult{groups, err})
+	}
 	return groups, err
 }
 
