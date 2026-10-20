@@ -29,6 +29,8 @@ var (
 //	func(url.Values)          the form's fields, as sent (also map[string][]string)
 //	func(T), func(*T)         T a struct: the form's fields bound to its fields
 //
+// A struct breaking its validate: tags is a ui.Invalid, the handler not called.
+//
 // A leading context.Context gets the session's; the handler may return an error.
 func callHandler(ctx context.Context, fn any, ev ui.Event) (err error) {
 	v := reflect.ValueOf(fn)
@@ -75,16 +77,10 @@ func payload(t reflect.Type, ev ui.Event) (reflect.Value, error) {
 		return reflect.ValueOf(ev.Form).Convert(t), nil
 	case t.Kind() == reflect.Struct:
 		v := reflect.New(t)
-		if len(ev.Data) > 0 { // an island emit's JSON payload
-			return v.Elem(), jsonPayload(v.Interface(), ev)
-		}
-		return v.Elem(), bindForm(v.Elem(), ev.Form)
+		return v.Elem(), structPayload(v, ev)
 	case t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Struct:
 		v := reflect.New(t.Elem())
-		if len(ev.Data) > 0 {
-			return v, jsonPayload(v.Interface(), ev)
-		}
-		return v, bindForm(v.Elem(), ev.Form)
+		return v, structPayload(v, ev)
 	}
 	s := ev.Value
 	if ev.Key != "" && strings.HasPrefix(ev.Type, "key") {
@@ -101,6 +97,22 @@ func payload(t reflect.Type, ev ui.Event) (reflect.Value, error) {
 		return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err)}
 	}
 	return v, nil
+}
+
+// structPayload binds the event's payload into ptr (a *T): an island
+// emit's JSON argument, else the form's fields; then checks T's validate:
+// tags, as a route checks what it binds, naming each field as it was sent.
+func structPayload(ptr reflect.Value, ev ui.Event) error {
+	if len(ev.Data) > 0 {
+		if err := jsonPayload(ptr.Interface(), ev); err != nil {
+			return err
+		}
+		return ui.Validate(ptr.Interface())
+	}
+	if err := bindForm(ptr.Elem(), ev.Form); err != nil {
+		return err
+	}
+	return ui.ValidateTags(ptr.Interface(), "form", "json")
 }
 
 // jsonPayload binds an island emit's JSON argument (ev.Data) into ptr (a *T).
