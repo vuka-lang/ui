@@ -216,13 +216,49 @@ func liveSchemaOf(t reflect.Type) *LiveSchema {
 // liveHooks are the hooks x's LiveSchema sets, bound to x; nil when x
 // declares no LiveSchema.
 func liveHooks(x reflect.Value) *LiveSchema {
+	if x.Kind() != reflect.Pointer || x.IsNil() {
+		return nil
+	}
+	h := ctorHooksOf(x.Type())
 	s, ok := x.Interface().(liveSchemer)
-	if !ok || x.Kind() != reflect.Pointer || x.IsNil() {
+	if !ok && h == nil {
 		return nil
 	}
 	l := &LiveSchema{t: x.Type().Elem()}
-	s.LiveSchema(l)
+	if ok {
+		s.LiveSchema(l)
+	}
+	if h != nil {
+		h.bind(l, x)
+	}
 	return l
+}
+
+// hasMount reports whether t's LiveSchema or constructor sets a mount hook.
+func hasMount(t reflect.Type) bool {
+	if s := liveSchemaOf(t); s != nil && s.mount != nil {
+		return true
+	}
+	h := ctorHooksOf(t)
+	if h == nil {
+		return false
+	}
+	mount, _, _, _ := h.snapshot()
+	return mount.IsValid()
+}
+
+// hasLoads reports whether t's LiveSchema or constructor gives the group
+// (as groupName names it) a loader.
+func hasLoads(t reflect.Type, group string) bool {
+	if s := liveSchemaOf(t); s != nil && s.loads[group] != nil {
+		return true
+	}
+	h := ctorHooksOf(t)
+	if h == nil {
+		return false
+	}
+	_, _, loads, _ := h.snapshot()
+	return loads[group].IsValid()
 }
 
 // schemaErr is what is wrong with t's LiveSchema.
@@ -230,14 +266,24 @@ func schemaErr(t reflect.Type) error {
 	if s := liveSchemaOf(t); s != nil && len(s.errs) > 0 {
 		return s.errs[0]
 	}
-	return nil
+	return ctorErr(t)
 }
 
-// isHook reports whether t's (a pointer type's) method name is one of its
-// LiveSchema's hooks, which the component doesn't call.
+// isHook reports whether t's (a pointer type's) method name is one of the
+// hooks its LiveSchema or constructor sets, which the component doesn't
+// call.
 func isHook(t reflect.Type, name string) bool {
 	s := liveSchemaOf(t)
-	return name == "LiveSchema" && s != nil || s != nil && s.hooks[name]
+	if name == "LiveSchema" && s != nil || s != nil && s.hooks[name] {
+		return true
+	}
+	h := ctorHooksOf(t)
+	if h == nil {
+		return false
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.names[name]
 }
 
 // IsHook reports whether method is LiveSchema or one of the hooks c's

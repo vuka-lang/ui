@@ -70,10 +70,9 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 		}
 		groups[i].fields = append(groups[i].fields, f)
 	}
-	schema := liveSchemaOf(t)
 	for i := range groups {
 		g := &groups[i]
-		if schema != nil && schema.loads[g.name] != nil {
+		if hasLoads(t, g.name) {
 			g.hook = true
 			continue
 		}
