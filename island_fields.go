@@ -32,6 +32,10 @@ type IslandField struct {
 // before it is sent; bind:"q,debounce=500" changes it.
 const DefaultDebounce = 300 * time.Millisecond
 
+// NoDebounce, as a Bind's Debounce, sends each set at once:
+// ui.Bind{Debounce: ui.NoDebounce}. A zero Debounce is DefaultDebounce.
+const NoDebounce time.Duration = -1
+
 // reservedHandles are live's own members: a field of one of these names
 // is a prop, but has no handle.
 var reservedHandles = map[string]bool{"pending": true, "error": true, "subscribe": true}

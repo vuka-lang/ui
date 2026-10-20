@@ -25,7 +25,7 @@ type tasksPage struct {
 
 func (p *tasksPage) LiveSchema(l *ui.LiveSchema) {
 	l.Field(&p.Q, ui.Bind{Debounce: 500 * time.Millisecond}, ui.URL("q"), validate.Max(5))
-	l.Field(&p.Status, ui.Bind{Debounce: -1}, validate.OneOf{"open", "done"})
+	l.Field(&p.Status, ui.Bind{Debounce: ui.NoDebounce}, validate.OneOf{"open", "done"})
 	l.Field(&p.Rows, ui.Defer("lists"))
 	l.Field(&p.Total, ui.Defer("lists"))
 	l.Loads("lists", p.loadLists)
