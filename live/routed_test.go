@@ -95,3 +95,37 @@ func TestParentPropsWin(t *testing.T) {
 		t.Fatalf("the parent's prop: %s", out)
 	}
 }
+
+// Tab is a routed page whose mount hook defaults its URL field.
+type Tab struct {
+	ui.Live
+	Tab string
+}
+
+func (p *Tab) LiveSchema(l *ui.LiveSchema) { l.Mount(p.mount) }
+func (p *Tab) mount(context.Context) error {
+	if p.Tab == "" {
+		p.Tab = "first"
+	}
+	return nil
+}
+func (p *Tab) Render() ui.Node { return ui.HTML(`<p>{p.Tab}</p>`, p.Tab) }
+
+// An adopted session's page keeps what its mount hook set on its URL
+// fields: the join's tag, bound from the same URL again, sets none of them.
+func TestAdoptedPageKeepsMountedFields(t *testing.T) {
+	tag := func() ui.Node { return &ui.ComponentNode{Site: "tab", Props: &Tab{}, Routed: true, URL: []string{"Tab"}} }
+	s := live.NewSession(context.Background(), func(context.Context) ui.Node { return tag() })
+	if _, err := s.Render(); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Adopt(context.Background(), func(context.Context) ui.Node { return tag() }); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Render(); err != nil {
+		t.Fatal(err)
+	}
+	if html := s.HTML(); !strings.Contains(html, ">first</p>") {
+		t.Fatalf("after the join: %s", html)
+	}
+}

@@ -29,17 +29,20 @@ type Session struct {
 	mu     sync.Mutex
 	ctx    context.Context
 	render func(ctx context.Context) ui.Node
-	root   *instance
-	byID   map[string]*instance
-	next   int
-	pass   int
-	closed bool
-	trees  bool // a v2 connection: instances render to trees
-	c      conn
-	verify bool
-	whole  bool     // each instance one dynamic of its HTML: wholeTrees's
-	js     []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
-	router Router
+	// adopting is set by Adopt until the next render of the page: its tags
+	// set no routed page's fields.
+	adopting bool
+	root     *instance
+	byID     map[string]*instance
+	next     int
+	pass     int
+	closed   bool
+	trees    bool // a v2 connection: instances render to trees
+	c        conn
+	verify   bool
+	whole    bool     // each instance one dynamic of its HTML: wholeTrees's
+	js       []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
+	router   Router
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
 	uerr    error               // what their Update methods returned
@@ -166,7 +169,7 @@ func (s *Session) Adopt(ctx context.Context, render func(ctx context.Context) ui
 	}
 	s.ctx = ctx
 	if render != nil {
-		s.render = render
+		s.render, s.adopting = render, true
 	}
 	return nil
 }
@@ -661,7 +664,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		// by its island always renders: what it sends its component
 		// includes more than its fields.
 		same = n.Props == in.src && sameProps(in.comp, in.shown) && !ui.IsIsland(typ)
-		if n.Props != in.src {
+		if n.Props != in.src && !s.adopting {
 			setFields(in.comp, n.Props, n.URL)
 		}
 		if upd {
@@ -789,6 +792,9 @@ func (s *Session) renderInst(in *instance) error {
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
 	var node ui.Node
 	if in.comp == nil {
+		// An adopted page's new tags are its URL's again: what its hooks set
+		// from the URL stays.
+		defer func() { s.adopting = false }()
 		node = s.render(ctx)
 	} else {
 		node = rooted(in.comp.Render(), in.id, in.key)
