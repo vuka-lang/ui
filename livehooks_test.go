@@ -111,8 +111,8 @@ func (p *bothHooks) mount(context.Context) error { return nil }
 func (p *bothHooks) Render() ui.Node             { return nil }
 
 func TestConstructorHookErrors(t *testing.T) {
-	value := &valueHook{}
-	value.OnMount(value.mount)
+	byValue := &valueHook{}
+	byValue.OnMount(byValue.mount)
 	wrong := &wrongHook{}
 	wrong.OnMount((*wrongHook).mount)
 	group := &valueHook{}
@@ -127,7 +127,7 @@ func TestConstructorHookErrors(t *testing.T) {
 		page ui.Stateful
 		want string
 	}{
-		{"a method value", value, "doesn't take the page first"},
+		{"a method value", byValue, "doesn't take the page first"},
 		{"a wrong signature", wrong, "is given func(*ui_test.wrongHook, int) error"},
 		{"a group that isn't a name", group, "a group is a name"},
 		{"two mount hooks for a type", second, "declared twice"},
