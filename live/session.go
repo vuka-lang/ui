@@ -250,13 +250,16 @@ func (s *Session) handler(target string) any {
 	}
 	if set, ok := fn.(ui.Setter); ok && in.src != nil {
 		// what it sets are props: the tag's too, or its next render would
-		// set them back.
+		// set them back — unless the tag is a routed page's, which sets
+		// none.
 		return func(ctx context.Context, ev ui.Event) error {
 			if err := set(ctx, ev); err != nil {
 				return err
 			}
 			in.set = true
-			copyProps(in.src, in.comp)
+			if !in.routed {
+				copyProps(in.src, in.comp)
+			}
 			return nil
 		}
 	}
@@ -517,6 +520,8 @@ type instance struct {
 	js       []ui.Commands // pushed since the last reply
 	seen     int
 	src      ui.Stateful // the props its tag last rendered it with
+	routed   bool        // a routed page: its exported fields are its own
+	shown    ui.Stateful // a routed page's fields as it last rendered
 	set      bool        // a page script set its props: it renders again
 	own      string      // its HTML, each child as a marker
 	changed  bool
@@ -649,6 +654,21 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		}
 		parent.children[place] = in
 		s.byID[in.id] = in
+	case n.Routed:
+		// A routed page: its exported fields are its own, set from the URL
+		// at mount. Only a new tag, a patch's, sets the fields its URL
+		// binds; the patch's Update takes the new URL too. A page backed
+		// by its island always renders: what it sends its component
+		// includes more than its fields.
+		same = n.Props == in.src && sameProps(in.comp, in.shown) && !ui.IsIsland(typ)
+		if n.Props != in.src {
+			setFields(in.comp, n.Props, n.URL)
+		}
+		if upd {
+			_, err := callUpdate(s.ctx, in.comp, msg)
+			s.uerr = errors.Join(s.uerr, err)
+			same = false
+		}
 	case ui.IsIsland(typ):
 		// A page backed by its island: its exported fields are its own —
 		// the props it sends its component — set from the URL at mount, not
@@ -666,7 +686,10 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			same = false
 		}
 	}
-	in.key, in.src = n.Key, n.Props
+	in.key, in.src, in.routed = n.Key, n.Props, n.Routed
+	if in.routed {
+		in.shown = ui.CopyLive(in.comp)
+	}
 	parent.kids = append(parent.kids, in)
 	return in, s.visit(in, same)
 }
@@ -681,6 +704,16 @@ func copyProps(to, from ui.Stateful) {
 	for i := 0; i < dst.NumField(); i++ {
 		if f := dst.Type().Field(i); f.IsExported() && f.Type != live {
 			dst.Field(i).Set(src.Field(i))
+		}
+	}
+}
+
+// setFields sets the fields of to named names from from.
+func setFields(to, from ui.Stateful, names []string) {
+	dst, src := reflect.ValueOf(to).Elem(), reflect.ValueOf(from).Elem()
+	for _, n := range names {
+		if f := dst.FieldByName(n); f.CanSet() {
+			f.Set(src.FieldByName(n))
 		}
 	}
 }
