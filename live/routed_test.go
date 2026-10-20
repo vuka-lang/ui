@@ -114,7 +114,9 @@ func (p *Tab) Render() ui.Node { return ui.HTML(`<p>{p.Tab}</p>`, p.Tab) }
 // An adopted session's page keeps what its mount hook set on its URL
 // fields: the join's tag, bound from the same URL again, sets none of them.
 func TestAdoptedPageKeepsMountedFields(t *testing.T) {
-	tag := func() ui.Node { return &ui.ComponentNode{Site: "tab", Props: &Tab{}, Routed: true, URL: []string{"Tab"}} }
+	tag := func() ui.Node {
+		return &ui.ComponentNode{Site: "tab", Props: &Tab{}, Routed: true, URL: []string{"Tab"}}
+	}
 	s := live.NewSession(context.Background(), func(context.Context) ui.Node { return tag() })
 	if _, err := s.Render(); err != nil {
 		t.Fatal(err)
