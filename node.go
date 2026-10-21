@@ -167,6 +167,11 @@ func Fragment(children ...Node) Node { return Group(children) }
 // tag of a component taking ctx first, <Admin title="x"/> for func Admin(ctx
 // context.Context, p AdminProps), is ui.Ctx(func(ctx context.Context) ui.Node
 // { return Admin(ctx, p) }). It renders, diffs and keys as that node does.
+// build runs for each render with its current context; do not retain that
+// context in component state or mutate application state while rendering.
+// Live components that evaluate Ctx are not skipped based only on props and
+// Assigns: their output can also depend on identity, permissions or locale.
+// Context values are server-side until build explicitly renders them.
 func Ctx(build func(ctx context.Context) Node) Node { return ctxNode(build) }
 
 type ctxNode func(context.Context) Node

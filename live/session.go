@@ -531,9 +531,10 @@ type instance struct {
 	fresh    bool
 	key      any // its tag's key, written on its root as data-vk-key
 
-	tree     *ui.Tree // its last render, on a v2 connection
-	shadow   *sframe  // what the client holds of it; nil: nothing yet
-	rendered bool     // rendered this pass (not skipped)
+	tree       *ui.Tree // its last render, on a v2 connection
+	shadow     *sframe  // what the client holds of it; nil: nothing yet
+	rendered   bool     // rendered this pass (not skipped)
+	contextual bool     // context-dependent output must not use state-only render reuse
 }
 
 func (in *instance) ID() string { return in.id }
@@ -572,6 +573,8 @@ type scope struct {
 	in   *instance
 	keys string
 }
+
+func (sc *scope) ContextRead() { sc.in.contextual = true }
 
 func (sc *scope) Handler(_ context.Context, fn any) string {
 	sc.in.handlers = append(sc.in.handlers, fn)
@@ -750,7 +753,7 @@ func (s *Session) renderAll() error {
 func (s *Session) visit(in *instance, same bool) error {
 	set := in.set
 	in.set = false
-	if same && !in.fresh && !set {
+	if same && !in.fresh && !set && !in.contextual {
 		if tracked, changed := ui.TrackedState(in.comp); tracked && !changed {
 			if s.verify {
 				return s.verifySkip(in)
@@ -790,6 +793,7 @@ func (s *Session) renderInst(in *instance) error {
 	in.seen, in.rendered = s.pass, true
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
+	in.contextual = false
 	var node ui.Node
 	if in.comp == nil {
 		// An adopted page's new tags are its URL's again: what its hooks set
@@ -797,7 +801,7 @@ func (s *Session) renderInst(in *instance) error {
 		defer func() { s.adopting = false }()
 		node = s.render(ctx)
 	} else {
-		node = rooted(in.comp.Render(), in.id, in.key)
+		node = rooted(ui.ResolveContext(ctx, in.comp.Render()), in.id, in.key)
 	}
 	if in.comp != nil {
 		defer ui.SettleState(in.comp)

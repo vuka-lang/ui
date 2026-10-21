@@ -131,7 +131,7 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		if n == nil {
 			return nil
 		}
-		return Walk(ctx, n(ctx), r)
+		return Walk(ctx, ResolveContext(ctx, n), r)
 	case Boundary:
 		var rec recording
 		for _, c := range n.Children {
