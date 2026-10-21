@@ -44,3 +44,19 @@ func TestContextCancellation(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestContextConcurrentRenderIsolation(t *testing.T) {
+	node := ui.Ctx(func(ctx context.Context) ui.Node { return ui.Text(ctx.Value(contextUserKey{}).(string)) })
+	for _, name := range []string{"alice", "bob", "carol"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.WithValue(context.Background(), contextUserKey{}, name)
+			for i := 0; i < 20; i++ {
+				got, err := ui.String(ctx, node)
+				if err != nil || got != name {
+					t.Fatalf("identity crossed renders: %q, %v", got, err)
+				}
+			}
+		})
+	}
+}
