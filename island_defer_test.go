@@ -28,7 +28,12 @@ type ordersPage struct {
 
 func (p *ordersPage) Render() Node { return IslandPage(p) }
 
-func (p *ordersPage) LoadStats(ctx context.Context) error {
+func (p *ordersPage) LiveSchema(l *LiveSchema) {
+	l.Loads("stats", p.loadStats)
+	l.Loads("lists", p.loadLists)
+}
+
+func (p *ordersPage) loadStats(ctx context.Context) error {
 	if p.running != nil {
 		p.running.Add(1)
 		time.Sleep(20 * time.Millisecond)
@@ -41,7 +46,7 @@ func (p *ordersPage) LoadStats(ctx context.Context) error {
 	return nil
 }
 
-func (p *ordersPage) LoadLists(ctx context.Context) error {
+func (p *ordersPage) loadLists(ctx context.Context) error {
 	if p.running != nil {
 		p.running.Add(1)
 		time.Sleep(20 * time.Millisecond)
@@ -99,10 +104,10 @@ func TestCheckIslandDefer(t *testing.T) {
 		code diag.Code
 		want string
 	}{
-		{reflect.TypeFor[deferNoLoader](), "E0324", "deferNoLoader.Stats is deferred, and the group Stats has no loader\n  = help: give the group a loader in the page's LiveSchema:\n          l.Loads(\"stats\", d.loadStats)"},
+		{reflect.TypeFor[deferNoLoader](), "E0324", "deferNoLoader.Stats is deferred, and the group Stats has no loader\n  = help: mark its loader @ui.Loads(\"stats\")"},
 		{reflect.TypeFor[deferBind](), "E0323", "= help: drop Bind or Defer"},
 		{reflect.TypeFor[deferBadName](), "E0323", `defer:"two words": a group is a name`},
-		{reflect.TypeFor[deferBadLoader](), "E0325", "deferBadLoader.LoadStats is the loader of the deferred group Stats, and it is func(*ui.deferBadLoader, int) error\n  = help: declare it LoadStats() or LoadStats(ctx context.Context)"},
+		{reflect.TypeFor[deferBadLoader](), "E0324", "deferBadLoader.Stats is deferred, and the group Stats has no loader\n  = help: mark LoadStats @ui.Loads(\"stats\"): a loader isn't found by its name"},
 	} {
 		err := CheckIsland(c.t)
 		if err == nil || diag.Of(err) != c.code || !strings.Contains(err.Error(), c.want) {
@@ -226,7 +231,9 @@ type changedPage struct {
 	ctx  bool
 }
 
-func (p *changedPage) Changed(ctx context.Context, c Changed) error {
+func (p *changedPage) LiveSchema(l *LiveSchema) { l.OnChange(p.changed) }
+
+func (p *changedPage) changed(ctx context.Context, c Changed) error {
 	p.got, p.ctx = c, ctx != nil
 	return nil
 }
@@ -236,7 +243,9 @@ type changedOnly struct {
 	got []string
 }
 
-func (p *changedOnly) Changed(c Changed) { p.got = c.Names() }
+func (p *changedOnly) LiveSchema(l *LiveSchema) { l.OnChange(p.changed) }
+
+func (p *changedOnly) changed(_ context.Context, c Changed) error { p.got = c.Names(); return nil }
 
 func TestChangedNames(t *testing.T) {
 	p := &changedPage{}
@@ -259,6 +268,6 @@ func TestChangedNames(t *testing.T) {
 	}
 	o := &changedOnly{}
 	if err := SetBound(context.Background(), reflect.ValueOf(o), json.RawMessage(`{"Q":"x"}`)); err != nil || strings.Join(o.got, ",") != "Q" {
-		t.Errorf("Changed(changed): %v %v", o.got, err)
+		t.Errorf("OnChange: %v %v", o.got, err)
 	}
 }

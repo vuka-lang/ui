@@ -61,8 +61,7 @@ type deferRendered struct {
 func TestBootErrorRenders(t *testing.T) {
 	err := CheckIsland(reflect.TypeFor[deferRendered]())
 	want := `error[E0324]: deferRendered.CV is deferred, and the group Profile has no loader
-  = help: give the group a loader in the page's LiveSchema:
-          l.Loads("profile", d.loadProfile)
+  = help: mark its loader @ui.Loads("profile")
   = note: vuka explain E0324 (` + diag.DocsURL + `E0324)`
 	if err == nil || err.Error() != want {
 		t.Fatalf("got:\n%v\nwant:\n%s", err, want)

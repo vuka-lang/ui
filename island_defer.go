@@ -18,14 +18,11 @@ import (
 // component asks — and the field reaches the component as an update. The
 // fields of one group load together, by one loader, and groups load
 // concurrently. A loader runs on a copy of the page and sets its group's
-// fields; only those are taken from it. Earlier releases' form, the tag
-// defer:"stats" loaded by the method LoadStats(ctx) error, still works.
+// fields; only those are taken from it. A loader is declared with
+// @ui.Loads("stats") on its method, never found by its name.
 
 type deferGroup struct {
 	name   string
-	hook   bool // loaded by the LiveSchema's Loads; else by method, Load<Group>
-	method reflect.Method
-	ctx    bool
 	fields []IslandField
 }
 
@@ -37,8 +34,7 @@ type deferResult struct {
 var deferGroupsOf sync.Map // pointer type → deferResult
 
 // deferGroups are the deferred groups of t (an island's struct, or a
-// pointer to one), in the order of their first fields. A failed check
-// isn't kept: the page's constructor may declare a loader after it.
+// pointer to one), in the order of their first fields.
 func deferGroups(t reflect.Type) ([]deferGroup, error) {
 	if t.Kind() != reflect.Pointer {
 		t = reflect.PointerTo(t)
@@ -73,40 +69,19 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 		}
 		groups[i].fields = append(groups[i].fields, f)
 	}
-	for i := range groups {
-		g := &groups[i]
+	for _, g := range groups {
 		if hasLoads(t, g.name) {
-			g.hook = true
 			continue
 		}
-		name := "Load" + g.name
-		m, ok := t.MethodByName(name)
-		if !ok {
-			return nil, diag.New("E0324", "%s.%s is deferred, and the group %s has no loader", t.Elem().Name(), t.Elem().Field(g.fields[0].Index).Name, g.name).
-				WithHelp("give the group a loader in the page's LiveSchema:\nl.Loads(%q, %s.load%s)", strings.ToLower(g.name[:1])+g.name[1:], strings.ToLower(t.Elem().Name()[:1]), g.name)
+		group := strings.ToLower(g.name[:1]) + g.name[1:]
+		help := fmt.Sprintf("mark its loader @ui.Loads(%q)", group)
+		if _, ok := t.MethodByName("Load" + g.name); ok {
+			help = fmt.Sprintf("mark Load%s @ui.Loads(%q): a loader isn't found by its name", g.name, group)
 		}
-		mt := m.Type
-		in := mt.NumIn() == 1 || mt.NumIn() == 2 && mt.In(1) == ctxType
-		out := mt.NumOut() == 0 || mt.NumOut() == 1 && mt.Out(0) == errType
-		if !in || !out {
-			return nil, diag.New("E0325", "%s.%s is the loader of the deferred group %s, and it is %s", t.Elem().Name(), name, g.name, mt).
-				WithHelp("declare it %s() or %s(ctx context.Context), returning nothing or an error", name, name)
-		}
-		g.method, g.ctx = m, mt.NumIn() == 2
+		return nil, diag.New("E0324", "%s.%s is deferred, and the group %s has no loader", t.Elem().Name(), t.Elem().Field(g.fields[0].Index).Name, g.name).
+			WithHelp("%s", help)
 	}
 	return groups, nil
-}
-
-// isLoader reports whether the method name of t (a pointer) is a deferred
-// group's loader, which the component doesn't call.
-func isLoader(t reflect.Type, name string) bool {
-	groups, _ := deferGroups(t)
-	for _, g := range groups {
-		if !g.hook && g.method.Name == name {
-			return true
-		}
-	}
-	return false
 }
 
 // Loads is the state of a page's deferred groups: loading, loaded, or
@@ -216,24 +191,13 @@ func (d *DeferredLoad) Run(ctx context.Context) error {
 		d.err = err
 		return err
 	}
-	var in []reflect.Value
-	if d.g.ctx {
-		in = append(in, reflect.ValueOf(ctx))
-	}
 	d.err = func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("%s's loader of %s panicked: %v", d.page.Type().Elem().Name(), d.g.name, r)
 			}
 		}()
-		if d.g.hook {
-			return liveHooks(d.copy).loads[d.g.name](ctx)
-		}
-		out := d.copy.MethodByName(d.g.method.Name).Call(in)
-		if len(out) == 1 && !out[0].IsNil() {
-			return out[0].Interface().(error)
-		}
-		return nil
+		return liveHooks(d.copy).loads[d.g.name](ctx)
 	}()
 	if d.err == nil {
 		d.err = ctx.Err()

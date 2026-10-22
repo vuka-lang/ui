@@ -46,10 +46,11 @@ func (p *Post) Save() error {
 	return nil
 }
 
-func (p *Post) Nothing()                  {}
-func (p *Post) Fails() error              { return errors.New("no") }
-func (p *Post) Update(n Likes)            { p.likes = int(n) }
-func (p *Post) Mount(ctx context.Context) { p.Subscribe("likes") }
+func (p *Post) Nothing()                    {}
+func (p *Post) Fails() error                { return errors.New("no") }
+func (p *Post) Update(n Likes)              { p.likes = int(n) }
+func (p *Post) LiveSchema(l *ui.LiveSchema) { l.Mount(p.mount) }
+func (p *Post) mount(context.Context) error { p.Subscribe("likes"); return nil }
 
 func (p *Post) Render() ui.Node {
 	on := func(ch ui.JSChain) ui.Attr { return a("onClick", ui.On(ch)) }

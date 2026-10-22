@@ -94,8 +94,9 @@ type pusher struct {
 	tab ui.State[string]
 }
 
-func (p *pusher) Mount()   { p.tab = uigen.State("pusher.tab", "logs") }
-func (p *pusher) ShowEnv() { p.PushJS(p.tab.Set("env")) }
+func (p *pusher) LiveSchema(l *ui.LiveSchema) { l.Mount(p.mount) }
+func (p *pusher) mount(context.Context) error { p.tab = uigen.State("pusher.tab", "logs"); return nil }
+func (p *pusher) ShowEnv()                    { p.PushJS(p.tab.Set("env")) }
 func (p *pusher) Render() ui.Node {
 	return ui.El("p", []ui.Attr{a("onClick", ui.On(p.ShowEnv)), a("title", ui.BindExpr(p.tab.Get(), `{"$":0}`, p.tab))})
 }

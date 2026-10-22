@@ -275,8 +275,8 @@ func (s *Session) handler(target string) any {
 // replacing any allowed before (none: no pushes by name). The vuka command
 // lists them (each ctx.push("Name") of the scripts) and web registers them
 // from its manifest. A component nothing allows accepts no pushes by name;
-// the handlers its page renders work regardless. Render, Mount, an Update
-// and methods promoted from what it embeds are never pushed. "_set" allows
+// the handlers its page renders work regardless. Render, its hooks, an
+// Update and methods promoted from what it embeds are never pushed. "_set" allows
 // setting its bind: fields (ui.SetBound), as a page script's
 // live.<field>.set(v) does.
 func AllowPush(typ string, methods ...string) {
@@ -295,7 +295,7 @@ var (
 )
 
 func pushable(c ui.Stateful, name string) any {
-	if c == nil || name == "Render" || name == "Mount" || ui.IsHook(c, name) {
+	if c == nil || name == "Render" || ui.IsHook(c, name) {
 		return nil
 	}
 	if m, ok := reflect.TypeOf(c).MethodByName(name); ok && ui.IsUpdate(m) {

@@ -48,7 +48,9 @@ type fields struct {
 	pushed string
 }
 
-func (f *fields) Mount(ctx context.Context) error {
+func (f *fields) LiveSchema(l *ui.LiveSchema) { l.Mount(f.mount) }
+
+func (f *fields) mount(ctx context.Context) error {
 	f.PushJS(f.tab.Set("env")) // a write before the first render
 	return nil
 }

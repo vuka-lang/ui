@@ -65,7 +65,11 @@ type CellTable struct {
 	cells []int
 }
 
-func (t *CellTable) Mount() { t.cells = make([]int, t.N) }
+@ui.Mount
+func (t *CellTable) mount(ctx context.Context) error {
+	t.cells = make([]int, t.N)
+	return nil
+}
 
 func (t *CellTable) Bump(i int) { t.cells[i]++ }
 
@@ -116,10 +120,12 @@ type Board struct {
 	open     bool
 }
 
-func (b *Board) Mount() {
+@ui.Mount
+func (b *Board) mount(ctx context.Context) error {
 	for _, n := range []string{"milk", "eggs", "tea"} {
 		b.add(n)
 	}
+	return nil
 }
 
 func (b *Board) add(name string) {

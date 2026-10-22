@@ -323,7 +323,7 @@ func updateMethod(c ui.Stateful, msg any) (reflect.Value, error) {
 	return reflect.Value{}, nil
 }
 
-// mount calls c's Mount; a panic is its error.
+// mount runs c's mount hook (ui.MountLive); a panic is its error.
 func mount(ctx context.Context, c ui.Stateful) (err error) {
 	defer func() {
 		if r := recover(); r != nil {

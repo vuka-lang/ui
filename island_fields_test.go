@@ -23,8 +23,13 @@ type levelsPage struct {
 	seen    string
 }
 
-func (p *levelsPage) Mount() {}
-func (p *levelsPage) Changed(ctx context.Context) error {
+func (p *levelsPage) LiveSchema(l *LiveSchema) {
+	l.Mount(p.mount)
+	l.OnChange(p.onChange)
+}
+
+func (p *levelsPage) mount(context.Context) error { return nil }
+func (p *levelsPage) onChange(ctx context.Context, _ Changed) error {
 	p.changed++
 	p.seen = p.Q
 	if p.Q == "boom" {
@@ -53,7 +58,7 @@ func TestIslandFields(t *testing.T) {
 		t.Error(err)
 	}
 	for _, m := range IslandMethods(reflect.TypeFor[*levelsPage]()) {
-		if m.Name == "changed" || m.Name == "mount" {
+		if m.Name == "onChange" || m.Name == "mount" || m.Name == "liveSchema" {
 			t.Errorf("%s is callable", m.Name)
 		}
 	}
@@ -87,7 +92,7 @@ func TestCheckIsland(t *testing.T) {
 		{reflect.TypeFor[bindReserved](), "E0322", "live.pending is live's own"},
 		{reflect.TypeFor[twoQ](), "E0326", "fields Q and Q2 are both live.q"},
 		{reflect.TypeFor[methodFieldClash](), "E0326", "the method Rows and the field List are both live.rows"},
-		{reflect.TypeFor[badChanged](), "E0327", "= help: declare Changed(), Changed(ctx"},
+		{reflect.TypeFor[badChanged](), "E0337", "badChanged.Changed isn't a hook: a hook is declared with @ui.OnChange"},
 	} {
 		err := CheckIsland(c.t)
 		if err == nil || diag.Of(err) != c.code || !strings.Contains(err.Error(), c.want) {
@@ -136,7 +141,7 @@ func TestSetBound(t *testing.T) {
 		t.Errorf("a refused set changed the page: %+v", p)
 	}
 	if err := SetBound(context.Background(), x, json.RawMessage(`{"Q":"boom"}`)); err == nil || err.Error() != "boom" {
-		t.Errorf("Changed's error: %v", err)
+		t.Errorf("OnChange's error: %v", err)
 	}
 }
 

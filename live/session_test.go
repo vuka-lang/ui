@@ -25,7 +25,8 @@ type Counter struct {
 	gone   *[]string
 }
 
-func (c *Counter) Mount(ctx context.Context) error { c.n = c.Start; c.mounts++; return nil }
+func (c *Counter) LiveSchema(l *ui.LiveSchema)     { l.Mount(c.mount) }
+func (c *Counter) mount(ctx context.Context) error { c.n = c.Start; c.mounts++; return nil }
 func (c *Counter) Inc()                            { c.n++ }
 func (c *Counter) Unmount() {
 	if c.gone != nil {
@@ -350,7 +351,8 @@ type Chat struct {
 type NewMessage struct{ Text string }
 type Typing struct{ Who string }
 
-func (c *Chat) Mount() { c.Subscribe("room:" + c.Room) }
+func (c *Chat) LiveSchema(l *ui.LiveSchema) { l.Mount(c.mount) }
+func (c *Chat) mount(context.Context) error { c.Subscribe("room:" + c.Room); return nil }
 
 // Overloads of Update, as vuka names them: after the message's type.
 func (c *Chat) UpdateNewMessage(m NewMessage) { c.log = append(c.log, "msg "+m.Text) }

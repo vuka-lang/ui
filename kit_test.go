@@ -81,8 +81,9 @@ type tabsHost struct {
 	active uigen.Assign[string]
 }
 
-func (h *tabsHost) Mount()        { h.active.Set("a") }
-func (h *tabsHost) Pick(v string) { h.active.Set(v) }
+func (h *tabsHost) LiveSchema(l *ui.LiveSchema) { l.Mount(h.mount) }
+func (h *tabsHost) mount(context.Context) error { h.active.Set("a"); return nil }
+func (h *tabsHost) Pick(v string)               { h.active.Set(v) }
 func (h *tabsHost) Render() ui.Node {
 	cur := h.active.Get()
 	return ui.Tabs{Tabs: []ui.Tab{
@@ -118,7 +119,8 @@ type selHost struct {
 	sel uigen.Assign[map[int]bool]
 }
 
-func (h *selHost) Mount() { h.sel.Set(map[int]bool{}) }
+func (h *selHost) LiveSchema(l *ui.LiveSchema) { l.Mount(h.mount) }
+func (h *selHost) mount(context.Context) error { h.sel.Set(map[int]bool{}); return nil }
 func (h *selHost) Toggle(id int) {
 	h.sel.Update(func(m map[int]bool) map[int]bool {
 		n := map[int]bool{}

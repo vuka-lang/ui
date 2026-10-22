@@ -21,7 +21,9 @@ type Order struct {
 	deleted *[]string
 }
 
-func (o *Order) Mount() error {
+func (o *Order) LiveSchema(l *ui.LiveSchema) { l.Mount(o.mount) }
+
+func (o *Order) mount(context.Context) error {
 	*o.mounts = append(*o.mounts, o.ID)
 	if o.ID != "1" {
 		return errors.New("not your order")
@@ -191,8 +193,9 @@ func (p public) PublicMessage() string { return p.msg }
 
 type Panicky struct{ ui.Live }
 
-func (p *Panicky) Mount()          { panic("boom") }
-func (p *Panicky) Render() ui.Node { return ui.El("p", nil) }
+func (p *Panicky) LiveSchema(l *ui.LiveSchema) { l.Mount(p.mount) }
+func (p *Panicky) mount(context.Context) error { panic("boom") }
+func (p *Panicky) Render() ui.Node             { return ui.El("p", nil) }
 
 // A router's redirect to a URL the browser would run is refused.
 func TestRedirectOnlyHTTP(t *testing.T) {
