@@ -12,7 +12,8 @@ import (
 // Update mark it changed. A component whose state fields (its unexported
 // ones, except those tagged `vuka:"-"`) are all Assigns renders again only
 // when one of them changed or its props did; otherwise the session keeps
-// its last render without calling Render.
+// its last render without calling Render. Its ui.State fields don't count:
+// they are the browser's.
 //
 // Render must then read nothing but props and Assigns (and fields tagged
 // `vuka:"-"`, which must not change what it renders); in tests (or with
@@ -42,10 +43,14 @@ func stateOf(t reflect.Type) stateFields {
 	}
 	sf := stateFields{tracked: true}
 	live := reflect.TypeFor[Live]()
+	states := reflect.TypeFor[stateOps]()
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		switch {
 		case f.IsExported() || f.Type == live || f.Tag.Get("vuka") == "-":
+		case f.Type.Implements(states):
+			// A ui.State field is the browser's: the server holds its
+			// handle, which a render reads the same way every time.
 		case reflect.PointerTo(f.Type).Implements(assignerType):
 			sf.fields = append(sf.fields, i)
 		default:

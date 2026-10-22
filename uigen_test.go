@@ -111,3 +111,25 @@ func TestAssign(t *testing.T) {
 		t.Error("a set didn't mark it changed")
 	}
 }
+
+// tracked has tracked server state beside client state.
+type tracked struct {
+	ui.Live
+	n    uigen.Assign[int]
+	open ui.State[bool]
+}
+
+func (t *tracked) Render() ui.Node { return ui.Text("") }
+
+// TestTrackedWithStates: a ui.State field leaves a component's server state
+// tracked.
+func TestTrackedWithStates(t *testing.T) {
+	c := &tracked{}
+	if tracked, changed := ui.TrackedState(c); !tracked || changed {
+		t.Errorf("tracked %v, changed %v; want true, false", tracked, changed)
+	}
+	c.n.Set(1)
+	if _, changed := ui.TrackedState(c); !changed {
+		t.Error("a set isn't a change")
+	}
+}
