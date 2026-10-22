@@ -270,34 +270,28 @@ var (
 )
 
 // CheckHandler reports a value an on… attribute can't take: a handler is a
-// func(), or a func taking the event's value (a string, number or bool), a
-// form (a struct or pointer to one, or url.Values) or an Event, optionally
-// after a context.Context, returning nothing or an error.
+// func returning nothing or an error, its parameters filled by type (see
+// Injector): a context.Context, the event's payload — its value (a
+// string, number or bool), its form (a struct or pointer to one, or
+// url.Values) or the Event — once, and what the app injects (a pointer or
+// interface: the request, a service). An app checks its pages' handlers'
+// injected parameters when it starts (CheckParams); a call reports one
+// nothing fills.
 func CheckHandler(fn any) error {
 	t := reflect.TypeOf(fn)
 	ok := t != nil && t.Kind() == reflect.Func && !t.IsVariadic() && t.NumOut() <= 1 && (t.NumOut() == 0 || t.Out(0) == errType)
-	if ok {
-		i := 0
-		if t.NumIn() > 0 && t.In(0) == ctxType {
-			i = 1
+	payloads := 0
+	for i := 0; ok && i < t.NumIn(); i++ {
+		switch pt := t.In(i); {
+		case pt == ctxType || pt.Kind() == reflect.Pointer || pt.Kind() == reflect.Interface:
+		case payloadType(pt):
+			payloads++
+		default:
+			ok = false
 		}
-		ok = t.NumIn()-i == 0 || t.NumIn()-i == 1 && payloadOK(t.In(i))
 	}
-	if ok {
+	if ok && payloads <= 1 {
 		return nil
 	}
-	return fmt.Errorf("takes a func(), a func taking the event's value (a string, number or bool), a form (a struct, or url.Values) or a ui.Event, optionally after a context.Context, returning nothing or an error; this is %T", fn)
-}
-
-func payloadOK(t reflect.Type) bool {
-	switch t.Kind() {
-	case reflect.String, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Float32, reflect.Float64, reflect.Struct:
-		return true
-	case reflect.Pointer:
-		return t.Elem().Kind() == reflect.Struct
-	case reflect.Map:
-		return t.Key().Kind() == reflect.String && t.Elem().Kind() == reflect.Slice && t.Elem().Elem().Kind() == reflect.String
-	}
-	return false
+	return fmt.Errorf("takes a func returning nothing or an error, taking the event's value (a string, number or bool), a form (a struct, or url.Values) or a ui.Event once, a context.Context, and what the app injects; this is %T", fn)
 }

@@ -196,7 +196,7 @@ func TestJSRender(t *testing.T) {
 		t.Fatalf("got  %s\nwant %s", got, want)
 	}
 	bad := ui.El("b", []ui.Attr{a("onClick", ui.On(ui.JS.Push(42)))})
-	if _, err := ui.String(context.Background(), bad); err == nil || !strings.Contains(err.Error(), "onClick: ui: JS Push takes a func()") {
+	if _, err := ui.String(context.Background(), bad); err == nil || !strings.Contains(err.Error(), "onClick: ui: JS Push takes a func returning nothing or an error") {
 		t.Fatalf("a bad Push handler: %v", err)
 	}
 }

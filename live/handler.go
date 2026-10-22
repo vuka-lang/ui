@@ -3,6 +3,7 @@ package live
 import (
 	"bytes"
 	"context"
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -20,46 +21,32 @@ var (
 	formType  = reflect.TypeFor[url.Values]()
 )
 
-// callHandler calls an event handler with the payload its parameter asks for:
+// callHandler calls an event handler, its parameters filled by type
+// (ui.Injector): a context.Context the session's, and the event's payload
+// the one parameter that asks for it:
 //
 //	func()                    nothing
 //	func(string)              the value: the key of a keyboard event, else the element's value
 //	func(bool), func(int), …  the value, parsed (a checkbox's value is "true" or "false"; "on" is true)
-//	func(ui.Event)          the whole event
+//	func(ui.Event)            the whole event
 //	func(url.Values)          the form's fields, as sent (also map[string][]string)
 //	func(T), func(*T)         T a struct: the form's fields bound to its fields
 //
-// A struct breaking its validate: tags is a ui.Invalid, the handler not called.
-//
-// A leading context.Context gets the session's; the handler may return an error.
+// Its other parameters are what the session's context's Injector fills:
+// the request, the signed-in user, a service. A struct breaking its
+// validate: tags is a ui.Invalid, the handler not called. The handler may
+// return an error.
 func callHandler(ctx context.Context, fn any, ev ui.Event) (err error) {
 	v := reflect.ValueOf(fn)
 	if v.Kind() != reflect.Func || v.IsNil() {
 		return fmt.Errorf("live: handler %s is %T, not a function", ev.Target, fn)
-	}
-	t := v.Type()
-	var args []reflect.Value
-	i := 0
-	if t.NumIn() > 0 && t.In(0) == ctxType {
-		args, i = append(args, reflect.ValueOf(ctx)), 1
-	}
-	switch t.NumIn() - i {
-	case 0:
-	case 1:
-		a, err := payload(t.In(i), ev)
-		if err != nil {
-			return err
-		}
-		args = append(args, a)
-	default:
-		return fmt.Errorf("live: handler %s takes %d parameters; it takes one payload at most", ev.Target, t.NumIn())
 	}
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("live: handler %s panicked: %v", ev.Target, r)
 		}
 	}()
-	return result(v.Call(args))
+	return ui.CallHandler(ctx, fn, func(t reflect.Type) (reflect.Value, error) { return payload(t, ev) })
 }
 
 func result(out []reflect.Value) error {
@@ -93,6 +80,12 @@ func payload(t reflect.Type, ev ui.Event) (reflect.Value, error) {
 		}
 	}
 	v := reflect.New(t).Elem()
+	if u, ok := v.Addr().Interface().(encoding.TextUnmarshaler); ok {
+		if err := u.UnmarshalText([]byte(s)); err != nil {
+			return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err)}
+		}
+		return v, nil
+	}
 	if err := setScalar(v, s); err != nil {
 		return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err)}
 	}

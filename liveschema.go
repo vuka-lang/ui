@@ -53,7 +53,16 @@ type LiveSchema struct {
 	onChange func(context.Context, Changed) error
 	loads    map[string]func(context.Context) error
 	hooks    map[string]bool // the hooks' method names
+	hookFns  []hookFn        // the hooks, as declared: read once per type, for CheckParams
 	errs     []error
+}
+
+// hookFn is a hook as LiveSchema was given it, and where.
+type hookFn struct {
+	kind, name string
+	fn         reflect.Value
+	file       string
+	line       int
 }
 
 // A FieldAttr configures a live page's field: Bind, URL, Defer, and the
@@ -126,29 +135,35 @@ func (l *LiveSchema) Field(ptr any, attrs ...FieldAttr) {
 }
 
 // Mount sets the hook that runs when the page mounts, after its props are
-// set and before its first render.
-func (l *LiveSchema) Mount(fn func(ctx context.Context) error) {
-	if l.hook("Mount", fn) {
-		l.mount = fn
+// set and before its first render: a method of the page, d.mount,
+// returning nothing or an error, its parameters filled by type — a
+// context.Context, and what the app's Injector fills (the request, the
+// signed-in user, a service).
+func (l *LiveSchema) Mount(fn any) {
+	if rv, ok := l.hook("Mount", "Mount", fn); ok {
+		l.mount = func(ctx context.Context) error { return call(ctx, rv, nil, hookCall, Changed{}, nil) }
 	}
 }
 
-// OnChange sets the hook that runs after the component sets bound fields,
-// c naming them.
-func (l *LiveSchema) OnChange(fn func(ctx context.Context, c Changed) error) {
-	if l.hook("OnChange", fn) {
-		l.onChange = fn
+// OnChange sets the hook that runs after the component sets bound fields:
+// a method of the page as Mount takes, which may take a Changed naming
+// them too.
+func (l *LiveSchema) OnChange(fn any) {
+	if rv, ok := l.hook("OnChange", "OnChange", fn); ok {
+		l.onChange = func(ctx context.Context, c Changed) error { return call(ctx, rv, nil, changeCall, c, nil) }
 	}
 }
 
-// Loads sets the loader of the deferred group: it runs after the page's
-// first render, on a copy of the page, and sets the group's fields.
-func (l *LiveSchema) Loads(group string, fn func(ctx context.Context) error) {
+// Loads sets the loader of the deferred group, a method of the page as
+// Mount takes: it runs after the page's first render, on a copy of the
+// page, and sets the group's fields.
+func (l *LiveSchema) Loads(group string, fn any) {
 	if !isIdent(group) {
 		l.fail("E0336", "l.Loads(%q, …): a group is a name", `name the group as ui.Defer does: l.Loads("stats", …)`, group)
 		return
 	}
-	if !l.hook("Loads("+group+")", fn) {
+	rv, ok := l.hook("Loads", "Loads("+group+")", fn)
+	if !ok {
 		return
 	}
 	if l.loads == nil {
@@ -158,22 +173,33 @@ func (l *LiveSchema) Loads(group string, fn func(ctx context.Context) error) {
 	if _, ok := l.loads[g]; ok {
 		l.fail("E0336", "l.Loads(%q, …) is called twice", "give the group one loader", group)
 	}
-	l.loads[g] = fn
+	l.loads[g] = func(ctx context.Context) error { return call(ctx, rv, nil, hookCall, Changed{}, nil) }
 }
 
-func (l *LiveSchema) hook(what string, fn any) bool {
+// hook checks fn, a hook of kind; read once per type (l.hooks set), it
+// records the hook and the place that set it — LiveSchema's line, which
+// the compiler places at the hook's method.
+func (l *LiveSchema) hook(kind, what string, fn any) (reflect.Value, bool) {
 	rv := reflect.ValueOf(fn)
-	if rv.IsNil() {
-		l.fail("E0336", "l.%s is given nil", "pass a method of the page: l.Mount(d.mount)", what)
-		return false
+	if !rv.IsValid() || rv.Kind() != reflect.Func || rv.IsNil() {
+		l.fail("E0336", "l.%s is given %T, not a method of the page", "pass a method of the page: l.Mount(d.mount)", what, fn)
+		return rv, false
+	}
+	ft := rv.Type()
+	if ft.IsVariadic() || ft.NumOut() > 1 || ft.NumOut() == 1 && ft.Out(0) != errType {
+		l.fail("E0336", "l.%s is given %s", "a hook returns nothing or an error; its parameters are filled by type", what, ft)
+		return rv, false
 	}
 	if l.hooks != nil {
-		if f := runtime.FuncForPC(rv.Pointer()); f != nil {
-			name := strings.TrimSuffix(f.Name(), "-fm")
-			l.hooks[name[strings.LastIndexByte(name, '.')+1:]] = true
+		name := methodName(rv)
+		l.hooks[name] = true
+		h := hookFn{kind: kind, name: name, fn: rv}
+		if _, file, line, ok := runtime.Caller(2); ok {
+			h.file, h.line = file[strings.LastIndexByte(file, '/')+1:], line
 		}
+		l.hookFns = append(l.hookFns, h)
 	}
-	return true
+	return rv, true
 }
 
 func (l *LiveSchema) fail(code, format, help string, args ...any) {
