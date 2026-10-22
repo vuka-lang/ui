@@ -12,7 +12,7 @@ import (
 )
 
 // Pages backed by a component. An @ui.Island struct routed as a page
-// (@web.Live, or @web.Get for a stateless one) renders as its island, in
+// renders as its island, in
 // the layout its decorator's Layout gives: the exported fields are the
 // props, the exported methods what the component calls (useLive<T>() in it),
 // and the unexported fields the server's own. Embedding ui.Live makes it a

@@ -8,14 +8,49 @@ import (
 	"io"
 )
 
-//line toast_container.vuka.html:3
-func (t ToastContainer) View() Node {
-//line toast_container.vuka.html:3
-	return HTML(`<div ref={t.ref()} class={t.classes()} role="region" aria-label="Notifications" aria-live="polite">{t.Children}</div>`, t.ref(), t.classes(), t.Children)
+// ToastContainer is the fixed region toasts stack in. Place one per page (a
+// live view renders a Toast per message it holds inside it):
+//
+//	<ui.ToastContainer>
+//		for _, m := range p.Messages {
+//			<ui.Toast key={m.ID} id={m.ID} variant={ui.AlertSuccess} title={m.Title}/>
+//		}
+//	</ui.ToastContainer>
+//
+//line toast_container.vuka.html:11
+type ToastContainer struct {
+	// Ref names the region for ShowToast to reveal a toast inside it; the
+	// default is "toasts".
+	Ref string
+	// Position is the corner the stack sits in; ToastTopRight by default.
+	Position ToastPosition
+	Class    string
+	Children Node
 }
 
-//line toast_container.vuka.html:3
-func (t ToastContainer) Render(ctx context.Context, w io.Writer) error {
-//line toast_container.vuka.html:3
-	return t.View().Render(ctx, w)
+func (c ToastContainer) ref() string {
+	if c.Ref == "" {
+		return "toasts"
+	}
+	return c.Ref
+}
+
+func (c ToastContainer) classes() string {
+	pos := c.Position
+	if pos == "" {
+		pos = ToastTopRight
+	}
+	return withClass("vk-toasts vk-toasts--"+string(pos), c.Class)
+}
+
+//line toast_container.vuka.html:35
+func (c ToastContainer) View() Node {
+//line toast_container.vuka.html:35
+	return HTML(`<div ref={c.ref()} class={c.classes()} role="region" aria-label="Notifications" aria-live="polite">{c.Children}</div>`, c.ref(), c.classes(), c.Children)
+}
+
+//line toast_container.vuka.html:35
+func (c ToastContainer) Render(ctx context.Context, w io.Writer) error {
+//line toast_container.vuka.html:35
+	return c.View().Render(ctx, w)
 }

@@ -8,13 +8,47 @@ import (
 	"io"
 )
 
-//line tile.vuka.html:3
+// Tile is a dashboard stat card: an icon badge beside a big number and its
+// label:
+//
+//	<ui.Tile label="Applications" icon="file-text" value={int64(12840)}/>
+//
+// Lay a row of them out with TileGrid.
+//
+//line tile.vuka.html:9
+type Tile struct {
+	// Label is the caption under the value.
+	Label string
+	// Icon is the named icon shown in the tile's badge, e.g. "briefcase".
+	Icon string
+	// Value is the figure. A whole number is shown thousands-separated; any
+	// other value is shown as is.
+	Value any
+	// Variant tints the icon badge; Primary by default.
+	Variant Variant
+	Class   string
+}
+
+func (t Tile) badgeClass() string {
+	variant := t.Variant
+	if variant == "" {
+		variant = Primary
+	}
+	return "vk-tile__icon vk-tile__icon--" + string(variant)
+}
+
+// icon is the badge's named icon; the Icon field shadows the func in the
+// markup.
+func (t Tile) icon() Node { return Icon(t.Icon) }
+
+//line tile.vuka.html:33
 func (t Tile) View() Node {
 	var span2 Node
+//line tile.vuka.html:34
 	if t.Icon != "" {
-		span2 = HTML(`<span class={t.badgeClass()}>{Icon(t.Icon)}</span>`, t.badgeClass(), Icon(t.Icon))
+		span2 = HTML(`<span class={t.badgeClass()}>{t.icon()}</span>`, t.badgeClass(), t.icon())
 	}
-//line tile.vuka.html:3
+//line tile.vuka.html:33
 	return HTML(`
 <div class={withClass("vk-tile", t.Class)}>
   {span2}
@@ -25,5 +59,5 @@ func (t Tile) View() Node {
 </div>`, withClass("vk-tile", t.Class), span2, tileValue(t.Value), t.Label)
 }
 
-//line tile.vuka.html:12
+//line tile.vuka.html:41
 func (t Tile) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }

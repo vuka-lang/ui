@@ -12,7 +12,7 @@ import (
 )
 
 // VukaJSX marks the package as a JSX target implementing version 3 of Vuka's
-// contract: a .vuka file importing ui lowers each piece of its JSX to an
+// contract: a .vuka.html file importing ui lowers its markup to an
 // HTML call, blocks to Go building a Node or []Node, tags naming a Stateful type
 // to &T{…} (Key with a key), islands to their props (Mount with options),
 // states to package uigen (see VukaState); children of

@@ -1,9 +1,10 @@
 # github.com/vuka-lang/ui
 
-The UI library for [Vuka](https://github.com/vuka-lang/vuka): what JSX in a
-`.vuka` file renders with. A file that imports `github.com/vuka-lang/ui` is a
-JSX file whose elements become `ui.El`, `ui.Text`, `ui.Child`, … (the package
-declares `const VukaJSX = 3`, Vuka's JSX target contract).
+The UI library for [Vuka](https://github.com/vuka-lang/vuka): what the
+markup of a `.vuka.html` file renders with. A `.vuka.html` file is one
+component: its Go header declares the struct, the markup below it is the
+struct's view, and the compiler lowers it to calls of this package (which
+declares `const VukaJSX = 3`, Vuka's markup target contract).
 
 - `ui` — `Node` (= `templ.Component`), markup (`HTML`, `Each`, `If`), elements and text, `Safe`, `Style`,
   `ErrorBoundary`, HTML rendering (`String`, `Write`, `Handler`), `Walk` and
@@ -12,7 +13,7 @@ declares `const VukaJSX = 3`, Vuka's JSX target contract).
   component's scripts (`Live.PushEvent`); links a live page
   follows over its connection (`Link`, `JS.Patch`/`Navigate`,
   `Live.PushPatch`/`PushNavigate`); client state the browser keeps and
-  JSX reads (`State`, `Derived`, `Class`, `Show`, `Bind`, `BindAttr`);
+  markup reads (`State`, `Derived`, `Class`, `Show`, `Bind`, `BindAttr`);
   islands — client components hydrated in a server-rendered page
   (`Island`, `MountIsland`), and pages backed by one (`IslandPage`).
 - `ui/live` — sessions that keep stateful components alive for a connected
@@ -21,57 +22,42 @@ declares `const VukaJSX = 3`, Vuka's JSX target contract).
 - `ui/templx` — templ interop: children for templ components, the
   components of `.templ` files a `vuka.File` names.
 
-```vuka
-import "github.com/vuka-lang/ui"
+```html
+<!-- hello.vuka.html -->
+package greet
 
-func Hello(name string) ui.Node {
-	return <p>Hello, {name}!</p>
+type Hello struct {
+	Name string
 }
+<p>Hello, {Name}!</p>
 ```
 
 Documentation: https://vuka-lang.github.io/ui/
 
-## Markup in plain Go: `ui.HTML`
+## What markup compiles to: `ui.HTML`
 
-`ui.HTML` is markup for `.go` files: HTML in backticks whose holes are
-labelled with the Go of their values, the values after it in the order the
-labels first appear. It is parsed once and renders like JSX — the static HTML
-is written straight through, and under a live session it is a frame of
-statics and dynamics that diffs as JSX does.
+The compiler writes a `.vuka.html` file's markup as `ui.HTML` calls: HTML in
+backticks whose holes are labelled with the Go of their values, the values
+after it in the order the labels first appear. It is parsed once — the
+static HTML is written straight through, and under a live session it is a
+frame of statics and dynamics that diffs by them. `ui.HTML` is compiler
+output; vukavet reports a hand-written call.
 
-```go
-func (p *Orders) row(o Order) ui.Node {
-	cancel := func() { p.Cancel(o.ID) }
-	return ui.HTML(`
-<tr key={o.ID} class="row" class:late={o.Late}>
-  <td>{o.Ref}</td>
-  <td class="tabular-nums">{money(o.Total)}</td>
-  <td><button onClick={cancel}>Cancel</button></td>
-</tr>`, o.ID, o.Late, o.Ref, money(o.Total), cancel)
-}
-
-func (p *Orders) Render() ui.Node {
-	rows := ui.Each(p.orders, p.row)
-	return ui.HTML(`<table><tbody>{rows}</tbody></table>`, rows)
-}
-```
-
-A label appearing twice is one value; vukavet checks each value is written as its label. Each hole is escaped for its place,
-and a value of the wrong kind fails the render with the file, line and
-hole:
+Each hole is escaped for its place, and a value of the wrong kind fails the
+render with the file, line and hole:
 
 | Place | Takes |
 |---|---|
 | a child, `<td>{x}</td>` | a `ui.Node`, `[]ui.Node`, string or number (escaped), error, nil, a `ui.State` (kept current), a stateful component (`&Counter{…}`, `ui.Key(k, &Counter{…})`), an island (`Chart{…}`, `ui.Mount(Chart{…}, ui.Idle())`) |
 | text, `<title>{x}</title>` (title, textarea) | a string or number |
-| a value, `class={x}` | what a JSX attribute takes: string, number, bool, nil, `ui.Class` / `ui.Classes` / `ui.Style` on class / style, a `ui.State`; an `on…` attribute takes a handler — a func, `ui.On(…)`, JS commands |
+| a value, `class={x}` | string, number, bool, nil, `ui.Class` / `ui.Classes` / `ui.Style` on class / style, a `ui.State`; an `on…` attribute takes a handler — a func, `ui.On(…)`, JS commands |
 | part of a value, `href="/orders/{id}"` | a string or number |
 | a toggled class, `class:late={on}` | a bool or a `ui.State[bool]` |
 | an attribute set, `<input {attrs...}>` | `ui.Attr`, `[]ui.Attr`, `templ.Attributes` (`ui.BindAttr` gives one) |
 
-- Loops and conditionals are Go: `ui.Each(items, fn)`, `ui.If(cond, node)`,
-  or a `[]ui.Node` built in a loop, given to a hole. Their items diff by key:
-  a `key` attribute on an item's first element, or `ui.Key` on a component.
+- Loops and conditionals are Go statements in the markup (`for`, `if`,
+  `switch`). Their items diff by key: a `key` attribute on an item's first
+  element, or on a component's tag.
 - Client state: a `ui.State[T]` field of a `.vuka.html` file's struct, or a
   package-level `var theme ui.State[string]` for the page; markup reads it
   as a plain variable and an `on…` attribute writes it (`open = !open`).
@@ -81,11 +67,8 @@ hole:
   braces are text.
 - The markup is strict — every element closed (void elements and `<x/>`
   aside), holes only where the table says — and a mistake fails the render
-  with its line. Text follows JSX's whitespace rule, so indentation adds
-  nothing; pre and textarea keep theirs.
-
-With the `vuka` command, markup goes in `.vuka.html` files beside the Go —
-templates with Go statements, compiled to the same calls.
+  with its line. Text is trimmed where it meets a line break, so
+  indentation adds nothing; pre and textarea keep theirs.
 
 ## Components
 
@@ -113,14 +96,16 @@ is:
 ui.Card{Title: ui.Text("Members"), NoPad: true, Children: table}
 ```
 
-The kit is written the way an app's components are: `card.go` declares the
-type, `card.vuka.html` is its markup, the `View` method; the compiler adds
-the templ method, `Render(ctx, w)`, that renders it. HTML rendering and live
-sessions read the `View` itself, so a component renders, diffs and keys as
-its markup does.
+The kit is written the way an app's components are: `card.vuka.html` declares
+the `Card` struct above its markup, which the compiler makes its `View`
+method, adding the templ method, `Render(ctx, w)`, that renders it. HTML
+rendering and live sessions read the `View` itself, so a component renders,
+diffs and keys as its markup does.
 
-```go
-// card.go
+```html
+<!-- card.vuka.html -->
+package ui
+
 type Card struct {
 	Title    Node
 	Header   Node
@@ -128,28 +113,24 @@ type Card struct {
 	Class    string
 	Children Node
 }
-```
-
-```html
-<!-- card.vuka.html -->
-func (c Card) View()
-<div class={withClass("vk-card", c.Class)}>
-  if c.Title != nil || c.Header != nil {
+<div class={withClass("vk-card", Class)}>
+  if Title != nil || Header != nil {
     <div class="vk-card__header">
-      <div class="vk-card__title">{c.Title}</div>
-      if c.Header != nil {
-        <div class="vk-card__header-actions">{c.Header}</div>
+      <div class="vk-card__title">{Title}</div>
+      if Header != nil {
+        <div class="vk-card__header-actions">{Header}</div>
       }
     </div>
   }
-  <div class="vk-card__body" class:vk-card__body--flush={c.NoPad}>{c.Children}</div>
+  <div class="vk-card__body" class:vk-card__body--flush={NoPad}>{Children}</div>
 </div>
 ```
 
-An app's template reads fields by bare name (`{Title}`); the kit's name
-their receiver, since in package ui many field names — `Icon`, `Value`,
-`Class`, `Ref`, `On`, `Page` — are also the package's own names, which a
-bare name would mean.
+Markup reads the struct's fields and methods by bare name (`{Title}`), or
+through the receiver its methods name (`{c.Title}`). A field shadows a
+package name it shares — `Icon`, `Value`, `Class`, `Ref`, `On`, `Page` in
+package ui — so a component with an `Icon` field calls the `Icon` func from
+a method of its header.
 
 The former props types are aliases of the components, deprecated:
 `ui.CardProps` is `ui.Card`, and so on for `AlertProps`, `BadgeProps`,

@@ -24,17 +24,6 @@ type Tab struct {
 // Count boxes n for a Tab's badge.
 func Count(n int) *int { return &n }
 
-// Tabs is a tab bar underlining the active tab; each tab may carry a count:
-//
-//	<ui.Tabs tabs={[]ui.Tab{
-//		{Label: "Placements", Href: "/tasks?type=placements", Active: true, Count: ui.Count(42)},
-//		{Label: "Permits", Href: "/tasks?type=permits", Count: ui.Count(7)},
-//	}}/>
-type Tabs struct {
-	Tabs  []Tab
-	Class string
-}
-
 // TabsProps is Tabs, by its former name.
 //
 // Deprecated: use Tabs: ui.Tabs{…}, or <ui.Tabs …> in a template.
@@ -55,4 +44,34 @@ func (t Tab) link() any {
 		return "patch"
 	}
 	return true
+}
+
+// node is the tab: a link, or a button calling On.
+func (t Tab) node() Node {
+	if t.Href != "" {
+		return HTML(`<a class={t.classes()} href={t.Href} data-vk-link={t.link()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)}>{t.label()}</a>`,
+			t.classes(),
+			t.Href,
+			t.link(),
+			t.selected(),
+			nonEmpty(t.ID),
+			t.label(),
+		)
+	}
+	return HTML(`<button type="button" class={t.classes()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)} {on("onClick", t.On)...}>{t.label()}</button>`, t.classes(), t.selected(), nonEmpty(t.ID), on("onClick", t.On), t.label())
+}
+
+// label is the tab's icon, label and count.
+func (t Tab) label() Node {
+	var icon, count Node
+	if t.Icon != "" {
+		icon = HTML(`<span class="vk-tab__icon">{Icon(t.Icon)}</span>`, Icon(t.Icon))
+	}
+	if t.Count != nil {
+		count = HTML(`<span class="vk-tab__count">{*t.Count}</span>`, *t.Count)
+	}
+	return HTML(`
+{icon}
+<span class="vk-tab__label">{t.Label}</span>
+{count}`, icon, t.Label, count)
 }

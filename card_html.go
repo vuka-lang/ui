@@ -8,12 +8,36 @@ import (
 	"io"
 )
 
-//line card.vuka.html:3
+// Card is a bordered surface with an optional header (a title on the left,
+// actions on the right) and a body:
+//
+//	<ui.Card title={ui.Text("Members")}>
+//		<slot:header><ui.Button variant={ui.Primary}>Invite</ui.Button></slot:header>
+//		{table}
+//	</ui.Card>
+//
+// or in Go, ui.Card{Title: ui.Text("Members"), Children: table}.
+//
+//line card.vuka.html:12
+type Card struct {
+	// Title is the header's left content; a string becomes a heading, any
+	// other Node is placed as is.
+	Title Node
+	// Header is the header's right slot, for actions (ui.Actions) or a badge.
+	Header Node
+	// NoPad drops the body's padding, e.g. for a flush DataTable.
+	NoPad    bool
+	Class    string
+	Children Node
+}
+
+//line card.vuka.html:23
 func (c Card) View() Node {
 	var div Node
+//line card.vuka.html:24
 	if c.Title != nil || c.Header != nil {
 		var div2 Node
-//line card.vuka.html:8
+//line card.vuka.html:27
 		if c.Header != nil {
 			div2 = HTML(`<div class="vk-card__header-actions">{c.Header}</div>`, c.Header)
 		}
@@ -23,7 +47,7 @@ func (c Card) View() Node {
   {div2}
 </div>`, c.Title, div2)
 	}
-//line card.vuka.html:3
+//line card.vuka.html:23
 	return HTML(`
 <div class={withClass("vk-card", c.Class)}>
   {div}
@@ -31,5 +55,5 @@ func (c Card) View() Node {
 </div>`, withClass("vk-card", c.Class), div, c.NoPad, c.Children)
 }
 
-//line card.vuka.html:14
+//line card.vuka.html:33
 func (c Card) Render(ctx context.Context, w io.Writer) error { return c.View().Render(ctx, w) }

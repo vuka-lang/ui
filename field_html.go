@@ -8,11 +8,137 @@ import (
 	"io"
 )
 
-//line field.vuka.html:3
+// Field is a form field: its control, label, help and error. It renders the
+// control its Type names, an HTML input type ("text" by default); Input,
+// Password, Textarea, Select and Checkbox are the fields of each kind:
+//
+//	<ui.Field name="age" label="Age" type="number" min="18"/>
+//	<ui.Input name="email" label="Email" type="email" required/>
+//
+//line field.vuka.html:9
+type Field struct {
+	// Name is the control's name, matching the form struct's form: tag.
+	Name string
+	// Label is shown above the control; omitted when empty.
+	Label string
+	// Type is the HTML input type ("text" default, "email", "number", "date",
+	// "time", "url", "tel"); the dedicated kinds set it for password,
+	// textarea, select and checkbox.
+	Type string
+	// Value is the control's value; for a checkbox, "true" ticks it.
+	Value string
+	// Options are a select's choices.
+	Options []Option
+	// Error is the field's message; when set the control is marked invalid.
+	// The host supplies it (its own validation), since ui does not import the
+	// runtime, where errors are tracked.
+	Error string
+	// Help is a hint shown under the control.
+	Help        string
+	Placeholder string
+	Required    bool
+	Disabled    bool
+	// Rows is a textarea's height; 3 when 0.
+	Rows int
+	// Min, Max and Step bound a number or date control.
+	Min, Max, Step string
+	Autocomplete   string
+	Class          string
+	// Attrs are extra attributes on the control.
+	Attrs []Attr
+	kind  fieldKind `vuka:"-"`
+}
+
+func (f Field) id() string { return "f-" + f.Name }
+
+func (f Field) invalid() bool { return f.Error != "" }
+
+func (f Field) classes() string {
+	c := "vk-field"
+	if f.kind == kindCheckbox {
+		c += " vk-field--check"
+	}
+	if f.invalid() {
+		c += " vk-field--invalid"
+	}
+	return withClass(c, f.Class)
+}
+
+// control is the class of a control: base, marked when the field is invalid.
+func (f Field) control(base string) string {
+	if f.invalid() {
+		return base + " " + base + "--invalid"
+	}
+	return base
+}
+
+// common are the attributes every control but the checkbox has, after its
+// own class (and type or rows).
+func (f Field) common() []Attr {
+	a := []Attr{{"id", f.id()}, {"name", f.Name}}
+	if f.Required {
+		a = append(a, Attr{"required", true})
+	}
+	if f.Disabled {
+		a = append(a, Attr{"disabled", true})
+	}
+	if f.invalid() {
+		a = append(a, Attr{"aria-invalid", "true"}, Attr{"aria-describedby", f.id() + "-error"})
+	}
+	if f.Autocomplete != "" {
+		a = append(a, Attr{"autocomplete", f.Autocomplete})
+	}
+	return append(a, f.Attrs...)
+}
+
+func (f Field) inputType() string {
+	if f.Type == "" {
+		return "text"
+	}
+	return f.Type
+}
+
+func (f Field) rows() int {
+	if f.Rows == 0 {
+		return 3
+	}
+	return f.Rows
+}
+
+// input is the field's control: a textarea, a select or an input.
+func (f Field) input() Node {
+	switch f.kind {
+	case kindTextarea:
+		return HTML(`<textarea class={f.control("vk-textarea")} rows={f.rows()} {f.common()...} placeholder={nonEmpty(f.Placeholder)}>{f.Value}</textarea>`, f.control("vk-textarea"), f.rows(), f.common(), nonEmpty(f.Placeholder), f.Value)
+	case kindSelect:
+		var placeholder Node
+		if f.Placeholder != "" {
+			placeholder = HTML(`<option value="" disabled selected={f.Value == ""}>{f.Placeholder}</option>`, f.Value == "", f.Placeholder)
+		}
+		var options []Node
+		for _, o := range f.Options {
+			options = append(options, HTML(`<option value={o.Value} selected={o.Value == f.Value}>{o.Label}</option>`, o.Value, o.Value == f.Value, o.Label))
+		}
+		return HTML(`<select class={f.control("vk-select")} {f.common()...}>{placeholder}{options}</select>`, f.control("vk-select"), f.common(), placeholder, options)
+	}
+	return HTML(`<input class={f.control("vk-input")} type={f.inputType()} value={f.Value} {f.common()...} placeholder={nonEmpty(f.Placeholder)} min={nonEmpty(f.Min)} max={nonEmpty(f.Max)} step={nonEmpty(f.Step)}/>`,
+		f.control("vk-input"),
+		f.inputType(),
+		f.Value,
+		f.common(),
+		nonEmpty(f.Placeholder),
+		nonEmpty(f.Min),
+		nonEmpty(f.Max),
+		nonEmpty(f.Step),
+	)
+}
+
+//line field.vuka.html:125
 func (f Field) View() Node {
 	var label2 Node
+//line field.vuka.html:126
 	if f.kind == kindCheckbox {
-//line field.vuka.html:7
+//line field.vuka.html:128
 		value2 := f.id()
 		label2 = HTML(`
 <label class="vk-check" for={f.id()}>
@@ -29,10 +155,10 @@ func (f Field) View() Node {
 		)
 	} else {
 		var label22 Node
-//line field.vuka.html:11
+//line field.vuka.html:132
 		if f.Label != "" {
 			var span2 Node
-//line field.vuka.html:14
+//line field.vuka.html:135
 			if f.Required {
 				span2 = HTML(`<span class="vk-field__req" aria-hidden="true">*</span>`)
 			}
@@ -47,16 +173,16 @@ func (f Field) View() Node {
 {f.input()}`, label22, f.input())
 	}
 	var div Node
-//line field.vuka.html:21
+//line field.vuka.html:142
 	if f.Help != "" {
 		div = HTML(`<div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>`, f.id()+"-help", f.Help)
 	}
 	var div2 Node
-//line field.vuka.html:24
+//line field.vuka.html:145
 	if f.invalid() {
 		div2 = HTML(`<div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>`, f.id()+"-error", f.Error)
 	}
-//line field.vuka.html:3
+//line field.vuka.html:125
 	return HTML(`
 <div class={f.classes()}>
   {label2}
@@ -65,44 +191,5 @@ func (f Field) View() Node {
 </div>`, f.classes(), label2, div, div2)
 }
 
-//line field.vuka.html:27
+//line field.vuka.html:148
 func (f Field) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }
-
-// input is the field's control: a textarea, a select or an input.
-func (f Field) input() Node {
-	var textarea Node
-//line field.vuka.html:31
-	switch f.kind {
-	case kindTextarea:
-		textarea = HTML(`<textarea class={f.control("vk-textarea")} rows={f.rows()} {f.common()...} placeholder={nonEmpty(f.Placeholder)}>{f.Value}</textarea>`, f.control("vk-textarea"), f.rows(), f.common(), nonEmpty(f.Placeholder), f.Value)
-	case kindSelect:
-		var option Node
-		if f.Placeholder != "" {
-			option = HTML(`<option value="" disabled selected={f.Value == ""}>{f.Placeholder}</option>`, f.Value == "", f.Placeholder)
-		}
-		var options []Node
-//line field.vuka.html:39
-		for _, o := range f.Options {
-			options = append(options, HTML(`<option value={o.Value} selected={o.Value == f.Value}>{o.Label}</option>`, o.Value, o.Value == f.Value, o.Label))
-		}
-		textarea = HTML(`
-<select class={f.control("vk-select")} {f.common()...}>
-  {option}
-  {options}
-</select>`, f.control("vk-select"), f.common(), option, options)
-//line field.vuka.html:43
-	default:
-		textarea = HTML(`<input class={f.control("vk-input")} type={f.inputType()} value={f.Value} {f.common()...} placeholder={nonEmpty(f.Placeholder)} min={nonEmpty(f.Min)} max={nonEmpty(f.Max)} step={nonEmpty(f.Step)}/>`,
-			f.control("vk-input"),
-			f.inputType(),
-			f.Value,
-			f.common(),
-			nonEmpty(f.Placeholder),
-			nonEmpty(f.Min),
-			nonEmpty(f.Max),
-			nonEmpty(f.Step),
-		)
-	}
-//line field.vuka.html:30
-	return textarea
-}

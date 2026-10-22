@@ -2,107 +2,11 @@ package ui
 
 import "strconv"
 
-// DataTable is a Table with a search box, sortable headers and a pager,
-// driven from a live view's events. It renders a page (ui.Page[T], e.g. from
-// web.Paginate) and calls the handlers the host supplies:
-//
-//	<ui.DataTable columns={cols} page={p.page.Get()} search={p.query.Get()}
-//		onSearch={p.Search} onSort={p.SortBy} onPage={p.GoTo}/>
-//
-// The On… handlers are live event handlers (a func, as an on… attribute
-// takes); leaving one nil drops its control, so a DataTable can offer just
-// paging, or paging with search and sort.
-type DataTable[T any] struct {
-	Columns []Column[T]
-	// Page is the current page of rows (see web.Paginate).
-	Page Page[T]
-
-	// OnPage is called with a 1-based page number when a pager control is
-	// used; without it the pager renders as static text.
-	OnPage any
-	// OnSize is called with a new page size when the size select changes;
-	// shown only with Sizes.
-	OnSize any
-	// Sizes are the page-size options offered when OnSize is set.
-	Sizes []int
-	// OnSearch is called with the search box's value as the user types;
-	// without it no search box is shown.
-	OnSearch any
-	// Search is the current search value (kept in the box across renders).
-	Search            string
-	SearchPlaceholder string
-	// OnSort is called with a column's Sort key when its header is clicked;
-	// columns with no Sort key stay plain.
-	OnSort any
-	// Sort and SortDir ("asc"/"desc") mark the sorted column for the header
-	// indicator.
-	Sort    string
-	SortDir string
-
-	// Window is how many numbered pager buttons to show; default 5.
-	Window int
-
-	// Passed through to the underlying Table.
-	RowKey       func(T) any
-	RowHref      func(T) string
-	RowActions   func(T) Node
-	Selectable   bool
-	SelectName   string
-	RowSelected  func(T) bool
-	OnSelect     func(T) any
-	OnSelectAll  any
-	AllSelected  bool
-	SomeSelected bool
-	// Index adds a row-number column numbered from the page's first row.
-	Index     bool
-	Empty     Node
-	EmptyIcon Node
-	// Flush drops the table's border so it sits flush in a Card.
-	Flush bool
-	Class string
-
-	// Toolbar is extra controls shown in the bar beside the search box
-	// (filters, a "New" button).
-	Toolbar Node
-	// Tabs, when set, are shown in the bar above the table.
-	Tabs Node
-}
-
 // DataTableProps is DataTable, by its former name.
 //
 // Deprecated: use DataTable: ui.DataTable[T]{…}, or
 // <ui.DataTable …> in a template.
 type DataTableProps[T any] = DataTable[T]
-
-// table is the markup of the Table of the page's rows, its sortable
-// columns' headers sort controls.
-func (d DataTable[T]) table() Node {
-	cols := d.Columns
-	if d.OnSort != nil {
-		cols = make([]Column[T], len(d.Columns))
-		copy(cols, d.Columns)
-		for i := range cols {
-			if cols[i].Sort != "" {
-				cols[i].Header = sortHeader(cols[i], d.Sort, d.SortDir, d.OnSort)
-			}
-		}
-	}
-	return Table[T]{
-		Columns: cols, Rows: d.Page.Items, RowKey: d.RowKey, RowHref: d.RowHref,
-		RowActions: d.RowActions, Selectable: d.Selectable, SelectName: d.SelectName,
-		RowSelected: d.RowSelected, OnSelect: d.OnSelect, OnSelectAll: d.OnSelectAll,
-		AllSelected: d.AllSelected, SomeSelected: d.SomeSelected,
-		Index: d.Index, IndexFrom: d.Page.From() - 1,
-		Empty: d.Empty, EmptyIcon: d.EmptyIcon, Flush: d.Flush,
-	}.View()
-}
-
-func (d DataTable[T]) placeholder() string {
-	if d.SearchPlaceholder == "" {
-		return "Search…"
-	}
-	return d.SearchPlaceholder
-}
 
 // sortAria is a sort control's aria-sort: whether its column is the sorted
 // one, and which way.
@@ -132,4 +36,34 @@ func pageTo(onPage any, n int, enabled bool) []Attr {
 		return nil
 	}
 	return on("onClick", JS.Push(onPage, Value(strconv.Itoa(n))))
+}
+
+// sortHeader is a sortable column's header: a button calling onSort with its
+// key, marked when its column is the sorted one.
+func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
+	icon := Icon("caret-up", "vk-sort__ind vk-sort__ind--active")
+	if c.Sort != sort {
+		icon = Icon("caret-up-down", "vk-sort__ind")
+	} else if dir == "desc" {
+		icon = Icon("caret-down", "vk-sort__ind vk-sort__ind--active")
+	}
+	return HTML(`<button type="button" class="vk-sort" aria-sort={sortAria(c.Sort == sort, dir)} onClick={JS.Push(onSort, Value(c.Sort))}>{c.Header}{icon}</button>`, sortAria(c.Sort == sort, dir), JS.Push(onSort, Value(c.Sort)), c.Header, icon)
+}
+
+// pager is a page's numbered buttons between previous and next.
+func pager[T any](page Page[T], window int, onPage any) Node {
+	if page.Pages <= 1 {
+		return HTML(`<div class="vk-pager"/>`)
+	}
+	var buttons []Node
+	for _, n := range page.Window(pagerWindow(window)) {
+		buttons = append(buttons, pagerButton(strconv.Itoa(n), "Page "+strconv.Itoa(n), n, true, n == page.Page, onPage))
+	}
+	prev := pagerButton("‹", "Previous page", page.Page-1, page.HasPrev, false, onPage)
+	next := pagerButton("›", "Next page", page.Page+1, page.HasNext, false, onPage)
+	return HTML(`<nav class="vk-pager" aria-label="Pagination">{prev}{buttons}{next}</nav>`, prev, buttons, next)
+}
+
+func pagerButton(label, aria string, target int, enabled, current bool, onPage any) Node {
+	return HTML(`<button type="button" aria-label={aria} aria-current={when(current, "page")} disabled={!enabled || onPage == nil} {pageTo(onPage, target, enabled)...}>{label}</button>`, aria, when(current, "page"), !enabled || onPage == nil, pageTo(onPage, target, enabled), label)
 }

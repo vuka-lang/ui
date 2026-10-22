@@ -6,17 +6,115 @@ package ui
 import (
 	"context"
 	"io"
-	"strconv"
 )
 
-//line datatable.vuka.html:3
+// DataTable is a Table with a search box, sortable headers and a pager,
+// driven from a live view's events. It renders a page (ui.Page[T], e.g. from
+// web.Paginate) and calls the handlers the host supplies:
+//
+//	<ui.DataTable columns={cols} page={p.page.Get()} search={p.query.Get()}
+//		onSearch={p.Search} onSort={p.SortBy} onPage={p.GoTo}/>
+//
+// The On… handlers are live event handlers (a func, as an on… attribute
+// takes); leaving one nil drops its control, so a DataTable can offer just
+// paging, or paging with search and sort.
+//
+//line datatable.vuka.html:13
+type DataTable[T any] struct {
+	Columns []Column[T]
+	// Page is the current page of rows (see web.Paginate).
+	Page Page[T]
+
+	// OnPage is called with a 1-based page number when a pager control is
+	// used; without it the pager renders as static text.
+	OnPage any
+	// OnSize is called with a new page size when the size select changes;
+	// shown only with Sizes.
+	OnSize any
+	// Sizes are the page-size options offered when OnSize is set.
+	Sizes []int
+	// OnSearch is called with the search box's value as the user types;
+	// without it no search box is shown.
+	OnSearch any
+	// Search is the current search value (kept in the box across renders).
+	Search            string
+	SearchPlaceholder string
+	// OnSort is called with a column's Sort key when its header is clicked;
+	// columns with no Sort key stay plain.
+	OnSort any
+	// Sort and SortDir ("asc"/"desc") mark the sorted column for the header
+	// indicator.
+	Sort    string
+	SortDir string
+
+	// Window is how many numbered pager buttons to show; default 5.
+	Window int
+
+	// Passed through to the underlying Table.
+	RowKey       func(T) any
+	RowHref      func(T) string
+	RowActions   func(T) Node
+	Selectable   bool
+	SelectName   string
+	RowSelected  func(T) bool
+	OnSelect     func(T) any
+	OnSelectAll  any
+	AllSelected  bool
+	SomeSelected bool
+	// Index adds a row-number column numbered from the page's first row.
+	Index     bool
+	Empty     Node
+	EmptyIcon Node
+	// Flush drops the table's border so it sits flush in a Card.
+	Flush bool
+	Class string
+
+	// Toolbar is extra controls shown in the bar beside the search box
+	// (filters, a "New" button).
+	Toolbar Node
+	// Tabs, when set, are shown in the bar above the table.
+	Tabs Node
+}
+
+// table is the markup of the Table of the page's rows, its sortable
+// columns' headers sort controls.
+func (d DataTable[T]) table() Node {
+	cols := d.Columns
+	if d.OnSort != nil {
+		cols = make([]Column[T], len(d.Columns))
+		copy(cols, d.Columns)
+		for i := range cols {
+			if cols[i].Sort != "" {
+				cols[i].Header = sortHeader(cols[i], d.Sort, d.SortDir, d.OnSort)
+			}
+		}
+	}
+	return Table[T]{
+		Columns: cols, Rows: d.Page.Items, RowKey: d.RowKey, RowHref: d.RowHref,
+		RowActions: d.RowActions, Selectable: d.Selectable, SelectName: d.SelectName,
+		RowSelected: d.RowSelected, OnSelect: d.OnSelect, OnSelectAll: d.OnSelectAll,
+		AllSelected: d.AllSelected, SomeSelected: d.SomeSelected,
+		Index: d.Index, IndexFrom: d.Page.From() - 1,
+		Empty: d.Empty, EmptyIcon: d.EmptyIcon, Flush: d.Flush,
+	}.View()
+}
+
+func (d DataTable[T]) placeholder() string {
+	if d.SearchPlaceholder == "" {
+		return "Search…"
+	}
+	return d.SearchPlaceholder
+}
+
+//line datatable.vuka.html:98
 func (d DataTable[T]) View() Node {
 	var div Node
+//line datatable.vuka.html:99
 	if d.OnSearch != nil || d.Tabs != nil || d.Toolbar != nil {
 		var div2 Node
-//line datatable.vuka.html:9
+//line datatable.vuka.html:103
 		if d.OnSearch != nil {
-//line datatable.vuka.html:11
+//line datatable.vuka.html:105
 			value2 := Icon("search", "vk-datatable__searchicon")
 			div2 = HTML(`
 <div class="vk-datatable__searchbox">
@@ -25,7 +123,7 @@ func (d DataTable[T]) View() Node {
 </div>`, value2, d.placeholder(), d.Search, on("onInput", d.OnSearch))
 		}
 		var div3 Node
-//line datatable.vuka.html:16
+//line datatable.vuka.html:110
 		if d.Toolbar != nil {
 			div3 = HTML(`<div class="vk-datatable__bar-right">{d.Toolbar}</div>`, d.Toolbar)
 		}
@@ -39,27 +137,27 @@ func (d DataTable[T]) View() Node {
 </div>`, d.Tabs, div2, div3)
 	}
 	var from2 Node
-//line datatable.vuka.html:24
+//line datatable.vuka.html:118
 	if d.Page.Total > 0 {
 		from2 = HTML(`Showing {d.Page.From()}–{d.Page.To()} of {d.Page.Total}`, d.Page.From(), d.Page.To(), d.Page.Total)
 	} else {
 		from2 = HTML(`No results`)
 	}
 	var label2 Node
-//line datatable.vuka.html:29
+//line datatable.vuka.html:123
 	if d.OnSize != nil && len(d.Sizes) > 0 {
-		var options []Node
-//line datatable.vuka.html:33
+		var options2 []Node
+//line datatable.vuka.html:127
 		for _, n := range d.Sizes {
-			options = append(options, HTML(`<option value={n} selected={n == d.Page.Size}>{n}</option>`, n, n == d.Page.Size))
+			options2 = append(options2, HTML(`<option value={n} selected={n == d.Page.Size}>{n}</option>`, n, n == d.Page.Size))
 		}
 		label2 = HTML(`
 <label class="vk-datatable__size">
   {"Per page "}
-  <select aria-label="Rows per page" {on("onChange", d.OnSize)...}>{options}</select>
-</label>`, "Per page ", on("onChange", d.OnSize), options)
+  <select aria-label="Rows per page" {on("onChange", d.OnSize)...}>{options2}</select>
+</label>`, "Per page ", on("onChange", d.OnSize), options2)
 	}
-//line datatable.vuka.html:3
+//line datatable.vuka.html:98
 	return HTML(`
 <div class={withClass("vk-datatable", d.Class)}>
   {div}
@@ -81,56 +179,5 @@ func (d DataTable[T]) View() Node {
 	)
 }
 
-//line datatable.vuka.html:42
+//line datatable.vuka.html:136
 func (d DataTable[T]) Render(ctx context.Context, w io.Writer) error { return d.View().Render(ctx, w) }
-
-// sortHeader is a sortable column's header: a button calling onSort with its
-// key, marked when its column is the sorted one.
-func sortHeader[T any](c Column[T], sort, dir string, onSort any) Node {
-	var icon Node
-//line datatable.vuka.html:49
-	if c.Sort != sort {
-		icon = Icon("caret-up-down", "vk-sort__ind")
-	} else if dir == "desc" {
-		icon = Icon("caret-down", "vk-sort__ind vk-sort__ind--active")
-	} else {
-		icon = Icon("caret-up", "vk-sort__ind vk-sort__ind--active")
-	}
-//line datatable.vuka.html:46
-	return HTML(`
-<button type="button" class="vk-sort" aria-sort={sortAria(c.Sort == sort, dir)} onClick={JS.Push(onSort, Value(c.Sort))}>
-  {c.Header}
-  {icon}
-</button>`, sortAria(c.Sort == sort, dir), JS.Push(onSort, Value(c.Sort)), c.Header, icon)
-}
-
-// pager is a page's numbered buttons between previous and next.
-//
-//line datatable.vuka.html:59
-func pager[T any](page Page[T], window int, onPage any) Node {
-	var div Node
-//line datatable.vuka.html:60
-	if page.Pages <= 1 {
-		div = HTML(`<div class="vk-pager"/>`)
-	} else {
-		var pagerButtons []Node
-//line datatable.vuka.html:65
-		for _, n := range page.Window(pagerWindow(window)) {
-			pagerButtons = append(pagerButtons, pagerButton(strconv.Itoa(n), "Page "+strconv.Itoa(n), n, true, n == page.Page, onPage))
-		}
-		div = HTML(`
-<nav class="vk-pager" aria-label="Pagination">
-  {pagerButton("‹", "Previous page", page.Page-1, page.HasPrev, false, onPage)}
-  {pagerButtons}
-  {pagerButton("›", "Next page", page.Page+1, page.HasNext, false, onPage)}
-</nav>`, pagerButton("‹", "Previous page", page.Page-1, page.HasPrev, false, onPage), pagerButtons, pagerButton("›", "Next page", page.Page+1, page.HasNext, false, onPage))
-	}
-//line datatable.vuka.html:59
-	return div
-}
-
-//line datatable.vuka.html:72
-func pagerButton(label, aria string, target int, enabled, current bool, onPage any) Node {
-//line datatable.vuka.html:72
-	return HTML(`<button type="button" aria-label={aria} aria-current={when(current, "page")} disabled={!enabled || onPage == nil} {pageTo(onPage, target, enabled)...}>{label}</button>`, aria, when(current, "page"), !enabled || onPage == nil, pageTo(onPage, target, enabled), label)
-}

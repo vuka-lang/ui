@@ -18,10 +18,12 @@ import (
 )
 
 // HTML is src, markup with labelled holes, filled with args: one value for
-// each label, in the order the labels first appear. A label is the Go
-// expression its value is written as, so the call reads like the markup:
+// each label, in the order the labels first appear. It is what the compiler
+// writes for a .vuka.html file's markup (vukavet reports a hand-written
+// call). A label is the Go expression its value is written as, so the call
+// reads like the markup:
 //
-//	func OrderRow(o Order) ui.Node {
+//	func (o OrderRow) View() ui.Node {
 //		return ui.HTML(`
 //	<tr key={o.ID} class="row" class:late={o.Late}>
 //	  <td>{o.Ref}</td>
@@ -29,8 +31,7 @@ import (
 //	</tr>`, o.ID, o.Late, o.Ref, o.Total)
 //	}
 //
-// src is parsed once, on its first render, and kept: write it as a
-// constant. A hole takes what its place allows, and a value of another kind
+// src is parsed once, on its first render, and kept: a constant. A hole takes what its place allows, and a value of another kind
 // fails the render naming the hole and its line:
 //
 //   - a child, between tags, {x}: a Node, []Node (a list, like ui.Each), a

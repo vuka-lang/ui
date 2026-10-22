@@ -1,9 +1,9 @@
 package ui
 
-// The components are a .go file declaring each one's type and a .vuka.html
-// file holding its markup; vuka gen compiles the markup to the x_html.go
-// files beside it, committed so the module builds with plain go build. The
-// vuka command is pinned in tools.mod, a development-only module file.
+// Each component is a .vuka.html file: its struct and methods above its
+// markup. vuka gen compiles them to the x_html.go files beside them,
+// committed so the module builds with plain go build. The vuka command is
+// pinned in tools.mod, a development-only module file.
 //
 //go:generate go tool -modfile=tools.mod vuka gen -inplace ./...
 

@@ -1,3 +1,35 @@
 package ui
 
+// ToastContainer is the fixed region toasts stack in. Place one per page (a
+// live view renders a Toast per message it holds inside it):
+//
+//	<ui.ToastContainer>
+//		for _, m := range p.Messages {
+//			<ui.Toast key={m.ID} id={m.ID} variant={ui.AlertSuccess} title={m.Title}/>
+//		}
+//	</ui.ToastContainer>
+type ToastContainer struct {
+	// Ref names the region for ShowToast to reveal a toast inside it; the
+	// default is "toasts".
+	Ref string
+	// Position is the corner the stack sits in; ToastTopRight by default.
+	Position ToastPosition
+	Class    string
+	Children Node
+}
+
+func (c ToastContainer) ref() string {
+	if c.Ref == "" {
+		return "toasts"
+	}
+	return c.Ref
+}
+
+func (c ToastContainer) classes() string {
+	pos := c.Position
+	if pos == "" {
+		pos = ToastTopRight
+	}
+	return withClass("vk-toasts vk-toasts--"+string(pos), c.Class)
+}
 <div ref={ref()} class={classes()} role="region" aria-label="Notifications" aria-live="polite">{Children}</div>
