@@ -1,0 +1,17 @@
+package tmpltest
+
+import "github.com/vuka-lang/ui"
+
+type Pets struct {
+	Pets     []Pet
+	Children ui.Node
+}
+<table className="pets">
+  for _, p := range Pets {
+    <PetRow pet={p} />
+  }
+  if len(Pets) == 0 {
+    <tr><td>none</td></tr>
+  }
+  {Children}
+</table>

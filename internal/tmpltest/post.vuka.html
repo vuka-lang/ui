@@ -1,0 +1,36 @@
+package tmpltest
+
+import (
+	"errors"
+	"strconv"
+
+	"github.com/vuka-lang/ui"
+)
+
+// Post counts a like before the server confirms it: the click shows the
+// new count, and a failed Like takes it back and shows the error.
+type Post struct {
+	ui.Live
+	Fail  *bool // the next Like fails
+	likes int
+}
+
+func (c *Post) Like() error {
+	if *c.Fail {
+		*c.Fail = false
+		return errors.New("try again")
+	}
+	c.likes++
+	return nil
+}
+<article>
+  <button onClick={ui.JS.
+    AddClass(ui.This, "liked").
+    SetText(ui.Ref("likes"), strconv.Itoa(c.likes+1)).
+    Push(c.Like).
+    OnError(ui.JS.Show(ui.Ref("like-error"))).
+    OnSuccess(ui.JS.Dispatch(ui.This, "liked"))}>
+    ♥ <span ref="likes">{c.likes}</span>
+  </button>
+  <p ref="like-error" style="display: none">Couldn't like</p>
+</article>
