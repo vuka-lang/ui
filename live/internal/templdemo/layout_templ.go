@@ -11,9 +11,9 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
-import templ_vk "github.com/vuka-lang/ui/templx"
+import templ_vk "github.com/vuka-lang/ui/v2/templx"
 
 var links = []struct{ Href, Label string }{
 	{"/inbox", "Inbox"},

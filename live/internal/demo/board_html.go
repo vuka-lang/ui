@@ -7,8 +7,8 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 // Board exercises everything a tree holds: keyed and unkeyed loops changed

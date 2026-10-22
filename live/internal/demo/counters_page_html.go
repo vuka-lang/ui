@@ -8,7 +8,7 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // CountersPage is Counters' page: n counters.

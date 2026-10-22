@@ -7,7 +7,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // BoardsPage is Page's page: two boards and a counter.

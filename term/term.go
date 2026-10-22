@@ -21,7 +21,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // Options shape the output.

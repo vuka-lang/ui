@@ -7,7 +7,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // Example is the template test's case N: components bound by name, a

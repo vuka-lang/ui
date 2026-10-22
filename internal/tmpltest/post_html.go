@@ -7,8 +7,8 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 // Post counts a like before the server confirms it: the click shows the

@@ -32,9 +32,9 @@ jobs:
       # and its module's docs/errors has the diagnostic codes' pages.
       - name: The vuka command
         run: |
-          go build -modfile=tools.mod -o "$RUNNER_TEMP/vuka" github.com/vuka-lang/vuka/cmd/vuka
+          go build -modfile=tools.mod -o "$RUNNER_TEMP/vuka" github.com/vuka-lang/vuka/cmd/vuka/v2
           echo "VUKA=$RUNNER_TEMP/vuka" >> "$GITHUB_ENV"
-          echo "VUKA_DIR=$(go list -modfile=tools.mod -m -f '{{.Dir}}' github.com/vuka-lang/vuka)" >> "$GITHUB_ENV"
+          echo "VUKA_DIR=$(go list -modfile=tools.mod -m -f '{{.Dir}}' github.com/vuka-lang/vuka/v2)" >> "$GITHUB_ENV"
       - name: The generated Go is what go generate writes
         run: |
           go generate ./...

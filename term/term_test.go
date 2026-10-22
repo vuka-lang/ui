@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
-	v "github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/term"
+	v "github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/term"
 )
 
 func a(name string, x any) v.Attr          { return v.Attr{Name: name, Value: x} }

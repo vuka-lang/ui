@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // Session is one connected page: its render function and the instances of the

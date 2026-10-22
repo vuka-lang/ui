@@ -2,12 +2,12 @@ package ui
 
 import (
 	"context"
-	"github.com/vuka-lang/ui/internal/track"
+	"github.com/vuka-lang/ui/v2/internal/track"
 	"reflect"
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/vuka"
+	"github.com/vuka-lang/vuka/v2"
 )
 
 type Chart struct {

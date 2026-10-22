@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"fmt"
 
-	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/v2/live"
 )
 
 // Navigation (the live protocol's "Navigation"): a click on a ui.Link, a

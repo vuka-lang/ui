@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vuka-lang/vuka/diag"
+	"github.com/vuka-lang/vuka/v2/diag"
 )
 
 // IslandField is a prop of a page-backed island as its component reads it

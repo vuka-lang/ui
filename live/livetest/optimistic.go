@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // Optimistic pushes (the live protocol's "Optimistic pushes"): the commands

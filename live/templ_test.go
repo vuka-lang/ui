@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/live"
-	"github.com/vuka-lang/ui/live/internal/templdemo"
-	"github.com/vuka-lang/ui/live/livetest"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/live"
+	"github.com/vuka-lang/ui/v2/live/internal/templdemo"
+	"github.com/vuka-lang/ui/v2/live/livetest"
 )
 
 // TestTemplEvent: a click changing one value inside a templ component — the

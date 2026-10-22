@@ -5,7 +5,7 @@ import (
 	"cmp"
 	"encoding/json"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // The wire protocol: JSON messages over one connection per page (a WebSocket,

@@ -23,7 +23,7 @@ const VukaJSX = 3
 // VukaState marks the package's State as client state the compiler lowers,
 // and names the package its lowering calls: what a .vuka.html file's reads
 // and writes of states become.
-const VukaState = "github.com/vuka-lang/ui/uigen"
+const VukaState = "github.com/vuka-lang/ui/v2/uigen"
 
 // Node is anything that renders HTML: what a JSX expression evaluates to. It is
 // templ.Component itself, so Vuka components are templ components and templ

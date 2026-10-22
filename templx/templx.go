@@ -4,7 +4,7 @@
 // passes them on the context.
 package templx
 
-import "github.com/vuka-lang/ui"
+import "github.com/vuka-lang/ui/v2"
 
 // WithChildren renders c with children as its templ children: ui.WithChildren.
 func WithChildren(c ui.Node, children ui.Node) ui.Node { return ui.WithChildren(c, children) }

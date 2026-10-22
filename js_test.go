@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 func encode(t *testing.T, ch ui.JSChain) string {

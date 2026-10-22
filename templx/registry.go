@@ -3,7 +3,7 @@ package templx
 import (
 	"sync"
 
-	"github.com/vuka-lang/vuka"
+	"github.com/vuka-lang/vuka/v2"
 )
 
 // Component is a component of a .templ file: its name, the generated function

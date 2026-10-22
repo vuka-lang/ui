@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/vuka"
+	"github.com/vuka-lang/vuka/v2"
 )
 
 type layoutPage struct {

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 type tally struct {

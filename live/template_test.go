@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/live"
-	"github.com/vuka-lang/ui/live/internal/demo"
-	"github.com/vuka-lang/ui/live/livetest"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/live"
+	"github.com/vuka-lang/ui/v2/live/internal/demo"
+	"github.com/vuka-lang/ui/v2/live/livetest"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 // The demo package's components written with templates, as a person writes

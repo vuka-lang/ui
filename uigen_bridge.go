@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/vuka-lang/ui/internal/bridge"
+	"github.com/vuka-lang/ui/v2/internal/bridge"
 )
 
 // stateOps is what package uigen calls on a State through the bridge: its

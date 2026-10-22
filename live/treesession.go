@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // treeUpdates is what a v2 client needs after a render: each instance's
