@@ -4,3 +4,5 @@ github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/vuka-lang/vuka/v2 v2.0.0-20261022221221-0baaa805f90c h1:vSCSBEm3aYSUYjOATalPD5Zht4I3A0NCcymDinpoHpI=
 github.com/vuka-lang/vuka/v2 v2.0.0-20261022221221-0baaa805f90c/go.mod h1:rH7t5WrQ8buhdC6tJV7hCjf24XguTCEikr86umiXU+w=
+github.com/vuka-lang/vuka/v2 v2.0.0 h1:AdtdMkD7Bj3Q8XJF+uDP3/zw5VBhzSmwS0XYSNd8HJE=
+github.com/vuka-lang/vuka/v2 v2.0.0/go.mod h1:rH7t5WrQ8buhdC6tJV7hCjf24XguTCEikr86umiXU+w=
