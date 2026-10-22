@@ -11,13 +11,14 @@ import (
 	"github.com/vuka-lang/ui/live"
 	"github.com/vuka-lang/ui/live/internal/demo"
 	"github.com/vuka-lang/ui/live/livetest"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 // handCounter is demo.Counter written by hand: nodes, no frames.
 type handCounter struct {
 	ui.Live
 	Label string
-	n     ui.Assign[int]
+	n     uigen.Assign[int]
 }
 
 func (c *handCounter) Inc() { c.n.Update(func(n int) int { return n + 1 }) }

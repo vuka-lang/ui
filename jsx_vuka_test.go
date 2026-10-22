@@ -15,6 +15,7 @@ import (
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
 	"github.com/vuka-lang/ui/live/livetest"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 type Pet struct {
@@ -30,19 +31,19 @@ func PetRow(pet Pet) ui.Node {
 </tr>`, pet.Name, pet.Age)
 }
 
-//line jsx_test.vuka:26
+//line jsx_test.vuka:27
 func Pets(pets []Pet, children ui.Node) ui.Node {
 	var petRows []ui.Node
 	for _, p := range pets {
-//line jsx_test.vuka:28
+//line jsx_test.vuka:29
 		petRows = append(petRows, PetRow(p))
 	}
 	var tr2 ui.Node
-//line jsx_test.vuka:29
+//line jsx_test.vuka:30
 	if len(pets) == 0 {
 		tr2 = ui.HTML(`<tr><td>none</td></tr>`)
 	}
-//line jsx_test.vuka:27
+//line jsx_test.vuka:28
 	return ui.HTML(`
 <table class="pets">
   {petRows}
@@ -51,7 +52,7 @@ func Pets(pets []Pet, children ui.Node) ui.Node {
 </table>`, petRows, tr2, children)
 }
 
-//line jsx_test.vuka:34
+//line jsx_test.vuka:35
 func Avatar(url string) (ui.Node, error) {
 	if url == "" {
 		return nil, errors.New("no avatar")
@@ -68,14 +69,14 @@ type Clicks struct {
 func (c *Clicks) Mount() { c.n = c.Start }
 func (c *Clicks) Inc()   { c.n++ }
 func (c *Clicks) Render() ui.Node {
-//line jsx_test.vuka:49
+//line jsx_test.vuka:50
 	return ui.HTML(`<button onClick={c.Inc}>{c.n}</button>`, c.Inc, c.n)
 }
 
 // TestJSX: ui is a JSX target — the compiler lowers a file importing it to
 // ui's nodes, components bind by name, stateful tags render statically.
 //
-//line jsx_test.vuka:53
+//line jsx_test.vuka:54
 func TestJSX(t *testing.T) {
 	ctx := context.Background()
 	cases := []struct {
@@ -117,7 +118,7 @@ func (d *Dropdown) Render() ui.Node {
 // TestJSXCommands: a chain is an on… attribute's value, compiled through
 // the event check; ref renders as data-vk-ref.
 //
-//line jsx_test.vuka:92
+//line jsx_test.vuka:93
 func TestJSXCommands(t *testing.T) {
 	got, err := ui.String(context.Background(), ui.HTML(`{&Dropdown{}}`, &Dropdown{}))
 	want := `<div><button data-vk-js-click="[[&#34;remove_class&#34;,{&#34;to&#34;:{&#34;ref&#34;:&#34;menu&#34;},&#34;names&#34;:[&#34;hidden&#34;]}],[&#34;push&#34;,{}]]">Open</button>` +
@@ -140,17 +141,17 @@ func (m *Modal) Delete(s string) {}
 func (m *Modal) Render() ui.Node {
 	open := ui.JS.PushFocus().Show(ui.Ref("dialog"), ui.Display("flex")).FocusFirst(ui.Ref("dialog"))
 	close := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
-//line jsx_test.vuka:116
+//line jsx_test.vuka:117
 	value := ui.JS.
 		If(ui.Ref("all").Checked()).RemoveClass(ui.Ref("dialog"), "hidden").
 		Else().AddClass(ui.Ref("dialog"), "hidden").
 		End()
 	var buttons []ui.Node
-//line jsx_test.vuka:124
+//line jsx_test.vuka:125
 	for _, it := range m.items {
 		buttons = append(buttons, ui.HTML(`<button onClick={ui.JS.Confirm("Delete " + it + "?").Push(func() { m.Delete(it) })}>{it}</button>`, ui.JS.Confirm("Delete "+it+"?").Push(func() { m.Delete(it) }), it))
 	}
-//line jsx_test.vuka:114
+//line jsx_test.vuka:115
 	return ui.HTML(`
 <div>
   <button onClick={open}>Edit</button>
@@ -172,7 +173,7 @@ func (m *Modal) Render() ui.Node {
 	)
 }
 
-//line jsx_test.vuka:131
+//line jsx_test.vuka:132
 func TestJSXModal(t *testing.T) {
 	got, err := ui.String(context.Background(), ui.HTML(`{&Modal{}}`, &Modal{}))
 	if err != nil || !strings.Contains(got, `data-vk-ref="dialog"`) || !strings.Contains(got, `data-vk-js-change="[[&#34;if&#34;`) {
@@ -185,7 +186,7 @@ func TestJSXModal(t *testing.T) {
 type Post struct {
 	ui.Live
 	Fail  *bool // the next Like fails
-	likes ui.Assign[int]
+	likes uigen.Assign[int]
 }
 
 func (c *Post) Like() error {
@@ -198,14 +199,14 @@ func (c *Post) Like() error {
 }
 
 func (c *Post) Render() ui.Node {
-//line jsx_test.vuka:157
+//line jsx_test.vuka:158
 	value := ui.JS.
 		AddClass(ui.This, "liked").
 		SetText(ui.Ref("likes"), strconv.Itoa(c.likes.Get()+1)).
 		Push(c.Like).
 		OnError(ui.JS.Show(ui.Ref("like-error"))).
 		OnSuccess(ui.JS.Dispatch(ui.This, "liked"))
-//line jsx_test.vuka:156
+//line jsx_test.vuka:157
 	return ui.HTML(`
 <article>
   <button onClick={value}>♥ <span ref="likes">{c.likes.Get()}</span></button>
@@ -213,7 +214,7 @@ func (c *Post) Render() ui.Node {
 </article>`, value, c.likes.Get())
 }
 
-//line jsx_test.vuka:169
+//line jsx_test.vuka:170
 func TestJSXOptimistic(t *testing.T) {
 	fail := false
 	c, err := livetest.Join(live.NewSession(context.Background(), func(context.Context) ui.Node { return ui.HTML(`{&Post{Fail: &fail}}`, &Post{Fail: &fail}) }), 2)
@@ -293,7 +294,7 @@ func (c *Docs) Render() ui.Node {
 	)
 }
 
-//line jsx_test.vuka:231
+//line jsx_test.vuka:232
 func (c *Docs) menu() ui.Node {
 	return ui.HTML(`
 <div>
@@ -333,12 +334,12 @@ func (c *Docs) menu() ui.Node {
 	)
 }
 
-//line jsx_test.vuka:253
+//line jsx_test.vuka:254
 func (c *Docs) targets() ui.Node {
 	todo, post := c.todo, c.post
-//line jsx_test.vuka:257
+//line jsx_test.vuka:258
 	value := ui.JS.Hide(ui.Closest("li"))
-//line jsx_test.vuka:255
+//line jsx_test.vuka:256
 	return ui.HTML(`
 <ul>
   <button onClick={ui.JS.Hide(ui.Closest("li"))}>Dismiss</button>
@@ -367,11 +368,11 @@ func (c *Docs) targets() ui.Node {
 	)
 }
 
-//line jsx_test.vuka:269
-func (c *Docs) dialog() ui.Node {
-//line jsx_test.vuka:278
-	value := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
 //line jsx_test.vuka:270
+func (c *Docs) dialog() ui.Node {
+//line jsx_test.vuka:279
+	value := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
+//line jsx_test.vuka:271
 	return ui.HTML(`
 <div>
   <button onClick={ui.JS.Show(ui.Ref("dialog"), ui.Display("flex"))}>Edit</button>
@@ -416,7 +417,7 @@ func (c *Docs) dialog() ui.Node {
 	)
 }
 
-//line jsx_test.vuka:295
+//line jsx_test.vuka:296
 func (c *Docs) conditions() ui.Node {
 	return ui.HTML(`
 <div>
@@ -448,7 +449,7 @@ func (c *Docs) conditions() ui.Node {
 	)
 }
 
-//line jsx_test.vuka:311
+//line jsx_test.vuka:312
 func (c *Docs) pushes() ui.Node {
 	pet := c.pet
 	return ui.HTML(`
@@ -491,7 +492,7 @@ func (c *Docs) pushes() ui.Node {
 	)
 }
 
-//line jsx_test.vuka:334
+//line jsx_test.vuka:335
 func (c *Docs) misc() ui.Node {
 	pet, post, key := c.pet, c.post, c.key
 	return ui.HTML(`
@@ -559,7 +560,7 @@ func (c *Docs) misc() ui.Node {
 // more holds the examples of several refs, GetAttr, joined conditions,
 // When and Busy.
 //
-//line jsx_test.vuka:368
+//line jsx_test.vuka:369
 func (c *Docs) more() ui.Node {
 	return ui.HTML(`
 <div>
@@ -642,7 +643,7 @@ func (c *Docs) more() ui.Node {
 // session: each chain encodes, its handlers are ones an on… attribute
 // takes, and its branches are well formed.
 //
-//line jsx_test.vuka:406
+//line jsx_test.vuka:407
 func TestJSXDocExamples(t *testing.T) {
 	got, err := ui.String(context.Background(), ui.HTML(`{&Docs{}}`, &Docs{}))
 	if err != nil {

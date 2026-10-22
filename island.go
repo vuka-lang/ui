@@ -348,7 +348,7 @@ func Callback(prop string, fn any) IslandOpt {
 // StateProp passes a client state as a prop: the component gets its value,
 // is updated when it changes, and its writes (a Vue model's update:<prop>, a
 // React set<Prop>, a Svelte $bindable) set the state — and whatever reads
-// it on the page. A ui.Derived is passed one way. The compiler writes it for
+// it on the page. An expression of states is passed one way. The compiler writes it for
 // a ui.State attribute of an island tag: <Counter count={n}/>.
 func StateProp[T any](prop string, s State[T]) IslandOpt {
 	return func(c *islandConfig) { c.states = append(c.states, islandState{prop, s}) }
@@ -540,7 +540,7 @@ func (p islandPropsJSON) json(ctx context.Context) ([]byte, error) {
 	for _, f := range p.fields {
 		v := f.value.Interface()
 		if av, ok := v.(assignValuer); ok { // a *Assign[T] live prop → its value
-			v = av.assignValue()
+			v = av.AssignValue()
 		}
 		if s, ok := v.(AnyState); ok {
 			r, err := stateProp(ctx, s)

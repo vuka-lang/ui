@@ -11,6 +11,7 @@ import (
 
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 // menu declares its state in Render, as ui.State(false) in a .vuka file
@@ -24,9 +25,9 @@ type menu struct {
 func (m *menu) Bump() { m.n++ }
 
 func (m *menu) Render() ui.Node {
-	open := ui.NewState("menu.open", false)
+	open := uigen.State("menu.open", false)
 	return ui.El("div", nil,
-		ui.El("button", []ui.Attr{a("onClick", ui.On(open.Toggle())), a("aria-expanded", ui.BindExpr(open.Get(), `{"$":0}`, open))}, ui.Text(m.Label)),
+		ui.El("button", []ui.Attr{a("onClick", ui.On(uigen.Toggle(ui.JS, open))), a("aria-expanded", ui.BindExpr(open.Get(), `{"$":0}`, open))}, ui.Text(m.Label)),
 		ui.El("button", []ui.Attr{a("onClick", ui.On(m.Bump))}, ui.Child(m.n)),
 		ui.Component("menu.list", nil, &menuList{Open: open}))
 }
@@ -93,7 +94,7 @@ type pusher struct {
 	tab ui.State[string]
 }
 
-func (p *pusher) Mount()   { p.tab = ui.NewState("pusher.tab", "logs") }
+func (p *pusher) Mount()   { p.tab = uigen.State("pusher.tab", "logs") }
 func (p *pusher) ShowEnv() { p.PushJS(p.tab.Set("env")) }
 func (p *pusher) Render() ui.Node {
 	return ui.El("p", []ui.Attr{a("onClick", ui.On(p.ShowEnv)), a("title", ui.BindExpr(p.tab.Get(), `{"$":0}`, p.tab))})

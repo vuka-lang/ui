@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,33 +13,29 @@ import (
 )
 
 // State is a value the browser keeps: a menu's open flag, the tab picked,
-// a filter's text. Commands change it at once, with no round trip, and the
+// a filter's text. A write changes it at once, with no round trip, and the
 // parts of the page that read it follow.
 //
-// In a .vuka file, ui.State(v) declares one; the compiler gives each
-// declaration its place, so two components using the same variable name
-// never share a state. Declared in a component's function it is that
-// instance's own (a component rendered ten times has ten); declared at
-// package level it is the page's, one value every component reads.
+// A .vuka.html file declares one as a field of its struct, or at package
+// level for one value the whole page shares:
 //
-//	open := ui.State(false)
-//	<button onClick={open.Toggle()} aria-expanded={open}>Menu</button>
+//	type Menu struct {
+//		open ui.State[bool]
+//	}
+//	<button aria-expanded={open} onClick={open = !open}>Menu</button>
 //	<ul hidden={!open}>…</ul>
 //
-// Writes are commands, chained with the rest of ui.JS: Set, Toggle (a
-// State[bool]), Inc and Dec (numbers), Reset. Reads are expressions the
-// browser evaluates: in JSX attributes, text and ui.Class, plain Go
-// expressions the compiler writes with State's methods (open.Not(),
-// tab.Eq("env"), see Not); the server renders them with the initial value,
-// so the page is right before any script runs.
+// Markup reads a state as a plain variable, in expressions the browser
+// evaluates again when it changes; an on… attribute writes one by
+// assignment (open = !open, tab = "env", n++), which the compiler writes as
+// a chain of JS commands. A method of a live component writes one the same
+// way (p.tab = "env"), and the compiler pushes the command to the page. The
+// server renders a state with its initial value, so the page is right
+// before any script runs.
 //
-// A struct state's fields are states of their own: f.Q.Set("x") changes
-// one field, and what reads f.Q follows only f.Q. A state passed as a prop
-// is the same state; Get passes its value.
-//
-// The server knows a state's initial value only (Get); what the browser
-// changed stays in the browser. A component pushes changes with PushJS:
-// c.PushJS(tab.Set("env")).
+// Get is the value the server renders with; Set is the command setting it,
+// for chains built in Go (ui.JS.Set(s, v) is the same). A state passed as a
+// prop is the same state; Get passes its value.
 type State[T any] struct {
 	c    *stateCell
 	path []string // a struct state's field, by Go field names
@@ -60,69 +54,35 @@ type stateCell struct {
 	key     string
 }
 
-// NewState is a state declared at site, a name unique in the program: what
-// ui.State(initial) in a .vuka file becomes. Each value NewState returns is
+// newState is a state declared at site, a name unique in the program. Each
+// value newState returns is
 // a state of its own; the browser knows it by site, the component instance
 // rendering it and how many of site's states that instance rendered before.
-func NewState[T any](site string, initial T) State[T] {
+func newState[T any](site string, initial T) State[T] {
 	return State[T]{c: &stateCell{site: site, init: initial, typ: reflect.TypeFor[T]()}, v: initial}
 }
 
-// PageState is a state the whole page shares, declared at site: what a
-// package-level ui.State(initial) becomes. Every component reading it reads
-// one value.
-func PageState[T any](site string, initial T) State[T] {
+// pageState is a state the whole page shares, declared at site: one value
+// every component reads.
+func pageState[T any](site string, initial T) State[T] {
 	return State[T]{c: &stateCell{site: site, page: true, init: initial, typ: reflect.TypeFor[T](), key: "g:" + site}, v: initial}
 }
 
-// UseState is a state declared where it is called, what ui.State(initial)
-// in a component's function is in a .vuka file: each component instance
-// rendering it has its own.
-//
-//	open := ui.UseState(false)
-func UseState[T any](initial T) State[T] { return NewState(callSite(), initial) }
+// derived is a state that never changes: an operand for an expression
+// starting with a value ("Hello, " + name).
+func derived[T any](value T) State[T] { return newDerived(value, `{"$":0}`, value) }
 
-// UsePageState is a state the whole page shares, declared where it is
-// called: what a package-level ui.State(initial) is in a .vuka file.
-//
-//	var theme = ui.UsePageState("light")
-func UsePageState[T any](initial T) State[T] { return PageState(callSite(), initial) }
-
-var callSites sync.Map // pc → site
-
-// callSite is a name for the place UseState's caller calls it from.
-func callSite() string {
-	var pc [1]uintptr
-	runtime.Callers(3, pc[:])
-	if s, ok := callSites.Load(pc[0]); ok {
-		return s.(string)
-	}
-	f, _ := runtime.CallersFrames(pc[:]).Next()
-	h := fnv.New64a()
-	fmt.Fprintf(h, "%s:%d:%d", f.Function, f.Line, f.PC-f.Entry)
-	s, _ := callSites.LoadOrStore(pc[0], "s"+strconv.FormatUint(h.Sum64()&0xffffffffff, 36))
-	return s.(string)
-}
-
-// Derived names an expression of states for reuse, read wherever a state
-// is: in a .vuka file, ui.Derived(!open && tab == "env"), which the compiler
-// writes as open.Not().And(tab.Eq("env")). In Go, Derived(v) is a state that
-// never changes: an operand for an expression starting with a value,
-// ui.Derived("Hello, ").Plus(name).
-func Derived[T any](value T) State[T] { return NewDerived(value, `{"$":0}`, value) }
-
-// NewDerived is a derived state: value is what it renders with, expr and
+// newDerived is a derived state: value is what it renders with, expr and
 // deps its expression, as BindExpr takes them.
-func NewDerived[T any](value T, expr string, deps ...any) State[T] {
+func newDerived[T any](value T, expr string, deps ...any) State[T] {
 	return State[T]{c: &stateCell{init: value, typ: reflect.TypeFor[T](), derived: &Binding{value, expr, deps}}, v: value}
 }
 
-// StateField is the field name of a struct state, sample its value as
-// rendered (f.Get().Q), which also gives its type. At is the same with the
-// type named: At[string](f, "Q").
-func StateField[S, T any](s State[S], name string, sample T) State[T] {
+// stateField is the field name of a struct state, sample its value as
+// rendered (f.Get().Q), which also gives its type.
+func stateField[S, T any](s State[S], name string, sample T) State[T] {
 	if s.c != nil && s.c.derived != nil {
-		panic("ui: a field of a ui.Derived isn't a state")
+		panic("ui: a field of a derived state isn't a state")
 	}
 	return State[T]{c: s.c, path: append(s.path[:len(s.path):len(s.path)], name), v: sample}
 }
@@ -135,40 +95,19 @@ func (s State[T]) Get() T { return s.v }
 //
 // Example:
 //
-//	<button onClick={tab.Set("env")}>Environment</button>
+//	c.PushJS(tab.Set("env"))
 func (s State[T]) Set(v T) Commands { return JS.Set(s, v) }
 
-// Toggle is the command flipping a State[bool]. The compiler refuses it on
-// any other; built at run time it panics.
-//
-// Example:
-//
-//	<button onClick={open.Toggle()}>Menu</button>
-func (s State[T]) Toggle() Commands {
-	return JS.add("state_toggle", jsArg{"$state", s.view("Toggle", "bool")})
+// toggle is c, then the command flipping a State[bool]. The compiler
+// refuses it on any other; built at run time it panics.
+func (s State[T]) toggle(c Commands) Commands {
+	return c.add("state_toggle", jsArg{"$state", s.view("Toggle", "bool")})
 }
 
-// Inc is the command adding one to a number state; Dec subtracts one. The
-// compiler refuses them on any other state.
-//
-// Example:
-//
-//	<button onClick={n.Inc()}>+</button>
-func (s State[T]) Inc() Commands { return s.inc("Inc", 1) }
-
-// Dec is the command subtracting one from a number state.
-func (s State[T]) Dec() Commands { return s.inc("Dec", -1) }
-
-func (s State[T]) inc(name string, by int) Commands {
-	return JS.add("state_inc", jsArg{"$state", s.view(name, "number")}, jsArg{"by", by})
+// incBy is c, then the command adding by to a number state (Inc, Dec).
+func (s State[T]) incBy(c Commands, name string, by int) Commands {
+	return c.add("state_inc", jsArg{"$state", s.view(name, "number")}, jsArg{"by", by})
 }
-
-// Reset is the command setting the state back to its initial value.
-//
-// Example:
-//
-//	<button onClick={f.Reset()}>Clear filters</button>
-func (s State[T]) Reset() Commands { return JS.Set(s, s.v) }
 
 // AnyState is a State of any type: what Commands.Set takes.
 type AnyState interface{ stateOf() stateView }
@@ -202,9 +141,9 @@ func (s State[T]) view(op, kind string) stateView {
 func (v stateView) writable(op string) {
 	switch {
 	case v.c == nil:
-		panic("ui: " + op + " on a zero ui.State; declare it with ui.State(v)")
+		panic("ui: " + op + " on a zero ui.State: a component gets its fields' states when it mounts")
 	case v.c.derived != nil:
-		panic("ui: " + op + " on a ui.Derived; set the states it reads")
+		panic("ui: " + op + " on a derived state; set the states it reads")
 	}
 }
 
@@ -268,12 +207,12 @@ func (c *stateCell) keyIn(ctx context.Context) string {
 // the path in the value's JSON. A derived state is its expression.
 func (v stateView) ref(ctx context.Context, path []string) (any, error) {
 	if v.c == nil {
-		return nil, fmt.Errorf("ui: a zero ui.State[%s]; declare it with ui.State(v)", v.t)
+		return nil, fmt.Errorf("ui: a zero ui.State[%s]: a component gets its fields' states when it mounts", v.t)
 	}
 	full := append(v.path[:len(v.path):len(v.path)], path...)
 	if d := v.c.derived; d != nil {
 		if len(full) > 0 {
-			return nil, fmt.Errorf("ui: a field of a ui.Derived isn't a state")
+			return nil, fmt.Errorf("ui: a field of a derived state isn't a state")
 		}
 		return d.expr(ctx)
 	}
@@ -430,12 +369,10 @@ func (b Binding) node() Node {
 // BindAttr is an attribute named name that reads state s: rendered with
 // its value, and kept up to date by the browser, as a JSX attribute reading
 // a state is. It is for attribute lists built in Go — a component's
-// []ui.Attr — where the compiler doesn't lower reads; an expression of
-// states goes through ui.Derived:
+// []ui.Attr — where the compiler doesn't lower reads:
 //
 //	<components.Button attrs={[]ui.Attr{
 //		ui.BindAttr("aria-expanded", open),
-//		ui.BindAttr("data-busy", ui.Derived(saving && !failed)),
 //	}} />
 //
 // An aria-* attribute writes a bool as "true" or "false"; any other bool

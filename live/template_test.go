@@ -11,6 +11,7 @@ import (
 	"github.com/vuka-lang/ui/live"
 	"github.com/vuka-lang/ui/live/internal/demo"
 	"github.com/vuka-lang/ui/live/livetest"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 // The demo package's components written with templates, as a person writes
@@ -20,7 +21,7 @@ import (
 type tCounter struct {
 	ui.Live
 	Label string
-	n     ui.Assign[int]
+	n     uigen.Assign[int]
 }
 
 func (c *tCounter) Inc() { c.n.Update(func(n int) int { return n + 1 }) }

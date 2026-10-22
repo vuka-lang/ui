@@ -6,48 +6,24 @@ import (
 	"unsafe"
 )
 
-// Assign is a stateful component's state value whose changes a live session
-// tracks: Set and Update mark it changed. A component whose state fields
-// (its unexported ones, except those tagged `vuka:"-"`) are all Assigns
-// renders again only when one of them changed or its props did; otherwise
-// the session keeps its last render without calling Render.
-//
-//	type Row struct {
-//		ui.Live
-//		Name string            // a prop
-//		qty  ui.Assign[int]  // state
-//	}
-//
-//	func (r *Row) Inc() { r.qty.Update(func(n int) int { return n + 1 }) }
+// A stateful component's server state may be tracked: a field of type
+// uigen.Assign[T], which a .vuka.html file's unexported fields are (the
+// compiler writes their reads as Get and their writes as Set). Set and
+// Update mark it changed. A component whose state fields (its unexported
+// ones, except those tagged `vuka:"-"`) are all Assigns renders again only
+// when one of them changed or its props did; otherwise the session keeps
+// its last render without calling Render.
 //
 // Render must then read nothing but props and Assigns (and fields tagged
 // `vuka:"-"`, which must not change what it renders); in tests (or with
 // VUKA_LIVE_VERIFY=1) the session renders skipped components anyway and
 // fails when the result differs.
-type Assign[T any] struct {
-	v     T
-	dirty bool
-}
 
-// Get is the value.
-func (a *Assign[T]) Get() T { return a.v }
+// assigner is an Assign: its changed mark.
+type assigner interface{ AssignDirty() *bool }
 
-// Set sets the value and marks it changed.
-func (a *Assign[T]) Set(v T) { a.v, a.dirty = v, true }
-
-// Update sets the value to f of it and marks it changed.
-func (a *Assign[T]) Update(f func(T) T) { a.v, a.dirty = f(a.v), true }
-
-func (a *Assign[T]) assignDirty() *bool { return &a.dirty }
-
-// assignValue is the current value as any, for island props serialization: a
-// `*Assign[T]` island prop is sent to the client as its value, and a live
-// re-render with a changed value drives the island's update().
-func (a *Assign[T]) assignValue() any { return a.v }
-
-type assigner interface{ assignDirty() *bool }
-
-type assignValuer interface{ assignValue() any }
+// assignValuer is an Assign's value, for island props.
+type assignValuer interface{ AssignValue() any }
 
 // stateFields is a component type's Assign fields, or tracked false when a
 // state field isn't one.
@@ -88,7 +64,7 @@ func assignsOf(c Stateful, each func(dirty *bool)) bool {
 	}
 	for _, i := range sf.fields {
 		f := v.Field(i)
-		each(reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Interface().(assigner).assignDirty())
+		each(reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Interface().(assigner).AssignDirty())
 	}
 	return true
 }

@@ -15,10 +15,15 @@ import (
 // contract: a .vuka file importing ui lowers each piece of its JSX to an
 // HTML call, blocks to Go building a Node or []Node, tags naming a Stateful type
 // to &T{…} (Key with a key), islands to their props (Mount with options),
-// ui.State to UseState, and reads of states to State's methods; children of
+// states to package uigen (see VukaState); children of
 // components that read them from their context (templ components) go
 // through WithChildren.
 const VukaJSX = 3
+
+// VukaState marks the package's State as client state the compiler lowers,
+// and names the package its lowering calls: what a .vuka.html file's reads
+// and writes of states become.
+const VukaState = "github.com/vuka-lang/ui/uigen"
 
 // Node is anything that renders HTML: what a JSX expression evaluates to. It is
 // templ.Component itself, so Vuka components are templ components and templ

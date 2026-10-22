@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
 	"github.com/vuka-lang/vuka"
 )
 
@@ -42,15 +43,15 @@ func props(t *testing.T, s string) string {
 
 func TestIslandTaggedProps(t *testing.T) {
 	when := time.Date(2026, 10, 15, 9, 0, 0, 0, time.UTC)
-	open := ui.NewState("o1", true)
-	tab := ui.NewState("t1", "a")
+	open := uigen.State("o1", true)
+	tab := uigen.State("t1", "a")
 	s, info := page(t, ui.MountIsland("p#1", picker{
 		Day:     "mon",
 		When:    when,
 		Events:  []pickerEvent{{At: when, Title: "x"}},
 		OnClose: open.Set(false),
 		Model:   tab,
-	}, ui.StateProp("open", open), ui.Callback("onPick", open.Toggle()), ui.Once()))
+	}, ui.StateProp("open", open), ui.Callback("onPick", uigen.Toggle(ui.JS, open)), ui.Once()))
 	p := props(t, s)
 	for _, want := range []string{
 		`"day":"mon"`,
@@ -93,8 +94,8 @@ func TestIslandFuncPropIsLive(t *testing.T) {
 }
 
 func TestIslandDerivedPropReadOnly(t *testing.T) {
-	n := ui.NewState("n1", 2)
-	d := ui.NewDerived(4, `["+",{"$":0},{"$":0}]`, n)
+	n := uigen.State("n1", 2)
+	d := uigen.Plus(n, n)
 	s, _ := page(t, ui.MountIsland("p#1", picker{}, ui.StateProp("double", d)))
 	if p := props(t, s); !strings.Contains(p, `"double":{"$vk":"state","x":["+",{"i":2,"s":"c0:n1:1"},{"i":2,"s":"c0:n1:1"}]}`) {
 		t.Errorf("derived prop: %s", p)
@@ -103,7 +104,7 @@ func TestIslandDerivedPropReadOnly(t *testing.T) {
 
 func TestIslandPropsRenderInContext(t *testing.T) {
 	// Outside RenderPage the props still render (states keyed by site).
-	s, err := ui.String(context.Background(), ui.MountIsland("p#1", picker{}, ui.StateProp("open", ui.NewState("o2", false))))
+	s, err := ui.String(context.Background(), ui.MountIsland("p#1", picker{}, ui.StateProp("open", uigen.State("o2", false))))
 	if err != nil || !strings.Contains(props(t, s), `"open":{"$vk":"state","i":false,"s":"o2:`) {
 		t.Errorf("%v %s", err, s)
 	}

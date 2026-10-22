@@ -42,7 +42,7 @@ import (
 //   - an attribute's value, class={x} or class="{x}": what a JSX attribute
 //     takes — a string, number, bool (false omits it, true writes it
 //     bare), nil, a ui.Class, ui.Classes or ui.Style on class and style, a
-//     ui.State (an expression of states too: open.Not()); an on… attribute
+//     ui.State (an expression of states too, as the compiler writes it); an on… attribute
 //     takes a handler (a func, ui.On(…), JS commands);
 //   - part of a value, href="/orders/{id}": a string or number;
 //   - an attribute set, <input {attrs...}>: a ui.Attr, []ui.Attr or

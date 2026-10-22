@@ -8,7 +8,10 @@
 //line pages.vuka:5
 package templdemo
 
-import "github.com/vuka-lang/ui"
+import (
+	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
+)
 
 // Inbox is a stateful component rendering a templ Panel: reading a message
 // changes the Panel's badge alone.
@@ -16,7 +19,7 @@ type Inbox struct {
 	ui.Live
 	Unread int
 	Opaque bool // the Panel as one piece of markup (Opaque)
-	read   ui.Assign[int]
+	read   uigen.Assign[int]
 }
 
 func (b *Inbox) Read() { b.read.Update(func(n int) int { return n + 1 }) }
@@ -25,7 +28,7 @@ func (b *Inbox) Render() ui.Node {
 	panel := ui.WithChildren(Panel("Inbox", b.Unread-b.read.Get()), ui.HTML(`
 <p>Messages arrive here.</p>
 <button onClick={b.Read}>Read one</button>`, b.Read))
-//line pages.vuka:25
+//line pages.vuka:28
 	if b.Opaque {
 		panel = Opaque(panel)
 	}
@@ -37,7 +40,7 @@ func InboxPage() ui.Node {
 	return ui.WithChildren(Layout("Inbox", "/inbox"), ui.HTML(`{&Inbox{Unread: 3}}`, &Inbox{Unread: 3}))
 }
 
-//line pages.vuka:38
+//line pages.vuka:41
 func BooksPage(books []string) ui.Node {
 	return ui.WithChildren(Layout("Books", "/books"), ui.WithChildren(Panel("Books", len(books)), Shelf(books)))
 }

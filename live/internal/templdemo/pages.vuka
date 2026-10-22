@@ -4,7 +4,10 @@
 // vuka gen -inplace ./live/internal/templdemo
 package templdemo
 
-import "github.com/vuka-lang/ui"
+import (
+	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
+)
 
 // Inbox is a stateful component rendering a templ Panel: reading a message
 // changes the Panel's badge alone.
@@ -12,7 +15,7 @@ type Inbox struct {
 	ui.Live
 	Unread int
 	Opaque bool // the Panel as one piece of markup (Opaque)
-	read   ui.Assign[int]
+	read   uigen.Assign[int]
 }
 
 func (b *Inbox) Read() { b.read.Update(func(n int) int { return n + 1 }) }

@@ -7,13 +7,14 @@ import (
 
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 type contextPermissionKey struct{}
 type contextPermissions struct{ allowed bool }
 type contextPanel struct {
 	ui.Live
-	n      ui.Assign[int]
+	n      uigen.Assign[int]
 	Nested bool
 }
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 func contains(t *testing.T, s string, wants ...string) {
@@ -77,7 +78,7 @@ func TestIconUnknownIsVisible(t *testing.T) {
 
 type tabsHost struct {
 	ui.Live
-	active ui.Assign[string]
+	active uigen.Assign[string]
 }
 
 func (h *tabsHost) Mount()        { h.active.Set("a") }
@@ -114,7 +115,7 @@ func TestTabsSwitch(t *testing.T) {
 
 type selHost struct {
 	ui.Live
-	sel ui.Assign[map[int]bool]
+	sel uigen.Assign[map[int]bool]
 }
 
 func (h *selHost) Mount() { h.sel.Set(map[int]bool{}) }
@@ -220,8 +221,8 @@ type signForm struct {
 
 type formHost struct {
 	ui.Live
-	signed ui.Assign[bool]
-	errMsg ui.Assign[string]
+	signed uigen.Assign[bool]
+	errMsg uigen.Assign[string]
 }
 
 func (h *formHost) Save(ctx context.Context, f signForm) error {
