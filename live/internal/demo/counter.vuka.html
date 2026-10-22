@@ -1,0 +1,16 @@
+package demo
+
+import (
+	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
+)
+
+// Counter is a counter.
+type Counter struct {
+	ui.Live
+	Label string
+	n     uigen.Assign[int]
+}
+
+func (c *Counter) Inc() { c.n.Update(func(n int) int { return n + 1 }) }
+<span>{c.Label}: {c.n.Get()} <button onClick={c.Inc}>+</button></span>

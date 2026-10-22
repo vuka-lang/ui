@@ -202,13 +202,14 @@ func TestJSRender(t *testing.T) {
 }
 
 // TestJSDocExamples: every example line in js.go's doc comments is in
-// jsx_test.vuka, whose TestJSXDocExamples compiles and renders them.
+// internal/tmpltest/docs.vuka.html, whose TestTemplateDocExamples compiles
+// and renders them.
 func TestJSDocExamples(t *testing.T) {
 	src, err := os.ReadFile("js.go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tests, err := os.ReadFile("jsx_test.vuka")
+	tests, err := os.ReadFile("internal/tmpltest/docs.vuka.html")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +221,7 @@ func TestJSDocExamples(t *testing.T) {
 		}
 		n++
 		if !strings.Contains(string(tests), ex) {
-			t.Errorf("js.go's example isn't in jsx_test.vuka:\n\t%s", ex)
+			t.Errorf("js.go's example isn't in internal/tmpltest/docs.vuka.html:\n\t%s", ex)
 		}
 	}
 	if n < 80 {

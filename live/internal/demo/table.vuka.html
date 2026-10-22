@@ -1,0 +1,26 @@
+package demo
+
+import (
+	"strconv"
+
+	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
+)
+
+// Table is a table of n rows, each a component.
+type Table struct {
+	ui.Live
+	N     int
+	Plain bool
+	title uigen.Assign[string]
+}
+<table>
+  <caption>{title.Get()}</caption>
+  for i := range N {
+    if Plain {
+      <PlainRow key={i} ID={i} Name={"row " + strconv.Itoa(i)} />
+    } else {
+      <Row key={i} ID={i} Name={"row " + strconv.Itoa(i)} />
+    }
+  }
+</table>

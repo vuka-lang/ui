@@ -1,24 +1,17 @@
 package ui
 
-func (t Tabs) View()
-<div class={withClass("vk-tabs", t.Class)} role="tablist">
-  for _, tab := range t.Tabs {
+// Tabs is a tab bar underlining the active tab; each tab may carry a count:
+//
+//	<ui.Tabs tabs={[]ui.Tab{
+//		{Label: "Placements", Href: "/tasks?type=placements", Active: true, Count: ui.Count(42)},
+//		{Label: "Permits", Href: "/tasks?type=permits", Count: ui.Count(7)},
+//	}}/>
+type Tabs struct {
+	Tabs  []Tab
+	Class string
+}
+<div class={withClass("vk-tabs", Class)} role="tablist">
+  for _, tab := range Tabs {
     {tab.node()}
   }
 </div>
-
-func (t Tab) node()
-if t.Href != "" {
-  <a class={t.classes()} href={t.Href} data-vk-link={t.link()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)}>{t.label()}</a>
-} else {
-  <button type="button" class={t.classes()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)} {on("onClick", t.On)...}>{t.label()}</button>
-}
-
-func (t Tab) label()
-if t.Icon != "" {
-  <span class="vk-tab__icon">{Icon(t.Icon)}</span>
-}
-<span class="vk-tab__label">{t.Label}</span>
-if t.Count != nil {
-  <span class="vk-tab__count">{*t.Count}</span>
-}

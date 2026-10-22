@@ -1,0 +1,18 @@
+package demo
+
+import (
+	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
+)
+
+// Row is a table row whose state is an Assign: a session renders it again
+// only when its quantity or its props change.
+type Row struct {
+	ui.Live
+	ID   int
+	Name string
+	qty  uigen.Assign[int]
+}
+
+func (r *Row) Inc() { r.qty.Update(func(n int) int { return n + 1 }) }
+<tr key={r.ID}><td>{r.Name}</td><td>{r.qty.Get()}</td><td><button onClick={r.Inc}>+</button></td></tr>

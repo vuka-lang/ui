@@ -13,7 +13,7 @@ import (
 var minVuka = [3]int{0, 13, 0}
 
 // TestGenerated checks the generated files are what the vuka command from
-// $VUKA or PATH makes of layout.templ and pages.vuka.
+// $VUKA or PATH makes of layout.templ and the .vuka.html files.
 func TestGenerated(t *testing.T) {
 	vuka := os.Getenv("VUKA")
 	if vuka == "" {

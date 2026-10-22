@@ -1,0 +1,14 @@
+package tmpltest
+
+import "github.com/vuka-lang/ui"
+
+type Dropdown struct {
+	ui.Live
+	opened int
+}
+
+func (d *Dropdown) Opened() { d.opened++ }
+<div>
+  <button onClick={ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").Push(d.Opened)}>Open</button>
+  <ul ref="menu" class="hidden" onKeyDown={ui.JS.Key("Escape").AddClass(ui.This, "hidden")}><li>{d.opened}</li></ul>
+</div>

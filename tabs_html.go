@@ -8,53 +8,29 @@ import (
 	"io"
 )
 
-//line tabs.vuka.html:3
+// Tabs is a tab bar underlining the active tab; each tab may carry a count:
+//
+//	<ui.Tabs tabs={[]ui.Tab{
+//		{Label: "Placements", Href: "/tasks?type=placements", Active: true, Count: ui.Count(42)},
+//		{Label: "Permits", Href: "/tasks?type=permits", Count: ui.Count(7)},
+//	}}/>
+//
+//line tabs.vuka.html:9
+type Tabs struct {
+	Tabs  []Tab
+	Class string
+}
+
+//line tabs.vuka.html:13
 func (t Tabs) View() Node {
 	var nodes2 []Node
+//line tabs.vuka.html:14
 	for _, tab := range t.Tabs {
 		nodes2 = append(nodes2, tab.node())
 	}
-//line tabs.vuka.html:3
+//line tabs.vuka.html:13
 	return HTML(`<div class={withClass("vk-tabs", t.Class)} role="tablist">{nodes2}</div>`, withClass("vk-tabs", t.Class), nodes2)
 }
 
-//line tabs.vuka.html:8
+//line tabs.vuka.html:17
 func (t Tabs) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }
-
-func (t Tab) node() Node {
-	var a2 Node
-//line tabs.vuka.html:11
-	if t.Href != "" {
-		a2 = HTML(`<a class={t.classes()} href={t.Href} data-vk-link={t.link()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)}>{t.label()}</a>`,
-			t.classes(),
-			t.Href,
-			t.link(),
-			t.selected(),
-			nonEmpty(t.ID),
-			t.label(),
-		)
-	} else {
-//line tabs.vuka.html:14
-		a2 = HTML(`<button type="button" class={t.classes()} role="tab" aria-selected={t.selected()} id={nonEmpty(t.ID)} {on("onClick", t.On)...}>{t.label()}</button>`, t.classes(), t.selected(), nonEmpty(t.ID), on("onClick", t.On), t.label())
-	}
-//line tabs.vuka.html:10
-	return a2
-}
-
-//line tabs.vuka.html:17
-func (t Tab) label() Node {
-	var span2 Node
-//line tabs.vuka.html:18
-	if t.Icon != "" {
-		span2 = HTML(`<span class="vk-tab__icon">{Icon(t.Icon)}</span>`, Icon(t.Icon))
-	}
-	var span22 Node
-	if t.Count != nil {
-		span22 = HTML(`<span class="vk-tab__count">{*t.Count}</span>`, *t.Count)
-	}
-//line tabs.vuka.html:17
-	return HTML(`
-{span2}
-<span class="vk-tab__label">{t.Label}</span>
-{span22}`, span2, t.Label, span22)
-}

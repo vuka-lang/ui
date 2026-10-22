@@ -8,34 +8,61 @@ import (
 	"io"
 )
 
-//line image.vuka.html:3
-func (im Image) View() Node {
-	var img2 Node
-//line image.vuka.html:4
-	if im.Overlay == nil {
-		img2 = im.img()
-	} else {
-		var div Node
-//line image.vuka.html:9
-		if im.Scrim {
-			div = HTML(`<div class="vk-img-scrim"/>`)
-		}
-		img2 = HTML(`
-<div class={withClass("vk-img-wrap", im.WrapClass)}>
-  {im.img()}
-  {div}
-  <div class="vk-img-overlay">{im.Overlay}</div>
-</div>`, withClass("vk-img-wrap", im.WrapClass), im.img(), div, im.Overlay)
-	}
-//line image.vuka.html:3
-	return img2
+// Image is a network-friendly <img>: lazy, responsive, reserved and decoded
+// off-thread, with a shimmer placeholder. With Overlay set it wraps the image
+// as a backdrop for content laid over it:
+//
+//	<ui.Image src="/hero.webp" srcset={set} sizes="100vw" width={1600} height={600}
+//		priority scrim overlay={heading}/>
+//
+// The defaults suit a slow network: the image lazy-loads, reserves its box
+// from Width/Height so nothing shifts while it streams in, decodes off the
+// main thread, and shows a shimmer placeholder until it paints.
+//
+//line image.vuka.html:13
+type Image struct {
+	Src    string
+	Srcset string
+	Sizes  string
+	Alt    string
+	Width  int
+	Height int
+	// Class is added to the <img> (sizing, rounding, the caller's utilities).
+	Class string
+	// Priority marks the page's largest image: it loads eagerly with a high
+	// fetch priority. Use it once per page.
+	Priority bool
+	// Eager loads an above-the-fold image immediately, without raising its
+	// priority. Leave both off for below-the-fold images (the default lazy).
+	Eager bool
+	// Plain drops the placeholder, for a transparent image (a logo) the
+	// shimmer would show through.
+	Plain bool
+	// Overlay is content laid over the image, which then acts as a backdrop.
+	Overlay Node
+	// Scrim darkens the bottom of the image under the Overlay so text on it
+	// stays legible over any picture.
+	Scrim bool
+	// WrapClass is added to the positioning wrapper the Overlay needs.
+	WrapClass string
 }
 
-//line image.vuka.html:14
-func (im Image) Render(ctx context.Context, w io.Writer) error { return im.View().Render(ctx, w) }
+func (im Image) loading() string {
+	if im.Priority || im.Eager {
+		return "eager"
+	}
+	return "lazy"
+}
+
+func (im Image) classes() string {
+	c := "vk-img"
+	if im.Plain {
+		c += " vk-img--plain"
+	}
+	return withClass(c, im.Class)
+}
 
 func (im Image) img() Node {
-//line image.vuka.html:16
 	return HTML(`<img src={im.Src} alt={im.Alt} loading={im.loading()} decoding="async" class={im.classes()} fetchpriority={when(im.Priority, "high")} srcset={nonEmpty(im.Srcset)} sizes={nonEmpty(im.Sizes)} width={when(im.Width > 0, im.Width)} height={when(im.Height > 0, im.Height)}/>`,
 		im.Src,
 		im.Alt,
@@ -48,3 +75,29 @@ func (im Image) img() Node {
 		when(im.Height > 0, im.Height),
 	)
 }
+
+//line image.vuka.html:68
+func (im Image) View() Node {
+	var img2 Node
+//line image.vuka.html:69
+	if im.Overlay == nil {
+		img2 = im.img()
+	} else {
+		var div Node
+//line image.vuka.html:74
+		if im.Scrim {
+			div = HTML(`<div class="vk-img-scrim"/>`)
+		}
+		img2 = HTML(`
+<div class={withClass("vk-img-wrap", im.WrapClass)}>
+  {im.img()}
+  {div}
+  <div class="vk-img-overlay">{im.Overlay}</div>
+</div>`, withClass("vk-img-wrap", im.WrapClass), im.img(), div, im.Overlay)
+	}
+//line image.vuka.html:68
+	return img2
+}
+
+//line image.vuka.html:80
+func (im Image) Render(ctx context.Context, w io.Writer) error { return im.View().Render(ctx, w) }

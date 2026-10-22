@@ -49,15 +49,14 @@ var islandReg sync.Map // reflect.Type (the props struct) -> *islandInfo
 //
 // After the path come options: Strategy, the default hydration strategy
 // used when a tag gives no client:* directive, and Layout, the layout of
-// the page the type backs when it is routed as one (@web.Live, @web.Get):
+// the page the type backs when it is routed as one:
 //
 //	@ui.Island(ui.Layout(layouts.Page("Orders")))
 //	@ui.Island("islands/Chart.vue", ui.Strategy("load"))
 //
 // A second string is a strategy too: @ui.Island("", "load").
 //
-// Beside a route decorator (@web.Live, @web.Get) it is the route's option,
-// as in Go: app.Live("/board", NewBoard, ui.Island(ui.Layout(page))).
+// On a page's route it is the route's option: ui.Island(ui.Layout(page)).
 func Island(args ...any) IslandDecorator {
 	return func(t *vuka.Type) {
 		info := &islandInfo{Name: shortName(t.Name)}
@@ -124,7 +123,7 @@ func Strategy(s string) IslandOption {
 type LayoutFunc func(ctx context.Context, page Node) Node
 
 // Layout is the layout of the page an @ui.Island type backs, when it is
-// routed as one (@web.Live, @web.Get): the page is layout(component).
+// routed as one: the page is layout(component).
 // Placed in another page, the island ignores it. A layout is a
 // func(page ui.Node) ui.Node or a func(ctx context.Context, page ui.Node)
 // ui.Node — a LayoutFunc, which reads the request. Several nest, the first
@@ -222,8 +221,9 @@ func PageTitle(ctx context.Context) string {
 //	func init() { ui.RegisterIsland[Chart]() }
 //	func init() { ui.RegisterIsland[Chart]("islands/Chart.vue", ui.Strategy("load")) }
 //
-// It is what the compiler writes for @ui.Island on a type and for a .vuka
-// file's import of a component file (import Counter "./islands/Counter.vue").
+// It is what the compiler writes for @ui.Island on a type and for a
+// .vuka.html file's import of a component file (import Counter
+// "./islands/Counter.vue").
 func RegisterIsland[T any](args ...any) {
 	t := reflect.TypeFor[T]()
 	Island(args...)(&vuka.Type{Name: t.String(), Reflect: t})
@@ -390,8 +390,8 @@ func emitAttr(name string) string {
 // renders nothing.
 func Template(...any) Node { return Fragment() }
 
-// Mount is an island placed with options: in a template's child hole,
-// ui.HTML(`<div>{chart}</div>`, ui.Mount(Chart{Points: pts}, ui.Idle(), ui.Fallback(spinner))).
+// Mount is an island placed with options, in a template's child hole:
+// <div>{ui.Mount(Chart{Points: pts}, ui.Idle(), ui.Fallback(spinner))}</div>.
 // The hole gives it its site; props alone, with no options, mount the same.
 func Mount(props any, opts ...IslandOpt) Node { return &islandMount{props, opts} }
 

@@ -1,5 +1,47 @@
 package ui
 
+import (
+	"strconv"
+	"time"
+)
+
+// Toast is one notification. Its tone matches Alert's variants:
+//
+//	<ui.Toast variant={ui.AlertSuccess} title="Saved" timeout={4 * time.Second}/>
+type Toast struct {
+	// Variant is the tone: AlertInfo (default), AlertSuccess, AlertWarning or
+	// AlertError, shared with Alert.
+	Variant AlertVariant
+	// Title is an optional bold heading.
+	Title string
+	// ID identifies the toast for DismissToastRef and for a server list's key;
+	// it renders as both id and ref so ShowToast/DismissToastRef can find it.
+	ID string
+	// Dismissible adds a close button; default true.
+	Closed bool
+	// Timeout, when set, fades the toast out after it in the browser (a CSS
+	// animation, no JavaScript). The server removing it from its render is the
+	// reliable way to drop it.
+	Timeout  time.Duration
+	Class    string
+	Children Node
+}
+
+func (t Toast) classes() string {
+	variant := t.Variant
+	if variant == "" {
+		variant = AlertInfo
+	}
+	return withClass("vk-toast vk-toast--"+string(variant), t.Class)
+}
+
+// life is the style that fades the toast out after its Timeout, or nil.
+func (t Toast) life() any {
+	if t.Timeout <= 0 {
+		return nil
+	}
+	return Style{"--vk-toast-life": strconv.FormatInt(t.Timeout.Milliseconds(), 10) + "ms"}
+}
 <div class={classes()} role="status" id={nonEmpty(ID)} ref={nonEmpty(ID)} style={life()}>
   <div class="vk-toast__body">
     if Title != "" {

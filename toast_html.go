@@ -6,22 +6,64 @@ package ui
 import (
 	"context"
 	"io"
+	"strconv"
+	"time"
 )
 
-//line toast.vuka.html:3
+// Toast is one notification. Its tone matches Alert's variants:
+//
+//	<ui.Toast variant={ui.AlertSuccess} title="Saved" timeout={4 * time.Second}/>
+//
+//line toast.vuka.html:11
+type Toast struct {
+	// Variant is the tone: AlertInfo (default), AlertSuccess, AlertWarning or
+	// AlertError, shared with Alert.
+	Variant AlertVariant
+	// Title is an optional bold heading.
+	Title string
+	// ID identifies the toast for DismissToastRef and for a server list's key;
+	// it renders as both id and ref so ShowToast/DismissToastRef can find it.
+	ID string
+	// Dismissible adds a close button; default true.
+	Closed bool
+	// Timeout, when set, fades the toast out after it in the browser (a CSS
+	// animation, no JavaScript). The server removing it from its render is the
+	// reliable way to drop it.
+	Timeout  time.Duration
+	Class    string
+	Children Node
+}
+
+func (t Toast) classes() string {
+	variant := t.Variant
+	if variant == "" {
+		variant = AlertInfo
+	}
+	return withClass("vk-toast vk-toast--"+string(variant), t.Class)
+}
+
+// life is the style that fades the toast out after its Timeout, or nil.
+func (t Toast) life() any {
+	if t.Timeout <= 0 {
+		return nil
+	}
+	return Style{"--vk-toast-life": strconv.FormatInt(t.Timeout.Milliseconds(), 10) + "ms"}
+}
+
+//line toast.vuka.html:45
 func (t Toast) View() Node {
-//line toast.vuka.html:3
+//line toast.vuka.html:45
 	value2 := nonEmpty(t.ID)
 	var div Node
 	if t.Title != "" {
 		div = HTML(`<div class="vk-toast__title">{t.Title}</div>`, t.Title)
 	}
 	var button Node
-//line toast.vuka.html:10
+//line toast.vuka.html:52
 	if !t.Closed {
 		button = HTML(`<button type="button" class="vk-toast__close" aria-label="Dismiss" onClick={DismissToast()}>×</button>`, DismissToast())
 	}
-//line toast.vuka.html:3
+//line toast.vuka.html:45
 	return HTML(`
 <div class={t.classes()} role="status" id={nonEmpty(t.ID)} ref={value2} style={t.life()}>
   <div class="vk-toast__body">
@@ -40,5 +82,5 @@ func (t Toast) View() Node {
 	)
 }
 
-//line toast.vuka.html:13
+//line toast.vuka.html:55
 func (t Toast) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }

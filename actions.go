@@ -1,5 +1,11 @@
 package ui
 
+// Actions is a right-aligned row of buttons, for a modal footer or a card
+// header:
+//
+//	{ui.Actions(ui.Cancel(m.Close), ui.Button{Variant: ui.Primary, On: m.Save, Children: ui.Text("Save")})}
+func Actions(buttons ...Node) Node { return HTML(`<div class="vk-actions">{buttons}</div>`, buttons) }
+
 // Cancel is a neutral button that dismisses a modal or form. On is what it
 // does: a ui.JS chain (ui.CloseModal) or a live handler. The label is
 // "Cancel" unless the first label is given.

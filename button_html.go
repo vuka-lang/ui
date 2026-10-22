@@ -8,10 +8,109 @@ import (
 	"io"
 )
 
-//line button.vuka.html:3
+// Button is a token-styled button, or a link when Href is set:
+//
+//	<ui.Button variant={ui.Primary} icon={ui.Icon("plus")}>New</ui.Button>
+//	<ui.Button on={c.Save}>Save</ui.Button>       // spins while saving
+//	<ui.Button href="/books" nav>Back</ui.Button>
+//
+// A click handler (On) goes busy until its reply, so the spinner shows itself;
+// Loading forces it for a server-controlled state.
+//
+//line button.vuka.html:11
+type Button struct {
+	// ID names the element, e.g. for a JS command to target it.
+	ID string
+	// Variant is the tone: Default, Primary, Success, Danger, Warning, Info or
+	// Ghost.
+	Variant Variant
+	// Size is SizeMd (default), SizeSm or SizeLg.
+	Size Size
+	// Icon is an optional icon shown before the label, e.g. ui.Icon("plus").
+	Icon Node
+	// IconOnly drops the label's spacing for a square icon button; give it a
+	// Title for its accessible name.
+	IconOnly bool
+	// Loading forces the busy state: a spinner in place of the icon, and the
+	// button disabled. A live button left to its own busy state (see On) needs
+	// nothing here — it goes busy while its event is in flight.
+	Loading bool
+	// Disabled renders the button disabled.
+	Disabled bool
+	// Type is "button" (default), "submit" or "reset".
+	Type string
+	// Form is the id of the form a submit button submits when it sits outside
+	// it.
+	Form string
+	// On is what a click does: a ui.JS chain or a live event handler (a func,
+	// as an on… attribute takes). A live click goes busy until its reply, so a
+	// click button shows the spinner on its own.
+	On any
+	// Href makes the button a link (an a element). Nav follows it over a live
+	// connection (ui.Link's navigation) instead of a full load.
+	Href string
+	Nav  bool
+	// Title is the element's title/tooltip and, for an icon-only button, its
+	// accessible name.
+	Title string
+	Class string
+	// Attrs are any extra attributes.
+	Attrs    []Attr
+	Children Node
+}
+
+func (b Button) classes() string {
+	c := "vk-btn"
+	if b.Variant != "" {
+		c += " vk-btn--" + string(b.Variant)
+	}
+	if b.Size != "" {
+		c += " vk-btn--" + string(b.Size)
+	}
+	if b.IconOnly {
+		c += " vk-btn--icon"
+	}
+	if b.Type == "submit" {
+		c += " vk-btn--submit"
+	}
+	return withClass(c, b.Class)
+}
+
+func (b Button) typ() string {
+	if b.Type == "" {
+		return "button"
+	}
+	return b.Type
+}
+
+// lead is what goes before the label: the spinner while loading, else the
+// icon.
+func (b Button) lead() Node {
+	if b.Loading {
+		return Spinner()
+	}
+	return b.Icon
+}
+
+// content is the button's icon (or spinner) and label.
+func (b Button) content() Node {
+	var icon Node
+	if lead := b.lead(); lead != nil {
+		icon = HTML(`<span class="vk-btn__icon">{lead}</span>`, lead)
+	}
+	label := b.Children
+	if b.Children != nil && !b.IconOnly {
+		label = HTML(`<span class="vk-btn__label">{b.Children}</span>`, b.Children)
+	}
+	return HTML(`
+{icon}
+{label}`, icon, label)
+}
+
+//line button.vuka.html:99
 func (b Button) View() Node {
 	var a2 Node
-//line button.vuka.html:4
+//line button.vuka.html:100
 	if b.Href != "" {
 		a2 = HTML(`<a class={b.classes()} href={b.Href} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} data-vk-link={b.Nav} aria-disabled={when(b.Loading || b.Disabled, "true")} {b.Attrs...}>{b.content()}</a>`,
 			b.classes(),
@@ -37,36 +136,9 @@ func (b Button) View() Node {
 			b.content(),
 		)
 	}
-//line button.vuka.html:3
+//line button.vuka.html:99
 	return a2
 }
 
-//line button.vuka.html:12
+//line button.vuka.html:109
 func (b Button) Render(ctx context.Context, w io.Writer) error { return b.View().Render(ctx, w) }
-
-// content is the button's icon (or spinner) and label.
-func (b Button) content() Node {
-	lead := b.lead()
-	var span2 Node
-//line button.vuka.html:17
-	if lead != nil {
-		span2 = HTML(`<span class="vk-btn__icon">{lead}</span>`, lead)
-	}
-	var span22 Node
-//line button.vuka.html:20
-	if b.Children != nil && !b.IconOnly {
-		span22 = HTML(`<span class="vk-btn__label">{b.Children}</span>`, b.Children)
-	} else {
-		span22 = b.Children
-	}
-//line button.vuka.html:15
-	return HTML(`
-{span2}
-{span22}`, span2, span22)
-}
-
-// Spinner is the busy indicator Button and the form controls use: a spinning
-// ring drawn in CSS, so it needs no script.
-//
-//line button.vuka.html:28
-func Spinner() Node { return HTML(`<span class="vk-spinner" aria-hidden="true"/>`) }

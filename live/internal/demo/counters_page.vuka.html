@@ -1,0 +1,13 @@
+package demo
+
+import "strconv"
+
+// CountersPage is Counters' page: n counters.
+type CountersPage struct {
+	N int
+}
+<main>
+  for i := range N {
+    <Counter key={i} Label={"c" + strconv.Itoa(i)} />
+  }
+</main>

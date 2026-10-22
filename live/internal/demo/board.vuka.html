@@ -1,0 +1,126 @@
+package demo
+
+import (
+	"context"
+	"strconv"
+
+	"github.com/vuka-lang/ui"
+)
+
+// Board exercises everything a tree holds: keyed and unkeyed loops changed
+// by insertions, removals and moves, if and match branches, nested
+// components, an opaque node, a script, children.
+type Board struct {
+	ui.Live
+	Title    string
+	Children ui.Node
+	items    []item
+	next     int
+	mode     string
+	note     string
+	open     bool
+}
+
+@ui.Mount
+func (b *Board) mount(ctx context.Context) error {
+	for _, n := range []string{"milk", "eggs", "tea"} {
+		b.add(n)
+	}
+	return nil
+}
+
+func (b *Board) add(name string) {
+	b.next++
+	b.items = append(b.items, item{b.next, name})
+}
+
+// Do edits the list as its word says.
+func (b *Board) Do(w string) {
+	items := b.items
+	n := len(items)
+	switch {
+	case w == "add":
+		b.add("new" + strconv.Itoa(b.next))
+		return
+	case w == "front":
+		b.next++
+		items = append([]item{{b.next, "front"}}, items...)
+	case w == "drop" && n > 0:
+		items = items[1:]
+	case w == "pop" && n > 0:
+		items = items[:n-1]
+	case w == "rotate" && n > 1:
+		items = append(items[1:], items[0])
+	case w == "reverse":
+		for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
+			items[i], items[j] = items[j], items[i]
+		}
+	case w == "swap" && n > 2:
+		items[0], items[n-1] = items[n-1], items[0]
+	case w == "rename" && n > 0:
+		items[n/2].Name += "!"
+	case w == "mid" && n > 1:
+		it := items[0]
+		rest := append([]item{}, items[1:]...)
+		items = append(append(rest[:len(rest)/2:len(rest)/2], it), rest[len(rest)/2:]...)
+	case w == "clear":
+		items = nil
+	default:
+		b.mode = w
+		return
+	}
+	b.items = items
+}
+
+func (b *Board) Toggle() { b.open = !b.open }
+
+func (b *Board) Note(s string) { b.note = s }
+
+func (b *Board) Remove(id int) {
+	for i, it := range b.items {
+		if it.ID == id {
+			b.items = append(b.items[:i:i], b.items[i+1:]...)
+			return
+		}
+	}
+}
+
+// script is the board's script, holding text that closes a script element.
+func (b *Board) script() ui.Node {
+	return ui.El("script", nil, ui.Child("var mode = '"+b.mode+"' </script>"))
+}
+<section className={"board " + b.mode}>
+  <h2 title={b.note}>{b.Title} ({len(b.items)})</h2>
+  {b.Children}
+  <input onInput={b.Do} value={b.mode} />
+  <button onClick={b.Toggle}>toggle</button>
+  <ul>
+    for _, it := range b.items {
+      <li key={it.ID}>{it.Name} <Counter Label={it.Name} /><button onClick={func() { b.Remove(it.ID) }}>x</button></li>
+    }
+  </ul>
+  <ol>
+    for i, it := range b.items {
+      <li key={it.ID}>{i}: {it.Name}</li>
+    }
+  </ol>
+  if b.open {
+    <p onClick={b.Toggle}>open {b.note}</p>
+  } else if len(b.items) == 0 {
+    <p>empty</p>
+  } else {
+    <p>closed</p>
+  }
+  switch b.mode {
+  case "big":
+    <b>BIG</b>
+  case "note":
+    <input onInput={b.Note} value={b.note} />
+  default:
+    {ui.El("i", nil, ui.Text("opaque " + b.mode), ui.Component("demo#opaque", nil, &Counter{Label: "inner"}))}
+  }
+  {b.script()}
+  for _, it := range b.items {
+    <Counter key={it.ID} Label={"k" + it.Name} />
+  }
+</section>

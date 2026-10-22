@@ -1,0 +1,25 @@
+package tmpltest
+
+// Example is the template test's case N: components bound by name, a
+// function component, a live component rendered statically and ui.Link.
+type Example struct {
+	N int
+}
+<>
+  switch N {
+  case 0:
+    <Pets pets={[]Pet{{"Rex", 3}}}><caption>pets</caption></Pets>
+  case 1:
+    <Pets pets={nil} />
+  case 2:
+    <p><Avatar url="/a.png" /></p>
+  case 3:
+    <Clicks start={4} />
+  case 4:
+    <ui.Link href="/pets?page=2" patch class="next">Next <b>page</b></ui.Link>
+  case 5:
+    <ui.Link href="/pets/7">Rex</ui.Link>
+  default:
+    <p><Avatar url="" /></p>
+  }
+</>

@@ -8,18 +8,47 @@ import (
 	"io"
 )
 
-//line alert.vuka.html:3
+// Alert is an inline message box in one of four tones:
+//
+//	<ui.Alert variant={ui.AlertSuccess} title="Saved">Your changes are live.</ui.Alert>
+//
+// A dismissible alert hides itself with a browser command; a server that
+// wants it gone for good drops it from its own render instead.
+//
+//line alert.vuka.html:9
+type Alert struct {
+	// Variant is the tone: AlertInfo (default), AlertSuccess, AlertWarning or
+	// AlertError.
+	Variant AlertVariant
+	// Title is an optional bold heading above the body.
+	Title string
+	// Dismissible adds a close button that hides the alert in the browser, no
+	// round trip.
+	Dismissible bool
+	Class       string
+	Children    Node
+}
+
+func (a Alert) classes() string {
+	variant := a.Variant
+	if variant == "" {
+		variant = AlertInfo
+	}
+	return withClass("vk-alert vk-alert--"+string(variant), a.Class)
+}
+
+//line alert.vuka.html:29
 func (a Alert) View() Node {
 	var div Node
 	if a.Title != "" {
 		div = HTML(`<div class="vk-alert__title">{a.Title}</div>`, a.Title)
 	}
 	var button Node
-//line alert.vuka.html:10
+//line alert.vuka.html:36
 	if a.Dismissible {
 		button = HTML(`<button type="button" class="vk-alert__close" aria-label="Dismiss" onClick={JS.Hide(Closest(".vk-alert"))}>×</button>`, JS.Hide(Closest(".vk-alert")))
 	}
-//line alert.vuka.html:3
+//line alert.vuka.html:29
 	return HTML(`
 <div class={a.classes()} role="alert">
   <div class="vk-alert__body">

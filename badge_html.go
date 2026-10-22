@@ -8,11 +8,38 @@ import (
 	"io"
 )
 
-//line badge.vuka.html:3
+// Badge is a small status pill:
+//
+//	<ui.Badge variant={ui.Success}>Signed</ui.Badge>
+//	<ui.Badge variant={ui.Danger} soft>Failed</ui.Badge>
+//
+//line badge.vuka.html:7
+type Badge struct {
+	// Variant is the tone: Default, Primary, Success, Danger, Warning or Info.
+	Variant Variant
+	// Soft tints the badge (a light background with coloured text) instead of
+	// filling it.
+	Soft     bool
+	Class    string
+	Children Node
+}
+
+func (b Badge) classes() string {
+	class := "vk-badge"
+	if b.Variant != "" {
+		class += " vk-badge--" + string(b.Variant)
+	}
+	if b.Soft {
+		class += " vk-badge--soft"
+	}
+	return withClass(class, b.Class)
+}
+
+//line badge.vuka.html:27
 func (b Badge) View() Node {
-//line badge.vuka.html:3
+//line badge.vuka.html:27
 	return HTML(`<span class={b.classes()}>{b.Children}</span>`, b.classes(), b.Children)
 }
 
-//line badge.vuka.html:3
+//line badge.vuka.html:27
 func (b Badge) Render(ctx context.Context, w io.Writer) error { return b.View().Render(ctx, w) }

@@ -8,13 +8,64 @@ import (
 	"io"
 )
 
-//line form.vuka.html:3
+// Form is a token-styled form wired for live submit and change handlers:
+//
+//	<ui.Form onSubmit={p.Save} error={p.formError}>
+//		<ui.Input name="name" label="Name" value={p.name} required error={p.errs["name"]}/>
+//		<ui.Password name="password" label="Password" required/>
+//		<ui.Submit>Save</ui.Submit>
+//	</ui.Form>
+//
+// A live OnSubmit gets the fields bound to its struct (their name attributes
+// match the struct's form: tags); without a connection the form posts to
+// Action as ordinary HTML.
+//
+// The On… handlers are live event handlers (a func taking a form:-tagged
+// struct, as an on… attribute takes) or ui.JS chains, passed the same way
+// DataTable takes its handlers — the ui library is imported by the web
+// runtime, so it never imports it back, and a form's errors are supplied by
+// the host (see Field.Error and Form.Error) rather than read from the
+// runtime.
+//
+//line form.vuka.html:21
+type Form struct {
+	ID string
+	// OnSubmit runs when the form is submitted; over a live connection it
+	// receives the fields bound to its struct, and the form shows its busy
+	// state until the reply.
+	OnSubmit any
+	// OnChange runs as fields change (oninput), for live validation; leave it
+	// nil for none.
+	OnChange any
+	// Method and Action are the plain-HTML fallback for a form that posts
+	// without a live connection; Method defaults to "post".
+	Method string
+	Action string
+	// Error is a form-level message shown as a danger Alert above the fields.
+	Error string
+	// CSRF is an optional hidden token field. Vuka's CSRF is origin-based
+	// (net/http's CrossOriginProtection), so a form needs no token by default
+	// and this is usually nil.
+	CSRF     Node
+	Class    string
+	Children Node
+}
+
+func (f Form) method() string {
+	if f.Method == "" {
+		return "post"
+	}
+	return f.Method
+}
+
+//line form.vuka.html:50
 func (f Form) View() Node {
 	var alert Node
+//line form.vuka.html:51
 	if f.Error != "" {
 		alert = Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)}
 	}
-//line form.vuka.html:3
+//line form.vuka.html:50
 	return HTML(`
 <form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...}>
   {alert}
@@ -33,5 +84,5 @@ func (f Form) View() Node {
 	)
 }
 
-//line form.vuka.html:10
+//line form.vuka.html:56
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

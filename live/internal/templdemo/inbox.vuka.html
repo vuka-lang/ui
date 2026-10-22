@@ -1,0 +1,30 @@
+package templdemo
+
+import (
+	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
+)
+
+// Inbox is a stateful component rendering a templ Panel: reading a message
+// changes the Panel's badge alone.
+type Inbox struct {
+	ui.Live
+	Unread int
+	Opaque bool // the Panel as one piece of markup (Opaque)
+	read   uigen.Assign[int]
+}
+
+func (b *Inbox) Read() { b.read.Update(func(n int) int { return n + 1 }) }
+
+// opaque is the Panel as one piece of markup; the Opaque field shadows the
+// func in the markup.
+func (b *Inbox) opaque() ui.Node {
+	return Opaque(InboxPanel{Badge: b.Unread - b.read.Get(), Read: b.Read})
+}
+<div class="inbox">
+  if b.Opaque {
+    {b.opaque()}
+  } else {
+    <InboxPanel badge={b.Unread - b.read.Get()} read={b.Read} />
+  }
+</div>
