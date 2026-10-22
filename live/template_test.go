@@ -47,10 +47,13 @@ type tBoard struct {
 	open     bool
 }
 
-func (b *tBoard) Mount() {
+func (b *tBoard) LiveSchema(l *ui.LiveSchema) { l.Mount(b.mount) }
+
+func (b *tBoard) mount(context.Context) error {
 	for _, n := range []string{"milk", "eggs", "tea"} {
 		b.add(n)
 	}
+	return nil
 }
 
 func (b *tBoard) add(name string) {
@@ -163,7 +166,8 @@ type tCellTable struct {
 	cells []int
 }
 
-func (t *tCellTable) Mount() { t.cells = make([]int, t.N) }
+func (t *tCellTable) LiveSchema(l *ui.LiveSchema) { l.Mount(t.mount) }
+func (t *tCellTable) mount(context.Context) error { t.cells = make([]int, t.N); return nil }
 
 func (t *tCellTable) Bump(i int) { t.cells[i]++ }
 

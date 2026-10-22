@@ -208,8 +208,8 @@ func parseDebounce(v string) (time.Duration, error) {
 
 // CheckIsland reports what a page backed by t (a pointer to its island's
 // struct) can't be: a mistake in its LiveSchema, a Bind that doesn't fit, a
-// method and a field (or two fields) of one wire name, a Changed method
-// that isn't Changed([ctx]) [error].
+// method and a field (or two fields) of one wire name, a method named as
+// earlier releases found a hook by that isn't declared one.
 func CheckIsland(t reflect.Type) error {
 	if t.Kind() != reflect.Pointer {
 		t = reflect.PointerTo(t)
@@ -240,11 +240,8 @@ func CheckIsland(t reflect.Type) error {
 				WithHelp("rename one, or give the field another json name")
 		}
 	}
-	if m, ok := t.MethodByName("Changed"); ok && !hasOnChange(t) {
-		if _, ok := changedArgs(m.Type); !ok {
-			return diag.New("E0327", "%s.Changed is %s", t.Elem().Name(), m.Type).
-				WithHelp("declare Changed(), Changed(ctx context.Context) or Changed(ctx context.Context, changed ui.Changed), returning nothing or an error")
-		}
+	if err := namedHookErr(t); err != nil {
+		return err
 	}
 	if _, err := deferGroups(t); err != nil {
 		return err
@@ -266,25 +263,6 @@ func (c Changed) Has(name string) bool {
 // Names are the wire names of the fields the set holds, sorted.
 func (c Changed) Names() []string { return slices.Clone(c.names) }
 
-var changedType = reflect.TypeFor[Changed]()
-
-// changedArgs are the arguments Changed takes after its receiver — a
-// context.Context, then a Changed, each optional — as "c" and "n".
-func changedArgs(mt reflect.Type) (string, bool) {
-	var args string
-	for i := 1; i < mt.NumIn(); i++ {
-		switch {
-		case mt.In(i) == ctxType && args == "":
-			args += "c"
-		case mt.In(i) == changedType && !strings.Contains(args, "n"):
-			args += "n"
-		default:
-			return "", false
-		}
-	}
-	return args, mt.NumOut() == 0 || mt.NumOut() == 1 && mt.Out(0) == errType
-}
-
 // setError is a refused or invalid set, as the component's live.error
 // reads it.
 type setError struct {
@@ -304,7 +282,7 @@ func (e setError) FieldErrors() map[string]string {
 
 // SetBound sets x's (a pointer to the island's struct) bound fields from
 // data, the JSON object of wire names and values the component set, then
-// runs its OnChange hook (or, from earlier releases, its Changed method).
+// runs its OnChange hook.
 // A field that isn't bound is refused, a value breaking its field's rules
 // (or the validate: tags of a struct it holds) is Invalid under its wire
 // name (q, address.city), and either way nothing is set.
@@ -351,28 +329,10 @@ func SetBound(ctx context.Context, x reflect.Value, data json.RawMessage) error 
 }
 
 func runChanged(ctx context.Context, x reflect.Value, changed Changed) error {
-	if hasOnChange(x.Type()) {
-		return liveHooks(x).onChange(ctx, changed)
-	}
-	m := x.MethodByName("Changed")
-	if !m.IsValid() {
+	if !hasOnChange(x.Type()) {
 		return nil
 	}
-	mm, _ := x.Type().MethodByName("Changed")
-	args, _ := changedArgs(mm.Type)
-	var in []reflect.Value
-	for _, a := range args {
-		if a == 'c' {
-			in = append(in, reflect.ValueOf(ctx))
-		} else {
-			in = append(in, reflect.ValueOf(changed))
-		}
-	}
-	out := m.Call(in)
-	if len(out) == 1 && !out[0].IsNil() {
-		return out[0].Interface().(error)
-	}
-	return nil
+	return liveHooks(x).onChange(ctx, changed)
 }
 
 // fieldsJSON is a page's data-vk-fields: each handle → its wire name and,
@@ -393,16 +353,8 @@ func fieldsJSON(fields []IslandField) string {
 	return string(j)
 }
 
-// hasOnChange reports whether t's LiveSchema or constructor sets an
-// OnChange hook.
+// hasOnChange reports whether t's LiveSchema sets an OnChange hook.
 func hasOnChange(t reflect.Type) bool {
-	if s := liveSchemaOf(t); s != nil && s.onChange != nil {
-		return true
-	}
-	h := ctorHooksOf(t)
-	if h == nil {
-		return false
-	}
-	_, onChange, _, _ := h.snapshot()
-	return onChange.IsValid()
+	s := liveSchemaOf(t)
+	return s != nil && s.onChange != nil
 }

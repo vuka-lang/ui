@@ -26,7 +26,8 @@ type Shelf struct {
 
 type shelfParams struct{ Page int }
 
-func (s *Shelf) Mount() { mounts++; s.mount = mounts }
+func (s *Shelf) LiveSchema(l *ui.LiveSchema)   { l.Mount(s.onMount) }
+func (s *Shelf) onMount(context.Context) error { mounts++; s.mount = mounts; return nil }
 func (s *Shelf) Update(p shelfParams) error {
 	if p.Page < 0 {
 		return errors.New("no such page")

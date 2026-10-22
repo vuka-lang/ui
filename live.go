@@ -26,9 +26,8 @@ import (
 // live) it is an instance that keeps its state between renders and answers
 // the events of the elements it renders.
 type Live struct {
-	inst    LiveInstance
-	loads   *Loads // a page backed by its island: its deferred fields
-	hookErr error  // a mistake of the hooks its constructor declares
+	inst  LiveInstance
+	loads *Loads // a page backed by its island: its deferred fields
 }
 
 // LiveInstance is a session's side of a component instance. Package live
@@ -174,36 +173,11 @@ func CopyLive(c Stateful) Stateful {
 }
 
 // MountLive gives c's zero ui.State fields their states, then runs c's
-// Mount hook, the one its LiveSchema sets; or, from
-// earlier releases, its Mount method: Mount(), Mount() error,
-// Mount(context.Context) or Mount(context.Context) error.
+// mount hook, the one its LiveSchema sets (@ui.Mount), after checking its
+// hooks as MountPage does.
 func MountLive(ctx context.Context, c Stateful) error {
 	initStates(reflect.ValueOf(c))
-	if l, ok := c.(interface{ vukaLive() *Live }); ok && l.vukaLive().hookErr != nil {
-		return l.vukaLive().hookErr
-	}
-	if err := schemaErr(reflect.TypeOf(c)); err != nil {
-		return err
-	}
-	if hasMount(reflect.TypeOf(c)) {
-		return liveHooks(reflect.ValueOf(c)).mount(ctx)
-	}
-	switch m := c.(type) {
-	case interface{ Mount(context.Context) error }:
-		return m.Mount(ctx)
-	case interface{ Mount(context.Context) }:
-		m.Mount(ctx)
-	case interface{ Mount() error }:
-		return m.Mount()
-	case interface{ Mount() }:
-		m.Mount()
-	default:
-		if m := reflect.ValueOf(c).MethodByName("Mount"); m.IsValid() {
-			return diag.New("E0329", "%T's Mount is %s", c, m.Type()).
-				WithHelp("Mount takes nothing or a context.Context, and returns nothing or an error; its dependencies are the struct's injected fields")
-		}
-	}
-	return nil
+	return MountPage(ctx, c)
 }
 
 // EventHandler is an on… attribute's expression on an element: onClick={c.Inc}.

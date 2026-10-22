@@ -19,12 +19,17 @@ type deferPage struct {
 
 func (p *deferPage) Render() ui.Node { return ui.IslandPage(p) }
 
-func (p *deferPage) LoadStats(ctx context.Context) error {
+func (p *deferPage) LiveSchema(l *ui.LiveSchema) {
+	l.Loads("stats", p.loadStats)
+	l.Loads("rows", p.loadRows)
+}
+
+func (p *deferPage) loadStats(ctx context.Context) error {
 	p.Stats = map[string]int{"open": 3}
 	return nil
 }
 
-func (p *deferPage) LoadRows(ctx context.Context) error { return errors.New("db: connection refused") }
+func (p *deferPage) loadRows(ctx context.Context) error { return errors.New("db: connection refused") }
 
 func init() { ui.Island("islands/Orders.vue")(vuka.TypeOf[deferPage]("live.deferPage")) }
 

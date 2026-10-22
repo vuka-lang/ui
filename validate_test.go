@@ -101,7 +101,8 @@ type vPage struct {
 	called  int
 }
 
-func (p *vPage) Changed()                                    { p.changed++ }
+func (p *vPage) LiveSchema(l *LiveSchema)                    { l.OnChange(p.onChange) }
+func (p *vPage) onChange(context.Context, Changed) error     { p.changed++; return nil }
 func (p *vPage) Search(ctx context.Context, f vFilter) error { p.called++; return nil }
 func (p *vPage) Pick(items []vLevel, n int) error            { p.called++; return nil }
 

@@ -23,9 +23,10 @@ type Menu struct {
 	picked string
 }
 
-func (m *Menu) Mount()        { m.PushJS(ui.JS.AddClass(ui.This, "mounted")) }
-func (m *Menu) Opened()       { m.opens++ }
-func (m *Menu) Pick(v string) { m.picked = v }
+func (m *Menu) LiveSchema(l *ui.LiveSchema) { l.Mount(m.mount) }
+func (m *Menu) mount(context.Context) error { m.PushJS(ui.JS.AddClass(ui.This, "mounted")); return nil }
+func (m *Menu) Opened()                     { m.opens++ }
+func (m *Menu) Pick(v string)               { m.picked = v }
 func (m *Menu) Close() {
 	m.closes++
 	m.PushJS(ui.JS.On(ui.Ref("list")).AddClass("hidden").Push(m.Closed))

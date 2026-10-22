@@ -45,7 +45,9 @@ type Clicks struct {
 	n     int
 }
 
-func (c *Clicks) Mount()          { c.n = c.Start }
+@ui.Mount
+func (c *Clicks) mount(ctx context.Context) error { c.n = c.Start; return nil }
+
 func (c *Clicks) Inc()            { c.n++ }
 func (c *Clicks) Render() ui.Node { return <button onClick={c.Inc}>{c.n}</button> }
 

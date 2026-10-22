@@ -12,34 +12,39 @@ import (
 )
 
 // LiveSchema is what a live page declares beyond its Go types: attributes
-// of its fields and the hooks the runtime calls, as values. A page declares
-// them in a LiveSchema method:
+// of its fields and the hooks the runtime calls, as values. A person writes
+// them as attributes in the page's source — @ui.Bind, @ui.URL("q") and
+// @ui.Defer("lists") on a field, @ui.Mount, @ui.OnChange and
+// @ui.Loads("lists") on a method — and the compiler writes them into the
+// page's LiveSchema method:
 //
 //	type Dashboard struct {
 //		ui.Live
-//		Q     string
-//		Rows  []Task
-//		Total int
+//		Q    string @ui.Bind{Debounce: 300 * time.Millisecond} @ui.URL("q")
+//		Rows []Task @ui.Defer("lists")
 //	}
 //
+//	@ui.Loads("lists")
+//	func (d *Dashboard) loadLists(ctx context.Context) error { … }
+//
+//	@ui.Mount
+//	func (d *Dashboard) mount(ctx context.Context) error { … }
+//
+// is, in the generated Go,
+//
 //	func (d *Dashboard) LiveSchema(l *ui.LiveSchema) {
-//		l.Field(&d.Q, ui.Bind{Debounce: 300 * time.Millisecond}, ui.URL("q"), validate.Max(100))
+//		l.Field(&d.Q, ui.Bind{Debounce: 300 * time.Millisecond}, ui.URL("q"))
 //		l.Field(&d.Rows, ui.Defer("lists"))
-//		l.Field(&d.Total, ui.Defer("lists"))
 //		l.Loads("lists", d.loadLists)
-//		l.OnChange(d.changed)
 //		l.Mount(d.mount)
 //	}
 //
-// A field is named by its address, so a rename is checked by the compiler,
-// and a hook by its method value, so its signature is. The runtime calls
-// LiveSchema on each page it runs: the hooks are that page's methods. They
-// may be unexported; a page's exported methods are what its component
-// calls, the hooks excepted.
-//
-// In Vuka the same values are attributes: Q string @ui.Bind{…} @ui.URL("q")
-// on the field, @ui.Mount, @ui.OnChange and @ui.Loads("lists") on the
-// method; the compiler writes the LiveSchema method.
+// LiveSchema is exported so that generated code, ejected code included,
+// builds with go build; it is the compiler's output, not an API to write by
+// hand, and vukavet reports a LiveSchema method a person wrote (W0306). A
+// field is named by its address and a hook by its method value, so the Go
+// compiler checks both. The runtime calls LiveSchema on each page it runs:
+// the hooks are that page's methods, never ones its component calls.
 type LiveSchema struct {
 	root     uintptr
 	t        reflect.Type
@@ -219,46 +224,26 @@ func liveHooks(x reflect.Value) *LiveSchema {
 	if x.Kind() != reflect.Pointer || x.IsNil() {
 		return nil
 	}
-	h := ctorHooksOf(x.Type())
 	s, ok := x.Interface().(liveSchemer)
-	if !ok && h == nil {
+	if !ok {
 		return nil
 	}
 	l := &LiveSchema{t: x.Type().Elem()}
-	if ok {
-		s.LiveSchema(l)
-	}
-	if h != nil {
-		h.bind(l, x)
-	}
+	s.LiveSchema(l)
 	return l
 }
 
-// hasMount reports whether t's LiveSchema or constructor sets a mount hook.
+// hasMount reports whether t's LiveSchema sets a mount hook.
 func hasMount(t reflect.Type) bool {
-	if s := liveSchemaOf(t); s != nil && s.mount != nil {
-		return true
-	}
-	h := ctorHooksOf(t)
-	if h == nil {
-		return false
-	}
-	mount, _, _, _ := h.snapshot()
-	return mount.IsValid()
+	s := liveSchemaOf(t)
+	return s != nil && s.mount != nil
 }
 
-// hasLoads reports whether t's LiveSchema or constructor gives the group
-// (as groupName names it) a loader.
+// hasLoads reports whether t's LiveSchema gives the group (as groupName
+// names it) a loader.
 func hasLoads(t reflect.Type, group string) bool {
-	if s := liveSchemaOf(t); s != nil && s.loads[group] != nil {
-		return true
-	}
-	h := ctorHooksOf(t)
-	if h == nil {
-		return false
-	}
-	_, _, loads, _ := h.snapshot()
-	return loads[group].IsValid()
+	s := liveSchemaOf(t)
+	return s != nil && s.loads[group] != nil
 }
 
 // schemaErr is what is wrong with t's LiveSchema.
@@ -266,24 +251,15 @@ func schemaErr(t reflect.Type) error {
 	if s := liveSchemaOf(t); s != nil && len(s.errs) > 0 {
 		return s.errs[0]
 	}
-	return ctorErr(t)
+	return nil
 }
 
-// isHook reports whether t's (a pointer type's) method name is one of the
-// hooks its LiveSchema or constructor sets, which the component doesn't
+// isHook reports whether t's (a pointer type's) method name is LiveSchema
+// or one of the hooks its LiveSchema sets, which the component doesn't
 // call.
 func isHook(t reflect.Type, name string) bool {
 	s := liveSchemaOf(t)
-	if name == "LiveSchema" && s != nil || s != nil && s.hooks[name] {
-		return true
-	}
-	h := ctorHooksOf(t)
-	if h == nil {
-		return false
-	}
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.names[name]
+	return s != nil && (name == "LiveSchema" || s.hooks[name])
 }
 
 // IsHook reports whether method is LiveSchema or one of the hooks c's

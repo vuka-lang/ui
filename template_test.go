@@ -181,8 +181,9 @@ type tCount struct {
 	n     int
 }
 
-func (c *tCount) Inc()   { c.n++ }
-func (c *tCount) Mount() { c.n = len(c.Label) }
+func (c *tCount) Inc()                        { c.n++ }
+func (c *tCount) LiveSchema(l *ui.LiveSchema) { l.Mount(c.mount) }
+func (c *tCount) mount(context.Context) error { c.n = len(c.Label); return nil }
 func (c *tCount) Render() ui.Node {
 	return ui.HTML(`<span>{c.Label}={c.n}<button onClick={c.Inc}>+</button></span>`, c.Label, c.n, c.Inc)
 }

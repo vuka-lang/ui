@@ -29,10 +29,9 @@ func IsIsland(t reflect.Type) bool {
 	return lookupIsland(t) != nil
 }
 
-// lifecycle are the methods a live component's session calls, and Changed
-// (run after the component sets bound fields): never ones the component
-// calls.
-var lifecycle = map[string]bool{"Render": true, "Mount": true, "Update": true, "Info": true, "Changed": true}
+// lifecycle are the methods a live component's session calls: never ones
+// the component calls. Its hooks are its LiveSchema's (isHook).
+var lifecycle = map[string]bool{"Render": true, "Update": true, "Info": true}
 
 var liveMethods = func() map[string]bool {
 	m := map[string]bool{}
@@ -58,7 +57,7 @@ var islandMethodsOf sync.Map // reflect.Type (pointer) → []IslandMethod
 
 // IslandMethods are the methods of t (a pointer to an island's struct) its
 // component may call: the exported ones that aren't a live component's
-// lifecycle (Render, Mount, Update, Info) or ui.Live's, return nothing or
+// lifecycle (Render, Update, Info), hooks or ui.Live's, return nothing or
 // an error (or a value and an error), and take JSON arguments.
 func IslandMethods(t reflect.Type) []IslandMethod {
 	if t.Kind() != reflect.Pointer {
@@ -70,7 +69,7 @@ func IslandMethods(t reflect.Type) []IslandMethod {
 	var out []IslandMethod
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
-		if lifecycle[m.Name] || liveMethods[m.Name] || IsUpdate(m) || isLoader(t, m.Name) || isHook(t, m.Name) {
+		if lifecycle[m.Name] || liveMethods[m.Name] || IsUpdate(m) || isHook(t, m.Name) {
 			continue
 		}
 		mt := m.Type

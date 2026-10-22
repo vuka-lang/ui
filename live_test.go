@@ -15,8 +15,9 @@ type tally struct {
 	n     int
 }
 
-func (t *tally) Mount() { t.n += t.Start }
-func (t *tally) Inc()   { t.n++ }
+func (t *tally) LiveSchema(l *ui.LiveSchema) { l.Mount(t.mount) }
+func (t *tally) mount(context.Context) error { t.n += t.Start; return nil }
+func (t *tally) Inc()                        { t.n++ }
 func (t *tally) Render() ui.Node {
 	return ui.El("b", []ui.Attr{{Name: "onClick", Value: ui.On(t.Inc)}}, ui.Child(t.n))
 }
@@ -70,7 +71,7 @@ func TestRuntimeChecks(t *testing.T) {
 		{ui.El("b", []ui.Attr{{Name: "onClick", Value: ui.On(func(a, b int) {})}}),
 			"ui: onClick takes a func(), a func taking the event's value (a string, number or bool), a form (a struct, or url.Values) or a ui.Event, optionally after a context.Context, returning nothing or an error; this is func(int, int)"},
 		{ui.El("b", []ui.Attr{{Name: "onClick", Value: ui.On(42)}}), "; this is int"},
-		{ui.Component("x#1", nil, &badMount{}), "error[E0329]: *ui_test.badMount's Mount is func(int)\n  = help: Mount takes nothing or a context.Context, and returns nothing or an error"},
+		{ui.Component("x#1", nil, &badMount{}), "error[E0337]: badMount.Mount isn't a hook: a hook is declared with @ui.Mount, never found by its name\n  = help: mark the method @ui.Mount (vuka fix hooks), or rename it"},
 		{ui.Component("x#2", nil, &ptrLive{}), "error[E0329]: *ui_test.ptrLive embeds *ui.Live\n  = help: embed ui.Live by value"},
 	}
 	for _, c := range cases {

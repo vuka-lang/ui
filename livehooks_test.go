@@ -10,168 +10,115 @@ import (
 	"github.com/vuka-lang/ui"
 )
 
-type ordersPage struct {
+// namedMount has the mount hook of earlier releases, found by its name.
+type namedMount struct {
 	ui.Live
-	Q       string   `json:"q"`
-	Rows    []string `json:"rows"`
-	mounted int
-	changes []string
+	mounted bool
 }
 
-func newOrdersPage() *ordersPage {
-	p := &ordersPage{}
-	p.OnMount((*ordersPage).mount)
-	p.Loads("rows", (*ordersPage).loadRows)
-	p.OnChange((*ordersPage).changed)
-	return p
-}
+func (p *namedMount) Mount(ctx context.Context) error { p.mounted = true; return nil }
+func (p *namedMount) Render() ui.Node                 { return nil }
 
-func (p *ordersPage) LiveSchema(l *ui.LiveSchema) {
-	l.Field(&p.Q, ui.Bind{Debounce: ui.NoDebounce})
-	l.Field(&p.Rows, ui.Defer("rows"))
-}
-
-func (p *ordersPage) mount() { p.mounted++ }
-
-func (p *ordersPage) loadRows(ctx context.Context) error {
-	p.Rows = []string{p.Q}
-	return nil
-}
-
-func (p *ordersPage) changed(c ui.Changed) error {
-	p.changes = append(p.changes, strings.Join(c.Names(), ","))
-	return nil
-}
-
-func (p *ordersPage) Cancel(id int64) error { return nil }
-
-func (p *ordersPage) Render() ui.Node { return ui.Text(p.Q) }
-
-func TestConstructorHooks(t *testing.T) {
-	p := newOrdersPage()
-	typ := reflect.TypeOf(p)
-	if err := ui.CheckIsland(typ); err != nil {
-		t.Fatal(err)
-	}
-	if err := ui.MountLive(context.Background(), p); err != nil || p.mounted != 1 {
-		t.Fatalf("mount: %v, %d", err, p.mounted)
-	}
-	x := reflect.ValueOf(p)
-	if err := ui.SetBound(context.Background(), x, json.RawMessage(`{"q":"go"}`)); err != nil {
-		t.Fatal(err)
-	}
-	if strings.Join(p.changes, ";") != "q" {
-		t.Errorf("changes %v", p.changes)
-	}
-	ui.LoadsFrom(typ, nil).Load(context.Background(), x, nil)
-	if strings.Join(p.Rows, ",") != "go" {
-		t.Errorf("loaded %v", p.Rows)
-	}
-	var names []string
-	for _, m := range ui.IslandMethods(typ) {
-		names = append(names, m.Name)
-	}
-	if strings.Join(names, " ") != "cancel" {
-		t.Errorf("callable: %v (Live's methods and the hooks aren't)", names)
-	}
-	zero := &ordersPage{}
-	if err := ui.MountLive(context.Background(), zero); err != nil || zero.mounted != 1 {
-		t.Errorf("a page built without its constructor has its type's hooks: %v, %d", err, zero.mounted)
-	}
-}
-
-type valueHook struct {
+// namedChanged has the OnChange hook of earlier releases.
+type namedChanged struct {
 	ui.Live
+	Q string `json:"q"`
 }
 
-func (p *valueHook) mount()          {}
-func (p *valueHook) Render() ui.Node { return nil }
+func (p *namedChanged) LiveSchema(l *ui.LiveSchema) { l.Field(&p.Q, ui.Bind{}) }
+func (p *namedChanged) Changed()                    {}
+func (p *namedChanged) Render() ui.Node             { return nil }
 
-type wrongHook struct {
-	ui.Live
-}
-
-func (p *wrongHook) mount(n int) error { return nil }
-func (p *wrongHook) Render() ui.Node   { return nil }
-
-type twoHooks struct {
-	ui.Live
-}
-
-func (p *twoHooks) mount() error    { return nil }
-func (p *twoHooks) start() error    { return nil }
-func (p *twoHooks) Render() ui.Node { return nil }
-
-type exportedHook struct {
-	ui.Live
-}
-
-func (p *exportedHook) Start()          {}
-func (p *exportedHook) Render() ui.Node { return nil }
-
-type lateLoader struct {
+// namedLoader has a deferred group's loader of earlier releases.
+type namedLoader struct {
 	ui.Live
 	Rows []string `json:"rows"`
 }
 
-func newLateLoader() *lateLoader {
-	p := &lateLoader{}
-	p.Loads("rows", (*lateLoader).loadRows)
-	return p
-}
+func (p *namedLoader) LiveSchema(l *ui.LiveSchema)        { l.Field(&p.Rows, ui.Defer("rows")) }
+func (p *namedLoader) LoadRows(ctx context.Context) error { return nil }
+func (p *namedLoader) Render() ui.Node                    { return nil }
 
-func (p *lateLoader) LiveSchema(l *ui.LiveSchema) { l.Field(&p.Rows, ui.Defer("rows")) }
-func (p *lateLoader) loadRows()                   {}
-func (p *lateLoader) Render() ui.Node             { return nil }
-
-func TestConstructorHooksAfterBoot(t *testing.T) {
-	typ := reflect.TypeFor[*lateLoader]()
-	if err := ui.CheckIsland(typ); err == nil || !strings.Contains(err.Error(), "E0324") {
-		t.Fatalf("before the constructor: %v, want E0324", err)
-	}
-	newLateLoader()
-	if err := ui.CheckIsland(typ); err != nil {
-		t.Errorf("after the constructor: %v", err)
-	}
-}
-
-type bothHooks struct {
+// declaredMount is a page whose method named Mount is declared its hook,
+// as the compiler writes @ui.Mount on it.
+type declaredMount struct {
 	ui.Live
+	mounted bool
 }
 
-func (p *bothHooks) LiveSchema(l *ui.LiveSchema) { l.Mount(p.mount) }
-func (p *bothHooks) mount(context.Context) error { return nil }
-func (p *bothHooks) Render() ui.Node             { return nil }
+func (p *declaredMount) LiveSchema(l *ui.LiveSchema)     { l.Mount(p.Mount) }
+func (p *declaredMount) Mount(ctx context.Context) error { p.mounted = true; return nil }
+func (p *declaredMount) Render() ui.Node                 { return nil }
 
-func TestConstructorHookErrors(t *testing.T) {
-	byValue := &valueHook{}
-	byValue.OnMount(byValue.mount)
-	wrong := &wrongHook{}
-	wrong.OnMount((*wrongHook).mount)
-	group := &valueHook{}
-	group.Loads("two words", (*valueHook).mount)
-	first, second := &twoHooks{}, &twoHooks{}
-	first.OnMount((*twoHooks).mount)
-	second.OnMount((*twoHooks).start)
-	exported := &exportedHook{}
-	exported.OnMount((*exportedHook).Start)
-	both := &bothHooks{}
-	both.OnMount((*bothHooks).mount)
-	for _, c := range []struct {
-		name string
-		page ui.Stateful
-		want string
-	}{
-		{"a method value", byValue, "doesn't take the page first"},
-		{"a wrong signature", wrong, "is given func(*ui_test.wrongHook, int) error"},
-		{"a group that isn't a name", group, "a group is a name"},
-		{"two mount hooks for a type", second, "declared twice"},
-		{"a constructor and a LiveSchema", both, "by its constructor and by its LiveSchema"},
-		{"an exported method", exported, "an exported method"},
-	} {
-		err := ui.MountLive(context.Background(), c.page)
-		if err == nil || !strings.Contains(err.Error(), "E0336") || !strings.Contains(err.Error(), c.want) {
-			t.Errorf("%s: %v, want E0336 %q", c.name, err, c.want)
-		}
+func TestNamedHooks(t *testing.T) {
+	p := &namedMount{}
+	err := ui.MountLive(context.Background(), p)
+	if err == nil || !strings.Contains(err.Error(), "E0337") || !strings.Contains(err.Error(), "@ui.Mount") || p.mounted {
+		t.Errorf("Mount by its name: %v (mounted %v), want E0337 naming @ui.Mount, not run", err, p.mounted)
+	}
+	if err := ui.CheckIsland(reflect.TypeFor[*namedChanged]()); err == nil || !strings.Contains(err.Error(), "E0337") || !strings.Contains(err.Error(), "@ui.OnChange") {
+		t.Errorf("Changed by its name: %v, want E0337 naming @ui.OnChange", err)
+	}
+	err = ui.CheckIsland(reflect.TypeFor[*namedLoader]())
+	if err == nil || !strings.Contains(err.Error(), "E0324") || !strings.Contains(err.Error(), `mark LoadRows @ui.Loads("rows")`) {
+		t.Errorf("a loader by its name: %v, want E0324 naming @ui.Loads", err)
+	}
+	d := &declaredMount{}
+	if err := ui.MountLive(context.Background(), d); err != nil || !d.mounted {
+		t.Errorf("Mount declared a hook: %v (mounted %v)", err, d.mounted)
+	}
+	var names []string
+	for _, m := range ui.IslandMethods(reflect.TypeOf(d)) {
+		names = append(names, m.Name)
+	}
+	if len(names) != 0 {
+		t.Errorf("callable: %v; a hook isn't", names)
+	}
+}
+
+// staticPage is a stateless page with a mount hook and an OnChange hook.
+type staticPage struct {
+	Q       string `json:"q"`
+	mounted int
+	changes []string
+}
+
+func (p *staticPage) LiveSchema(l *ui.LiveSchema) {
+	l.Field(&p.Q, ui.Bind{Debounce: ui.NoDebounce})
+	l.Mount(p.mount)
+	l.OnChange(p.changed)
+}
+
+func (p *staticPage) mount(ctx context.Context) error { p.mounted++; return nil }
+
+func (p *staticPage) changed(ctx context.Context, c ui.Changed) error {
+	p.changes = append(p.changes, strings.Join(c.Names(), ","))
+	return nil
+}
+
+type staticNamed struct{ n int }
+
+func (p *staticNamed) Mount() { p.n++ }
+
+func TestMountPage(t *testing.T) {
+	p := &staticPage{}
+	if err := ui.CheckHooks(reflect.TypeOf(p)); err != nil {
+		t.Fatal(err)
+	}
+	if err := ui.MountPage(context.Background(), p); err != nil || p.mounted != 1 {
+		t.Fatalf("mount: %v, %d", err, p.mounted)
+	}
+	if err := ui.SetBound(context.Background(), reflect.ValueOf(p), json.RawMessage(`{"q":"go"}`)); err != nil || strings.Join(p.changes, ";") != "q" {
+		t.Errorf("set: %v, changes %v", err, p.changes)
+	}
+	if err := ui.MountPage(context.Background(), &struct{ N int }{}); err != nil {
+		t.Errorf("a page without hooks: %v", err)
+	}
+	s := &staticNamed{}
+	if err := ui.CheckHooks(reflect.TypeOf(s)); err == nil || !strings.Contains(err.Error(), "E0337") {
+		t.Errorf("CheckHooks: %v, want E0337", err)
+	}
+	if err := ui.MountPage(context.Background(), s); err == nil || s.n != 0 {
+		t.Errorf("MountPage: %v (ran %d), want E0337 and no run", err, s.n)
 	}
 }

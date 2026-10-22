@@ -266,9 +266,10 @@ type booksHost struct {
 	dir   uigen.Assign[string]
 }
 
-func (h *booksHost) Mount()          { h.page.Set(1) }
-func (h *booksHost) GoTo(n int)      { h.page.Set(n) }
-func (h *booksHost) Search(q string) { h.query.Set(q); h.page.Set(1) }
+func (h *booksHost) LiveSchema(l *ui.LiveSchema) { l.Mount(h.mount) }
+func (h *booksHost) mount(context.Context) error { h.page.Set(1); return nil }
+func (h *booksHost) GoTo(n int)                  { h.page.Set(n) }
+func (h *booksHost) Search(q string)             { h.query.Set(q); h.page.Set(1) }
 func (h *booksHost) SortBy(k string) {
 	if h.sortK.Get() == k && h.dir.Get() == "asc" {
 		h.dir.Set("desc")
