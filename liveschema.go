@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vuka-lang/vuka/diag"
+	"github.com/vuka-lang/vuka/v2/diag"
 )
 
 // LiveSchema is what a live page declares beyond its Go types: attributes

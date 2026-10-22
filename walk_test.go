@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // events records what a Walk sends.

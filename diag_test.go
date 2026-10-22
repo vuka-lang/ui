@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"github.com/vuka-lang/vuka/diag"
+	"github.com/vuka-lang/vuka/v2/diag"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/vuka/docs"
+	"github.com/vuka-lang/vuka/v2/docs"
 )
 
 // TestDiagnosticCodes: every code ui's checks report has a page in vuka's

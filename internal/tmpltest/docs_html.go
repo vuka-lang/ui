@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 // Docs holds every example of js.go's doc comments, as written there, so

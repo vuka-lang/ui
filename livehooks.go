@@ -4,7 +4,7 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/vuka-lang/vuka/diag"
+	"github.com/vuka-lang/vuka/v2/diag"
 )
 
 // A page's hooks are declared where they are written, with attributes on

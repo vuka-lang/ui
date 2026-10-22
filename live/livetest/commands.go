@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/live"
 )
 
 // The client runs JS commands (the live protocol's "JS commands") on a

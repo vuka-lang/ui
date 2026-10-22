@@ -6,8 +6,8 @@ package tmpltest
 import (
 	"context"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 //line clicks.vuka.html:5

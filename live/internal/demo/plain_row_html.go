@@ -6,7 +6,7 @@ package demo
 import (
 	"context"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // PlainRow is Row with plain state: rendered again with its table. Its

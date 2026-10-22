@@ -5,10 +5,10 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/live"
-	"github.com/vuka-lang/ui/live/internal/demo"
-	"github.com/vuka-lang/ui/live/livetest"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/live"
+	"github.com/vuka-lang/ui/v2/live/internal/demo"
+	"github.com/vuka-lang/ui/v2/live/livetest"
 )
 
 // FuzzTreePatch drives a page with a run of random events the fuzzer picks:

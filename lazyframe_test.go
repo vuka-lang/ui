@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // refLayoutF and refPageF are the F lowering the compiler emitted before FT:

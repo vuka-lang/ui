@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // The benchmark page of page_bench_test.go written with ui.HTML, as a

@@ -6,7 +6,7 @@ package demo
 import (
 	"context"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // Counters is a page of n counters.

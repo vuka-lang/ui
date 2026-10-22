@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/live"
 )
 
 func a(name string, v any) ui.Attr { return ui.Attr{Name: name, Value: v} }

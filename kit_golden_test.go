@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 var updateKit = flag.Bool("update-kit", false, "rewrite testdata/kit.golden")

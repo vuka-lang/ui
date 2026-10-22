@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // Rec records a templ component's render into a live render tree: ui.Rec.

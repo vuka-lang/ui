@@ -14,9 +14,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/internal/bridge"
-	"github.com/vuka-lang/ui/internal/track"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/internal/bridge"
+	"github.com/vuka-lang/ui/v2/internal/track"
 )
 
 // Assign is an unexported field of a .vuka.html file's struct: server state

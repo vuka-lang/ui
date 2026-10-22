@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// minVuka is the first vuka whose JSX lowers to github.com/vuka-lang/ui.
+// minVuka is the first vuka whose JSX lowers to github.com/vuka-lang/ui/v2.
 var minVuka = [3]int{0, 10, 0}
 
 // TestGenerated checks demo_vuka.go is what the compiler makes of demo.vuka,

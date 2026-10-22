@@ -5,7 +5,7 @@ package tmpltest
 import (
 	"errors"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 type Pet struct {

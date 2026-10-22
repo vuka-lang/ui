@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/live"
-	"github.com/vuka-lang/ui/live/livetest"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/live"
+	"github.com/vuka-lang/ui/v2/live/livetest"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 func on(ch ui.JSChain) ui.Attr { return ui.Attr{Name: "onClick", Value: ui.On(ch)} }

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vuka-lang/vuka/diag"
+	"github.com/vuka-lang/vuka/v2/diag"
 )
 
 // Deferred fields. A field of a page backed by its island that its

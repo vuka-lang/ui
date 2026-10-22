@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/vuka-lang/vuka/diag"
+	"github.com/vuka-lang/vuka/v2/diag"
 )
 
 // Live, embedded by value in a struct whose pointer has a Render() Node method,

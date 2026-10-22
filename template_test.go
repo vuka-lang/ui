@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/live"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/live"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 type order struct {
@@ -261,7 +261,7 @@ func init() { ui.RegisterIsland[tChart]("islands/Chart.vue") }
 func TestHTMLIslands(t *testing.T) {
 	got := render(t, ui.HTML(`<div>{chart}{lazy}</div>`, tChart{Points: []int{1}}, ui.Mount(tChart{}, ui.Idle(), ui.Fallback(ui.Text("…")))))
 	for _, w := range []string{
-		`<vk-island data-vk-s="github.com/vuka-lang/ui_test/template_test.go:` /* the hole's site, by package */, `#0" data-vk-island="tChart" data-vk-client="visible" data-vk-props="{&#34;Points&#34;:[1]}"`,
+		`<vk-island data-vk-s="github.com/vuka-lang/ui/v2_test/template_test.go:` /* the hole's site, by package */, `#0" data-vk-island="tChart" data-vk-client="visible" data-vk-props="{&#34;Points&#34;:[1]}"`,
 		`#1" data-vk-island="tChart" data-vk-client="idle"`, `>…</vk-island>`,
 	} {
 		if !strings.Contains(got, w) {

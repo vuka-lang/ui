@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // namedMount has the mount hook of earlier releases, found by its name.

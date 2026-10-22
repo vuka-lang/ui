@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/a-h/templ"
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/templx"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/templx"
 )
 
 // card is what templ generates for <div class="card">{ children... }</div>.

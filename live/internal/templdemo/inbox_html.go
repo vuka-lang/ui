@@ -4,8 +4,8 @@
 package templdemo
 
 import (
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 // Inbox is a stateful component rendering a templ Panel: reading a message

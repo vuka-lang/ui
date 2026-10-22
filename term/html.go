@@ -4,7 +4,7 @@ import (
 	"html"
 	"strings"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // Raw parses h as HTML into the tree at the current position: elements,

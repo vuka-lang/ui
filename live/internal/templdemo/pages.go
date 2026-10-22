@@ -4,7 +4,7 @@
 // vuka gen -inplace ./live/internal/templdemo
 package templdemo
 
-import "github.com/vuka-lang/ui"
+import "github.com/vuka-lang/ui/v2"
 
 // InboxPage and BooksPage are pages sharing the templ Layout.
 func InboxPage() ui.Node { return InboxView{} }

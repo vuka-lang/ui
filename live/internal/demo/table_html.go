@@ -6,8 +6,8 @@ package demo
 import (
 	"strconv"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/uigen"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/uigen"
 )
 
 // Table is a table of n rows, each a component.

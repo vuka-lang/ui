@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/live"
 )
 
 type Pushed struct {
@@ -33,7 +33,7 @@ func (p *Pushed) Update(n int) bool { p.n = n; return true }
 // handler. PushEvent hands a payload to the scripts as a vk:event
 // dispatched on its root.
 func TestPushByName(t *testing.T) {
-	typ := "github.com/vuka-lang/ui/live_test.Pushed"
+	typ := "github.com/vuka-lang/ui/v2/live_test.Pushed"
 	page := func(context.Context) ui.Node { return ui.Component("p", nil, &Pushed{}) }
 	for _, v := range []int{1, 2} {
 		t.Run("v"+strconv.Itoa(v), func(t *testing.T) {
@@ -136,7 +136,7 @@ func (s *Searched) Render() ui.Node             { return ui.El("p", nil, ui.Text
 // A page script's live.q.set(v) pushes _set: the page's bind: fields, as
 // ui.SetBound sets them, once AllowPush lists it.
 func TestPushSet(t *testing.T) {
-	typ := "github.com/vuka-lang/ui/live_test.Searched"
+	typ := "github.com/vuka-lang/ui/v2/live_test.Searched"
 	page := &Searched{}
 	s := live.NewSession(context.Background(), func(context.Context) ui.Node { return ui.Component("s", nil, page) })
 	s.Handle(live.ClientMessage{Type: live.Join, V: 2, Ref: 1})

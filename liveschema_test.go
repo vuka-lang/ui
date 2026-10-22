@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vuka-lang/ui"
-	"github.com/vuka-lang/ui/validate"
+	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/validate"
 )
 
 type tasksPage struct {

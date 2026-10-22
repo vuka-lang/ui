@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/v2"
 )
 
 // Opaque renders n as one piece of markup, as templ's own code does: the

@@ -1,4 +1,4 @@
-# github.com/vuka-lang/ui
+# github.com/vuka-lang/ui/v2
 
 The UI library for [Vuka](https://github.com/vuka-lang/vuka): what the
 markup of a `.vuka.html` file renders with. A `.vuka.html` file is one
@@ -160,8 +160,8 @@ moves back to vuka's main once it lands:
 
 ```sh
 c=<commit>
-go get -modfile=tools.mod github.com/vuka-lang/vuka@$c \
-	github.com/vuka-lang/vuka/cmd/vuka@$c github.com/vuka-lang/vuka/cmd/vukavet@$c
+go get -modfile=tools.mod github.com/vuka-lang/vuka/v2@$c \
+	github.com/vuka-lang/vuka/cmd/vuka/v2@$c github.com/vuka-lang/vuka/cmd/vukavet/v2@$c
 ```
 
 ## Versions
@@ -171,7 +171,7 @@ under one version; require them at the same version (`vuka upgrade` moves an
 app between versions). See
 [Versions and compatibility](https://vuka-lang.github.io/project/versions).
 
-The code moved here from github.com/vuka-lang/vuka at commit 1af97d1 (v0.8.0);
+The code moved here from github.com/vuka-lang/vuka/v2 at commit 1af97d1 (v0.8.0);
 see that repository's history for its earlier changes.
 
 MIT licensed.
