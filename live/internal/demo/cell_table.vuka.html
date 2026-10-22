@@ -1,0 +1,28 @@
+package demo
+
+import (
+	"context"
+
+	"github.com/vuka-lang/ui"
+)
+
+// CellTable is a 1000-row table rendered by one component, one cell
+// changing per event.
+type CellTable struct {
+	ui.Live
+	N     int
+	cells []int
+}
+
+@ui.Mount
+func (t *CellTable) mount(ctx context.Context) error {
+	t.cells = make([]int, t.N)
+	return nil
+}
+
+func (t *CellTable) Bump(i int) { t.cells[i]++ }
+<table>
+  for i, v := range t.cells {
+    <tr key={i}><td>row {i}</td><td className="n">{v}</td><td><button onClick={func() { t.Bump(i) }}>+</button></td></tr>
+  }
+</table>

@@ -1,0 +1,25 @@
+package demo
+
+import (
+	"context"
+
+	"github.com/vuka-lang/ui"
+)
+
+// PlainRow is Row with plain state: rendered again with its table. Its
+// count is behind a pointer, which isn't tracked server state.
+type PlainRow struct {
+	ui.Live
+	ID   int
+	Name string
+	qty  *int
+}
+
+@ui.Mount
+func (r *PlainRow) mount(ctx context.Context) error {
+	r.qty = new(int)
+	return nil
+}
+
+func (r *PlainRow) Inc() { *r.qty++ }
+<tr key={r.ID}><td>{r.Name}</td><td>{*r.qty}</td><td><button onClick={r.Inc}>+</button></td></tr>

@@ -1,0 +1,9 @@
+package templdemo
+
+// BooksView is BooksPage's page.
+type BooksView struct {
+	Books []string
+}
+<Layout title="Books" current="/books">
+  <Panel heading="Books" badge={len(Books)}><Shelf books={Books} /></Panel>
+</Layout>
