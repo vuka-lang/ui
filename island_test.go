@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"github.com/vuka-lang/ui/internal/track"
 	"reflect"
 	"strings"
 	"testing"
@@ -118,10 +119,10 @@ func TestIslandSlotAndFallback(t *testing.T) {
 
 func TestIslandLivePropUnwrapped(t *testing.T) {
 	type Live struct {
-		Rows *Assign[[]int] `json:"rows"`
+		Rows *track.Assign[[]int] `json:"rows"`
 	}
 	Island("islands/Live.ts")(vuka.TypeOf[Live]("dashboard.Live"))
-	a := &Assign[[]int]{}
+	a := &track.Assign[[]int]{}
 	a.Set([]int{1, 2, 3})
 	html := renderIsland(t, MountIsland("p#1", Live{Rows: a}))
 	if !strings.Contains(html, "&#34;rows&#34;:[1,2,3]") {

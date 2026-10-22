@@ -72,8 +72,11 @@ hole:
 - Loops and conditionals are Go: `ui.Each(items, fn)`, `ui.If(cond, node)`,
   or a `[]ui.Node` built in a loop, given to a hole. Their items diff by key:
   a `key` attribute on an item's first element, or `ui.Key` on a component.
-- Client state: `open := ui.UseState(false)` in a component,
-  `var theme = ui.UsePageState("light")` for the page.
+- Client state: a `ui.State[T]` field of a `.vuka.html` file's struct, or a
+  package-level `var theme ui.State[string]` for the page; markup reads it
+  as a plain variable and an `on…` attribute writes it (`open = !open`).
+  The compiler lowers both to package `uigen`, which is its output, not an
+  API to write by hand.
 - `{{` is a literal brace and `{/* … */}` a comment; in script and style,
   braces are text.
 - The markup is strict — every element closed (void elements and `<x/>`

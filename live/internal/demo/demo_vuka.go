@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 // Row is a table row whose state is an Assign: a session renders it again
@@ -20,7 +21,7 @@ type Row struct {
 	ui.Live
 	ID   int
 	Name string
-	qty  ui.Assign[int]
+	qty  uigen.Assign[int]
 }
 
 func (r *Row) Inc() { r.qty.Update(func(n int) int { return n + 1 }) }
@@ -36,7 +37,7 @@ func (r *Row) Render() ui.Node {
 
 // PlainRow is Row with plain state: rendered again with its table.
 //
-//line demo.vuka:29
+//line demo.vuka:30
 type PlainRow struct {
 	ui.Live
 	ID   int
@@ -57,30 +58,30 @@ func (r *PlainRow) Render() ui.Node {
 
 // Table is a table of n rows, each a component.
 //
-//line demo.vuka:43
+//line demo.vuka:44
 type Table struct {
 	ui.Live
 	N     int
 	Plain bool
-	title ui.Assign[string]
+	title uigen.Assign[string]
 }
 
 func (t *Table) Render() ui.Node {
 	var texts []ui.Node
-//line demo.vuka:53
+//line demo.vuka:54
 	for i := range t.N {
 		var plainRow ui.Node
-//line demo.vuka:54
+//line demo.vuka:55
 		if t.Plain {
-//line demo.vuka:54
+//line demo.vuka:55
 			plainRow = ui.Key(i, &PlainRow{ID: i, Name: "row " + strconv.Itoa(i)})
 		} else {
-//line demo.vuka:54
+//line demo.vuka:55
 			plainRow = ui.Key(i, &Row{ID: i, Name: "row " + strconv.Itoa(i)})
 		}
 		texts = append(texts, plainRow)
 	}
-//line demo.vuka:51
+//line demo.vuka:52
 	return ui.HTML(`
 <table>
   <caption>{t.title.Get()}</caption>
@@ -91,7 +92,7 @@ func (t *Table) Render() ui.Node {
 // CellTable is a 1000-row table rendered by one component, one cell
 // changing per event.
 //
-//line demo.vuka:61
+//line demo.vuka:62
 type CellTable struct {
 	ui.Live
 	N     int
@@ -112,17 +113,17 @@ func (t *CellTable) Render() ui.Node {
   <td><button onClick={func() { t.Bump(i) }}>+</button></td>
 </tr>`, i, v, func() { t.Bump(i) }))
 	}
-//line demo.vuka:72
+//line demo.vuka:73
 	return ui.HTML(`<table>{trs}</table>`, trs)
 }
 
 // Counter is a counter.
 //
-//line demo.vuka:80
+//line demo.vuka:81
 type Counter struct {
 	ui.Live
 	Label string
-	n     ui.Assign[int]
+	n     uigen.Assign[int]
 }
 
 func (c *Counter) Inc() { c.n.Update(func(n int) int { return n + 1 }) }
@@ -135,12 +136,12 @@ func (c *Counter) Render() ui.Node {
 func Counters(n int) func(context.Context) ui.Node {
 	return func(context.Context) ui.Node {
 		var counters []ui.Node
-//line demo.vuka:95
+//line demo.vuka:96
 		for i := range n {
-//line demo.vuka:95
+//line demo.vuka:96
 			counters = append(counters, ui.Key(i, &Counter{Label: "c" + strconv.Itoa(i)}))
 		}
-//line demo.vuka:95
+//line demo.vuka:96
 		return ui.HTML(`<main>{counters}</main>`, counters)
 	}
 }
@@ -224,7 +225,7 @@ func (b *Board) Remove(id int) {
 
 func (b *Board) Render() ui.Node {
 	var lis []ui.Node
-//line demo.vuka:183
+//line demo.vuka:184
 	for _, it := range b.items {
 		lis = append(lis, ui.HTML(`
 <li key={it.ID}>
@@ -233,13 +234,13 @@ func (b *Board) Render() ui.Node {
 </li>`, it.ID, it.Name, &Counter{Label: it.Name}, func() { b.Remove(it.ID) }))
 	}
 	var lis2 []ui.Node
-//line demo.vuka:187
+//line demo.vuka:188
 	for i, it := range b.items {
-//line demo.vuka:187
+//line demo.vuka:188
 		lis2 = append(lis2, ui.HTML(`<li key={it.ID}>{i}: {it.Name}</li>`, it.ID, i, it.Name))
 	}
 	var p ui.Node
-//line demo.vuka:188
+//line demo.vuka:189
 	if b.open {
 		p = ui.HTML(`<p onClick={b.Toggle}>open {b.note}</p>`, b.Toggle, b.note)
 	} else if len(b.items) == 0 {
@@ -248,7 +249,7 @@ func (b *Board) Render() ui.Node {
 		p = ui.HTML(`<p>closed</p>`)
 	}
 	var b2 ui.Node
-//line demo.vuka:195
+//line demo.vuka:196
 	switch b.mode {
 	case "big":
 		b2 = ui.HTML(`<b>BIG</b>`)
@@ -261,7 +262,7 @@ func (b *Board) Render() ui.Node {
 	for _, it := range b.items {
 		counters = append(counters, ui.Key(it.ID, &Counter{Label: "k" + it.Name}))
 	}
-//line demo.vuka:177
+//line demo.vuka:178
 	return ui.HTML(`
 <section class={"board " + b.mode}>
   <h2 title={b.note}>{b.Title} ({len(b.items)})</h2>
@@ -294,11 +295,11 @@ func (b *Board) Render() ui.Node {
 
 // Page is a page with two boards and a counter.
 //
-//line demo.vuka:211
-func Page(context.Context) ui.Node {
-//line demo.vuka:213
-	board := &Board{Title: "one", Children: ui.HTML(`<em>first</em>`)}
 //line demo.vuka:212
+func Page(context.Context) ui.Node {
+//line demo.vuka:214
+	board := &Board{Title: "one", Children: ui.HTML(`<em>first</em>`)}
+//line demo.vuka:213
 	return ui.HTML(`
 <main>
   {board}
@@ -309,5 +310,5 @@ func Page(context.Context) ui.Node {
 
 // Words are the values RandomEvent sends: Board.Do's commands and more.
 //
-//line demo.vuka:220
+//line demo.vuka:221
 var Words = []string{"add", "front", "drop", "pop", "rotate", "reverse", "swap", "rename", "mid", "clear", "big", "note", "x", "<b>&\"", "add", "rotate", "a much longer note, long enough to be kept by reference on the connection......"}

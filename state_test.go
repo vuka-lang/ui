@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 type filters struct {
@@ -27,26 +28,26 @@ func page(t *testing.T, n ui.Node) (string, ui.PageInfo) {
 }
 
 func TestStateCommands(t *testing.T) {
-	open := ui.NewState("s1", false)
-	tab := ui.NewState("s2", "logs")
-	n := ui.NewState("s3", 2)
-	f := ui.NewState("s4", filters{Sort: "name"})
-	q := ui.StateField(f, "Q", f.Get().Q)
-	g := ui.PageState("s5", 1.5)
+	open := uigen.State("s1", false)
+	tab := uigen.State("s2", "logs")
+	n := uigen.State("s3", 2)
+	f := uigen.State("s4", filters{Sort: "name"})
+	q := uigen.At[string](f, "Q")
+	g := uigen.PageState("s5", 1.5)
 	save := func() {}
 	tests := []struct {
 		ch   ui.JSChain
 		want string
 	}{
-		{open.Toggle(), `[["state_toggle",{"s":"s1:1","i":false}]]`},
+		{uigen.Toggle(ui.JS, open), `[["state_toggle",{"s":"s1:1","i":false}]]`},
 		{tab.Set("env"), `[["state_set",{"s":"s2:1","i":"logs","v":"env"}]]`},
-		{n.Inc(), `[["state_inc",{"s":"s3:1","i":2,"by":1}]]`},
-		{n.Dec(), `[["state_inc",{"s":"s3:1","i":2,"by":-1}]]`},
-		{n.Reset(), `[["state_set",{"s":"s3:1","i":2,"v":2}]]`},
+		{uigen.Inc(ui.JS, n), `[["state_inc",{"s":"s3:1","i":2,"by":1}]]`},
+		{uigen.Dec(ui.JS, n), `[["state_inc",{"s":"s3:1","i":2,"by":-1}]]`},
+		{ui.JS.Set(n, n.Get()), `[["state_set",{"s":"s3:1","i":2,"v":2}]]`},
 		{tab.Set("env").Set(open, false).Push(save), `[["state_set",{"s":"s2:1","i":"logs","v":"env"}],["state_set",{"s":"s1:1","i":false,"v":false}],["push",{}]]`},
 		{f.Set(filters{Q: "x", Sort: "age"}), `[["state_set",{"s":"s4:1","i":{"q":"","Sort":"name","Page":0},"v":{"q":"x","Sort":"age","Page":0}}]]`},
 		{q.Set("dog"), `[["state_set",{"s":"s4:1","i":{"q":"","Sort":"name","Page":0},"p":["q"],"v":"dog"}]]`},
-		{f.Reset(), `[["state_set",{"s":"s4:1","i":{"q":"","Sort":"name","Page":0},"v":{"q":"","Sort":"name","Page":0}}]]`},
+		{ui.JS.Set(f, f.Get()), `[["state_set",{"s":"s4:1","i":{"q":"","Sort":"name","Page":0},"v":{"q":"","Sort":"name","Page":0}}]]`},
 		{ui.JS.Set(g, 3), `[["state_set",{"s":"g:s5","i":1.5,"v":3}]]`}, // a number converts
 		{ui.JS.Show(ui.Ref("m")).Set(n, 7).On(ui.This).Set(open, true).AddClass("x"),
 			`[["show",{"to":{"ref":"m"}}],["state_set",{"s":"s3:1","i":2,"v":7}],["state_set",{"s":"s1:1","i":false,"v":true}],["add_class",{"names":["x"]}]]`},
@@ -80,15 +81,12 @@ func renumber(s string) string {
 }
 
 func TestStateCommandPanics(t *testing.T) {
-	tab := ui.NewState("s", "a")
-	open := ui.NewState("o", true)
-	d := ui.Derived(true)
+	tab := uigen.State("s", "a")
+	d := uigen.Derived(true)
 	for name, f := range map[string]func(){
-		"toggle a string":  func() { tab.Toggle() },
-		"inc a bool":       func() { open.Inc() },
 		"set another type": func() { ui.JS.Set(tab, 3) },
 		"set a derived":    func() { ui.JS.Set(d, false) },
-		"zero state":       func() { var z ui.State[bool]; z.Toggle() },
+		"zero state":       func() { var z ui.State[bool]; uigen.Toggle(ui.JS, z) },
 		"nil for a string": func() { ui.JS.Set(tab, nil) },
 	} {
 		func() {
@@ -103,16 +101,16 @@ func TestStateCommandPanics(t *testing.T) {
 }
 
 func TestBindings(t *testing.T) {
-	open := ui.NewState("open", false)
-	tab := ui.NewState("tab", "env")
-	n := ui.NewState("n", 3)
-	f := ui.NewState("f", filters{Q: "go"})
-	ready := ui.NewDerived(!open.Get() && tab.Get() == "env", `["&&",["!",{"$":0}],["==",{"$":1},"env"]]`, open, tab)
+	open := uigen.State("open", false)
+	tab := uigen.State("tab", "env")
+	n := uigen.State("n", 3)
+	f := uigen.State("f", filters{Q: "go"})
+	ready := uigen.And(uigen.Not(open), uigen.Eq(tab, "env"))
 	out, info := page(t, ui.El("div", nil,
 		ui.El("button", []ui.Attr{
 			{Name: "aria-expanded", Value: ui.BindExpr(open.Get(), `{"$":0}`, open)},
 			{Name: "disabled", Value: ui.BindExpr(f.Get().Q == "" || tab.Get() != "logs", `["||",["==",{"$":0,"p":["Q"]},""],["!=",{"$":1},"logs"]]`, f, tab)},
-			{Name: "onClick", Value: ui.On(open.Toggle())},
+			{Name: "onClick", Value: ui.On(uigen.Toggle(ui.JS, open))},
 		}, ui.Text("Menu")),
 		ui.El("ul", []ui.Attr{{Name: "hidden", Value: ui.BindExpr(!open.Get(), `["!",{"$":0}]`, open)}}),
 		ui.El("p", []ui.Attr{{Name: "class", Value: ui.BindExpr(ui.Class{"tab": true, "bg-brand": tab.Get() == "env"}, `["class",{"tab":true,"bg-brand":["==",{"$":0},"env"]}]`, tab)}},
@@ -142,9 +140,9 @@ func TestBindings(t *testing.T) {
 }
 
 func TestBindAttr(t *testing.T) {
-	open := ui.NewState("open", false)
-	tab := ui.NewState("tab", "env")
-	busy := ui.NewDerived(!open.Get() && tab.Get() == "env", `["&&",["!",{"$":0}],["==",{"$":1},"env"]]`, open, tab)
+	open := uigen.State("open", false)
+	tab := uigen.State("tab", "env")
+	busy := uigen.And(uigen.Not(open), uigen.Eq(tab, "env"))
 	out, _ := page(t, ui.El("button", []ui.Attr{
 		ui.BindAttr("aria-expanded", open),
 		ui.BindAttr("hidden", open),
@@ -167,7 +165,7 @@ func TestBindAttr(t *testing.T) {
 }
 
 func TestBindingRefusals(t *testing.T) {
-	open := ui.NewState("o", false)
+	open := uigen.State("o", false)
 	for _, name := range []string{"onclick", "srcdoc", "ref", "key"} {
 		if _, err := ui.String(context.Background(), ui.El("div", []ui.Attr{{Name: name, Value: ui.BindExpr(true, `{"$":0}`, open)}})); err == nil {
 			t.Errorf("%s bound", name)
@@ -180,9 +178,9 @@ func TestBindingRefusals(t *testing.T) {
 }
 
 func TestStateKeysPerInstance(t *testing.T) {
-	g := ui.PageState("shared", "a")
+	g := uigen.PageState("shared", "a")
 	menu := func() ui.Node {
-		open := ui.NewState("menu.open", false)
+		open := uigen.State("menu.open", false)
 		return ui.El("ul", []ui.Attr{{Name: "hidden", Value: ui.BindExpr(!open.Get(), `["!",{"$":0}]`, open)}, {Name: "title", Value: ui.BindExpr(g.Get(), `{"$":0}`, g)}})
 	}
 	out, _ := page(t, ui.Fragment(menu(), menu()))
@@ -197,7 +195,7 @@ func TestStateKeysPerInstance(t *testing.T) {
 }
 
 func TestShow(t *testing.T) {
-	open := ui.NewState("open", false)
+	open := uigen.State("open", false)
 	kid := ui.El("div", []ui.Attr{{Name: "class", Value: "transition data-closed:opacity-0"}}, ui.Text("hi"))
 	for _, tt := range []struct {
 		when any
@@ -214,7 +212,7 @@ func TestShow(t *testing.T) {
 			t.Errorf("when %v: %s\nwant %s", tt.when, out, tt.want)
 		}
 	}
-	if _, err := ui.String(context.Background(), ui.Show(ui.ShowProps{When: ui.NewState("s", "x")})); err == nil {
+	if _, err := ui.String(context.Background(), ui.Show(ui.ShowProps{When: uigen.State("s", "x")})); err == nil {
 		t.Error("a ui.State[string] shown")
 	}
 }

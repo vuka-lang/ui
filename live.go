@@ -173,10 +173,12 @@ func CopyLive(c Stateful) Stateful {
 	return cp.Interface().(Stateful)
 }
 
-// MountLive runs c's Mount hook, the one its LiveSchema sets; or, from
+// MountLive gives c's zero ui.State fields their states, then runs c's
+// Mount hook, the one its LiveSchema sets; or, from
 // earlier releases, its Mount method: Mount(), Mount() error,
 // Mount(context.Context) or Mount(context.Context) error.
 func MountLive(ctx context.Context, c Stateful) error {
+	initStates(reflect.ValueOf(c))
 	if l, ok := c.(interface{ vukaLive() *Live }); ok && l.vukaLive().hookErr != nil {
 		return l.vukaLive().hookErr
 	}

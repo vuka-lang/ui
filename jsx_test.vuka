@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vuka-lang/ui"
+	"github.com/vuka-lang/ui/uigen"
 	"github.com/vuka-lang/ui/live"
 	"github.com/vuka-lang/ui/live/livetest"
 )
@@ -140,7 +141,7 @@ func TestJSXModal(t *testing.T) {
 type Post struct {
 	ui.Live
 	Fail  *bool // the next Like fails
-	likes ui.Assign[int]
+	likes uigen.Assign[int]
 }
 
 func (c *Post) Like() error {

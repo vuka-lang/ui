@@ -9,6 +9,7 @@ import (
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
 	"github.com/vuka-lang/ui/live/livetest"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 func on(ch ui.JSChain) ui.Attr { return ui.Attr{Name: "onClick", Value: ui.On(ch)} }
@@ -111,7 +112,7 @@ func TestModalOpenClose(t *testing.T) {
 
 type liveModalHost struct {
 	ui.Live
-	open ui.Assign[bool]
+	open uigen.Assign[bool]
 }
 
 func (m *liveModalHost) Open()  { m.open.Set(true) }
@@ -259,10 +260,10 @@ const pageSize = 5
 
 type booksHost struct {
 	ui.Live
-	page  ui.Assign[int]
-	query ui.Assign[string]
-	sortK ui.Assign[string]
-	dir   ui.Assign[string]
+	page  uigen.Assign[int]
+	query uigen.Assign[string]
+	sortK uigen.Assign[string]
+	dir   uigen.Assign[string]
 }
 
 func (h *booksHost) Mount()          { h.page.Set(1) }

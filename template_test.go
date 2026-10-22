@@ -12,6 +12,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/vuka-lang/ui"
 	"github.com/vuka-lang/ui/live"
+	"github.com/vuka-lang/ui/uigen"
 )
 
 type order struct {
@@ -194,8 +195,8 @@ func TestHTMLComponents(t *testing.T) {
 }
 
 func TestHTMLState(t *testing.T) {
-	open := ui.UseState(false)
-	got := render(t, ui.HTML(`<button aria-expanded={open} onClick={open.Toggle()} class:on={open}>{open}</button>`, open, open.Toggle()))
+	open := uigen.UseState(false)
+	got := render(t, ui.HTML(`<button aria-expanded={open} onClick={open.Toggle()} class:on={open}>{open}</button>`, open, uigen.Toggle(ui.JS, open)))
 	for _, w := range []string{`aria-expanded="false" data-vk-b-aria-expanded=`, `data-vk-js-click=`, `data-vk-b-class=`, `<vk-t data-vk-b=`} {
 		if !strings.Contains(got, w) {
 			t.Errorf("no %s in %s", w, got)
@@ -206,7 +207,7 @@ func TestHTMLState(t *testing.T) {
 func TestUseStateSites(t *testing.T) {
 	var keys []string
 	for range 2 {
-		a, b := ui.UseState(1), ui.UseState(2)
+		a, b := uigen.UseState(1), uigen.UseState(2)
 		for _, s := range []ui.State[int]{a, b} {
 			j, err := ui.EncodeJS(context.Background(), ui.JS.Set(s, 3))
 			if err != nil {

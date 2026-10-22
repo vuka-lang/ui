@@ -8,109 +8,103 @@ import (
 	"strings"
 )
 
-// Expressions of states are methods of State, each a derived state the
-// browser evaluates again when a state it reads changes, as a .vuka file's
-// !open && tab == "env" is:
-//
-//	ready := open.Not().And(tab.Eq("env"))
-//	<button disabled={empty}>       // empty := ui.At[string](f, "Q").Eq("").Or(busy)
-//	<span>{next}</span>             // next := n.Plus(1)
+// Expressions of states are State's unexported methods, each a derived
+// state the browser evaluates again when a state it reads changes. The
+// compiler writes a .vuka.html file's !open && tab == "env" with them,
+// through package uigen.
 //
 // An operand is a value of the state's type or a state of it; a number
 // converts to a number state's type. The server renders the value the
 // expression has with the states' initial values. Not, And and Or take bool
 // states, Neg, Minus and the ordering ones numbers (Lt… strings too), Plus
 // numbers and strings, Len strings, slices and maps; another state panics,
-// as a .vuka file's compiler refuses it.
+// as the compiler refuses it.
 
 // Not is !s.
-func (s State[T]) Not() State[bool] {
-	return NewDerived(!s.kind("Not", isBool).Bool(), exprNot, s)
+func (s State[T]) not() State[bool] {
+	return newDerived(!s.kind("Not", isBool).Bool(), exprNot, s)
 }
 
 // And is s && o.
-func (s State[T]) And(o any) State[bool] {
+func (s State[T]) and(o any) State[bool] {
 	a, b := s.kind("And", isBool), operand("And", reflect.TypeFor[bool](), o)
-	return NewDerived(a.Bool() && b.Bool(), exprAnd, s, o)
+	return newDerived(a.Bool() && b.Bool(), exprAnd, s, o)
 }
 
 // Or is s || o.
-func (s State[T]) Or(o any) State[bool] {
+func (s State[T]) or(o any) State[bool] {
 	a, b := s.kind("Or", isBool), operand("Or", reflect.TypeFor[bool](), o)
-	return NewDerived(a.Bool() || b.Bool(), exprOr, s, o)
+	return newDerived(a.Bool() || b.Bool(), exprOr, s, o)
 }
 
 // Eq is s == o.
-func (s State[T]) Eq(o any) State[bool] { return s.equal("Eq", o, exprEq, false) }
+func (s State[T]) eq(o any) State[bool] { return s.equal("Eq", o, exprEq, false) }
 
 // Ne is s != o.
-func (s State[T]) Ne(o any) State[bool] { return s.equal("Ne", o, exprNe, true) }
+func (s State[T]) ne(o any) State[bool] { return s.equal("Ne", o, exprNe, true) }
 
 func (s State[T]) equal(op string, o any, expr string, not bool) State[bool] {
 	a, b := s.value(), operand(op, reflect.TypeFor[T](), o)
-	return NewDerived((a.Interface() == b.Interface()) != not, expr, s, o)
+	return newDerived((a.Interface() == b.Interface()) != not, expr, s, o)
 }
 
 // Lt is s < o.
-func (s State[T]) Lt(o any) State[bool] {
+func (s State[T]) lt(o any) State[bool] {
 	return s.order("Lt", o, exprLt, func(c int) bool { return c < 0 })
 }
 
 // Le is s <= o.
-func (s State[T]) Le(o any) State[bool] {
+func (s State[T]) le(o any) State[bool] {
 	return s.order("Le", o, exprLe, func(c int) bool { return c <= 0 })
 }
 
 // Gt is s > o.
-func (s State[T]) Gt(o any) State[bool] {
+func (s State[T]) gt(o any) State[bool] {
 	return s.order("Gt", o, exprGt, func(c int) bool { return c > 0 })
 }
 
 // Ge is s >= o.
-func (s State[T]) Ge(o any) State[bool] {
+func (s State[T]) ge(o any) State[bool] {
 	return s.order("Ge", o, exprGe, func(c int) bool { return c >= 0 })
 }
 
 func (s State[T]) order(op string, o any, expr string, holds func(int) bool) State[bool] {
 	a, b := s.kind(op, isOrdered), operand(op, reflect.TypeFor[T](), o)
-	return NewDerived(holds(compareValues(a, b)), expr, s, o)
+	return newDerived(holds(compareValues(a, b)), expr, s, o)
 }
 
 // Plus is s + o: a sum, or strings joined.
-func (s State[T]) Plus(o any) State[T] {
+func (s State[T]) plus(o any) State[T] {
 	a, b := s.kind("Plus", isAddable), operand("Plus", reflect.TypeFor[T](), o)
-	return NewDerived(arith(a, b, 1).Interface().(T), exprPlus, s, o)
+	return newDerived(arith(a, b, 1).Interface().(T), exprPlus, s, o)
 }
 
 // Minus is s - o.
-func (s State[T]) Minus(o any) State[T] {
+func (s State[T]) minus(o any) State[T] {
 	a, b := s.kind("Minus", isNumber), operand("Minus", reflect.TypeFor[T](), o)
-	return NewDerived(arith(a, b, -1).Interface().(T), exprMinus, s, o)
+	return newDerived(arith(a, b, -1).Interface().(T), exprMinus, s, o)
 }
 
 // Neg is -s.
-func (s State[T]) Neg() State[T] {
+func (s State[T]) neg() State[T] {
 	a := s.kind("Neg", isNumber)
-	return NewDerived(arith(reflect.Zero(a.Type()), a, -1).Interface().(T), exprNeg, s)
+	return newDerived(arith(reflect.Zero(a.Type()), a, -1).Interface().(T), exprNeg, s)
 }
 
 // Len is len(s).
-func (s State[T]) Len() State[int] {
-	return NewDerived(s.kind("Len", isLenable).Len(), exprLen, s)
+func (s State[T]) length() State[int] {
+	return newDerived(s.kind("Len", isLenable).Len(), exprLen, s)
 }
 
-// At is the field at path (Go field names, dotted) of a struct state:
-// a state of its own, which Set writes alone and what reads it follows
-// alone, as f.Q is in a .vuka file.
-//
-//	q := ui.At[string](f, "Q")
-//	hi := ui.At[int](f, "Range.Hi")
-func At[T, S any](s State[S], path string) State[T] {
-	if s.c != nil && s.c.derived != nil {
-		panic("ui: a field of a ui.Derived isn't a state")
+// fieldOf is the field at path (Go field names, dotted) of struct state sv,
+// as a state of T: a state of its own, which a write sets alone and what
+// reads it follows alone, as f.Q is in a .vuka.html file.
+func (State[T]) fieldOf(sv stateView, path string) any {
+	if sv.c != nil && sv.c.derived != nil {
+		panic("ui: a field of a derived state isn't a state")
 	}
 	names := strings.Split(path, ".")
-	t, v := reflect.TypeFor[S](), reflect.ValueOf(&s.v).Elem()
+	t, v := sv.t, reflect.ValueOf(sv.v)
 	for _, name := range names {
 		for t.Kind() == reflect.Pointer {
 			t = t.Elem()
@@ -122,7 +116,7 @@ func At[T, S any](s State[S], path string) State[T] {
 		}
 		f, ok := t.FieldByName(name)
 		if t.Kind() != reflect.Struct || !ok {
-			panic(fmt.Sprintf("ui: At: %s has no field %s", t, name))
+			panic(fmt.Sprintf("ui: %s has no field %s", t, name))
 		}
 		t = f.Type
 		if v.IsValid() {
@@ -130,13 +124,13 @@ func At[T, S any](s State[S], path string) State[T] {
 		}
 	}
 	if want := reflect.TypeFor[T](); t != want {
-		panic(fmt.Sprintf("ui: At: %s of a ui.State[%s] is a %s, not a %s", path, reflect.TypeFor[S](), t, want))
+		panic(fmt.Sprintf("ui: %s of a ui.State[%s] is a %s, not a %s", path, sv.t, t, want))
 	}
 	var x T
 	if v.IsValid() {
 		x = v.Interface().(T)
 	}
-	return State[T]{c: s.c, path: append(s.path[:len(s.path):len(s.path)], names...), v: x}
+	return State[T]{c: sv.c, path: append(sv.path[:len(sv.path):len(sv.path)], names...), v: x}
 }
 
 // Classes is a class attribute whose names may be switched by states: each
