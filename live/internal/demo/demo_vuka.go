@@ -328,5 +328,3 @@ func Page(context.Context) ui.Node {
 //
 //line demo.vuka:227
 var Words = []string{"add", "front", "drop", "pop", "rotate", "reverse", "swap", "rename", "mid", "clear", "big", "note", "x", "<b>&\"", "add", "rotate", "a much longer note, long enough to be kept by reference on the connection......"}
-
-//line demo.vuka:115

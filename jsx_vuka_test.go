@@ -671,5 +671,3 @@ func TestJSXDocExamples(t *testing.T) {
 		}
 	}
 }
-
-//line jsx_test.vuka:45
