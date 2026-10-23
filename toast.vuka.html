@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 import (
@@ -42,6 +43,8 @@ func (t Toast) life() any {
 	}
 	return Style{"--vk-toast-life": strconv.FormatInt(t.Timeout.Milliseconds(), 10) + "ms"}
 }
+</script>
+
 <div class={classes()} role="status" id={nonEmpty(ID)} ref={nonEmpty(ID)} style={life()}>
   <div class="vk-toast__body">
     if Title != "" {

@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // ToastContainer is the fixed region toasts stack in. Place one per page (a
@@ -32,4 +33,6 @@ func (c ToastContainer) classes() string {
 	}
 	return withClass("vk-toasts vk-toasts--"+string(pos), c.Class)
 }
+</script>
+
 <div ref={ref()} class={classes()} role="region" aria-label="Notifications" aria-live="polite">{Children}</div>

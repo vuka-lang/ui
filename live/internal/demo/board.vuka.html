@@ -1,3 +1,4 @@
+<script lang="go">
 package demo
 
 import (
@@ -89,6 +90,8 @@ func (b *Board) Remove(id int) {
 func (b *Board) script() ui.Node {
 	return ui.El("script", nil, ui.Child("var mode = '"+b.mode+"' </script>"))
 }
+</script>
+
 <section className={"board " + b.mode}>
   <h2 title={b.note}>{b.Title} ({len(b.items)})</h2>
   {b.Children}

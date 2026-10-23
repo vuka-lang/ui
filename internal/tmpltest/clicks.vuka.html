@@ -1,3 +1,4 @@
+<script lang="go">
 package tmpltest
 
 import "context"
@@ -11,4 +12,6 @@ type Clicks struct {
 func (c *Clicks) mount(ctx context.Context) error { c.n = c.Start; return nil }
 
 func (c *Clicks) Inc() { c.n++ }
+</script>
+
 <button onClick={Inc}>{n}</button>

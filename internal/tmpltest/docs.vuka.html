@@ -1,3 +1,4 @@
+<script lang="go">
 package tmpltest
 
 import (
@@ -31,6 +32,8 @@ func (c *Docs) Delete(id int)   {}
 func (c *Docs) ToggleDone()     {}
 func (c *Docs) SelectAll()      {}
 func (c *Docs) DeleteTodo()     {}
+</script>
+
 <div>
   <div>
     <button onClick={ui.JS.RemoveClass(ui.Ref("menu"), "hidden").Push(c.MenuOpened)}>Open</button>

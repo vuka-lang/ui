@@ -1,3 +1,4 @@
+<script lang="go">
 package demo
 
 import (
@@ -13,4 +14,6 @@ type Counter struct {
 }
 
 func (c *Counter) Inc() { c.n.Update(func(n int) int { return n + 1 }) }
+</script>
+
 <span>{c.Label}: {c.n.Get()} <button onClick={c.Inc}>+</button></span>

@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Modal is a dialog centred over a backdrop. A browser-only modal is hidden
@@ -97,6 +98,8 @@ func (m Modal) escape() any {
 // closeIcon is the close button's icon; the Icon field shadows the func in
 // the markup.
 func (m Modal) closeIcon() Node { return Icon("x") }
+</script>
+
 <div ref={m.ref()} class="vk-modal-root" style={m.hidden()}>
   <div class="vk-modal-backdrop" {on("onClick", m.dismiss())...}></div>
   <div class={m.classes()} role="dialog" aria-modal="true" tabindex="-1" {on("onKeyDown", m.escape())...}>

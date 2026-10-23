@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // DataTable is a Table with a search box, sortable headers and a pager,
@@ -95,6 +96,8 @@ func (d DataTable[T]) placeholder() string {
 	}
 	return d.SearchPlaceholder
 }
+</script>
+
 <div class={withClass("vk-datatable", d.Class)}>
   if d.OnSearch != nil || d.Tabs != nil || d.Toolbar != nil {
     <div class="vk-datatable__bar">

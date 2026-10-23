@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 import "strings"
@@ -160,6 +161,8 @@ func (t Table[T]) emptyState() Node {
 	}
 	return HTML(`<div class="vk-empty"><span class="vk-empty__icon">{t.EmptyIcon}</span><span class="vk-empty__msg">{t.empty()}</span></div>`, t.EmptyIcon, t.empty())
 }
+</script>
+
 <div class="vk-table-wrap">
   <table class={t.classes()}>
     <thead>

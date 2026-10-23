@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Card is a bordered surface with an optional header (a title on the left,
@@ -20,6 +21,8 @@ type Card struct {
 	Class    string
 	Children Node
 }
+</script>
+
 <div class={withClass("vk-card", Class)}>
   if Title != nil || Header != nil {
     <div class="vk-card__header">
