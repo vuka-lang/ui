@@ -204,13 +204,44 @@ func WithPageTitle(ctx context.Context, title string) context.Context {
 }
 
 // PageTitle is the title of the page being rendered, for a layout's
-// <title>: what WithPageTitle set, else "".
+// <title> and heading: what WithPageTitle set, else "". A layout reads it
+// in its markup, which renders again for every page while the layout
+// stays across navigations; read in its Load it is the title of the page
+// the layout was loaded for.
 func PageTitle(ctx context.Context) string {
 	if ctx == nil {
 		return ""
 	}
 	s, _ := ctx.Value(pageTitleKey{}).(string)
 	return s
+}
+
+// Crumb is a step of a page's breadcrumbs: its label and the link to it,
+// Href "" for the page itself.
+type Crumb struct {
+	Label string
+	Href  string
+}
+
+type pageCrumbsKey struct{}
+
+// WithPageCrumbs is ctx carrying the breadcrumbs of the page being
+// rendered. Package web sets them for a page whose pointer has
+// Crumbs() []ui.Crumb, when it reads its Title.
+func WithPageCrumbs(ctx context.Context, crumbs []Crumb) context.Context {
+	return context.WithValue(ctx, pageCrumbsKey{}, crumbs)
+}
+
+// PageCrumbs are the breadcrumbs of the page being rendered, for a
+// layout's header: what WithPageCrumbs set, else nil. Like PageTitle, a
+// layout reads them in its markup, which follows the page while the layout
+// stays.
+func PageCrumbs(ctx context.Context) []Crumb {
+	if ctx == nil {
+		return nil
+	}
+	c, _ := ctx.Value(pageCrumbsKey{}).([]Crumb)
+	return c
 }
 
 // RegisterIsland registers T as an island whose props are its exported

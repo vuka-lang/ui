@@ -18,7 +18,17 @@ type LinkProps struct {
 	// aria-current="page", and ActiveClass, while the address matches Href
 	// — ActiveExact the same path, ActivePrefix the path or one below it.
 	// The runtime sets them as the page loads and after every navigation,
-	// so a layout's menu needs no server render to follow the page.
+	// so a layout's menu needs no server render to follow the page. An
+	// element around active links marked data-vk-active-within gets the
+	// attribute's value "true" while it holds the current link, "" when it
+	// doesn't, and a <details> so marked opens when the current link comes
+	// to be inside it — a menu's group opens on the current page, and stays
+	// as the visitor leaves it, open or closed:
+	//
+	//	<details data-vk-active-within>
+	//	  <summary>Orders</summary>
+	//	  <ui.Link href="/orders/open" active="prefix">Open</ui.Link>
+	//	</details>
 	Active LinkActive
 	// ActiveClass is a class the runtime adds to an active link, and
 	// removes when it is no longer active.
