@@ -154,6 +154,9 @@ func (s *Session) navigate(m ClientMessage) ServerMessage {
 		}
 		return ServerMessage{Type: Redirect, Ref: m.Ref, URL: to}
 	}
+	if rt.URL == "" {
+		rt.URL = m.URL
+	}
 	p, err := s.Navigate(rt, m.Patch)
 	if err != nil {
 		return ServerMessage{Type: Error, Ref: m.Ref, Error: s.ErrorText(err)}

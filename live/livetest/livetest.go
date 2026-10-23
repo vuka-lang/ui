@@ -56,6 +56,8 @@ type Client struct {
 	now     time.Duration                   // the virtual clock timeouts run on
 	held    bool                            // events wait for Deliver
 	url     string                          // the page's URL, once it moved
+	history []string                        // its history entries (SetURL, moves)
+	entry   int                             // the current entry's
 	funcs   map[string]Func
 	busy    []*busyState // what Busy commands marked, not yet undone
 }

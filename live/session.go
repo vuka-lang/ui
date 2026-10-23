@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net/url"
 	"reflect"
 	"slices"
 	"strconv"
@@ -46,6 +47,9 @@ type Session struct {
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
 	uerr    error               // what their Update methods returned
+
+	url *url.URL   // the page's URL as an event's edit left it; nil: its context's (ui.PageURL)
+	q   url.Values // its query, parsed (query)
 
 	errText func(error) string // SetErrorText's
 }
@@ -168,6 +172,7 @@ func (s *Session) Adopt(ctx context.Context, render func(ctx context.Context) ui
 		return errors.New("live: the session is closed")
 	}
 	s.ctx = ctx
+	s.setURL(nil)
 	if render != nil {
 		s.render, s.adopting = render, true
 	}
@@ -204,7 +209,9 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 	if fn == nil {
 		return Patch{}, publicErr{fmt.Errorf("live: no handler %q", ev.Target)}
 	}
-	herr := callHandler(s.ctx, fn, ev)
+	ctx, edit := s.beginURL(s.ctx)
+	herr := callHandler(ctx, fn, ev)
+	s.root.js = append(s.root.js, s.endURL(edit)...)
 	p, err := s.patch()
 	if herr != nil {
 		p.Error = s.errorText(herr)
@@ -342,17 +349,19 @@ func (s *Session) Info(topic string, msg any) (Patch, error) {
 	defer s.mu.Unlock()
 	var herr error
 	called := false
+	ctx, edit := s.beginURL(s.ctx)
 	for _, in := range s.order() {
 		if in.comp == nil || topic != "" && !slices.Contains(in.topics, topic) {
 			continue
 		}
-		ok, err := callUpdate(s.ctx, in.comp, msg)
+		ok, err := callUpdate(ctx, in.comp, msg)
 		called = called || ok
 		herr = errors.Join(herr, err)
 	}
 	if !called {
 		return Patch{}, herr
 	}
+	s.root.js = append(s.root.js, s.endURL(edit)...)
 	p, err := s.patch()
 	if herr != nil {
 		p.Error = s.errorText(herr)
@@ -437,6 +446,10 @@ type Route struct {
 	// giving the page below the layout a ui.Keyed key of its own per
 	// page, so that the page's components mount afresh.
 	Keep bool
+	// URL is the page's URL, what its components' @ui.URL fields read,
+	// when Ctx doesn't carry it (ui.WithPageURL); the navigate message
+	// sets it.
+	URL string
 }
 
 // Router resolves the URLs a connected page navigates to.
@@ -482,6 +495,12 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 	s.render = rt.Render
 	if rt.Ctx != nil {
 		s.ctx = rt.Ctx
+	}
+	s.setURL(nil)
+	if ui.PageURL(s.ctx) == nil && rt.URL != "" {
+		if u, err := url.Parse(rt.URL); err == nil {
+			s.setURL(u)
+		}
 	}
 	if !rt.Keep && (!patch || len(rt.Updates) == 0) {
 		for _, in := range s.order()[1:] {
@@ -536,7 +555,9 @@ type instance struct {
 	own      string      // its HTML, each child as a marker
 	changed  bool
 	fresh    bool
-	key      any // its tag's key, written on its root as data-vk-key
+	key      any          // its tag's key, written on its root as data-vk-key
+	url      ui.URLFields // its @ui.URL fields' bookkeeping
+	urlKey   string       // its tag's urlKey
 
 	tree       *ui.Tree          // its last render, on a v2 connection
 	shadow     *sframe           // what the client holds of it; nil: nothing yet
@@ -672,6 +693,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		}
 		in = &instance{s: s, id: "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true}
 		ui.AttachLive(in.comp, in)
+		s.fillURL(in, n)
 		if err := mount(s.ctx, in.comp); err != nil {
 			return nil, err
 		}
@@ -708,6 +730,9 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			s.uerr = errors.Join(s.uerr, err)
 			same = false
 		}
+	}
+	if !in.fresh && s.fillURL(in, n) {
+		same = false
 	}
 	in.key, in.src, in.routed = n.Key, n.Props, n.Routed
 	if in.routed {

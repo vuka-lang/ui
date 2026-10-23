@@ -337,6 +337,7 @@ type opArgs struct {
 	Keep       bool              `json:"keep"`
 	Fn         string            `json:"fn"`
 	Href       string            `json:"href"`
+	Replace    bool              `json:"replace"`
 	Args       []json.RawMessage `json:"args"`
 }
 
@@ -700,7 +701,7 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 			continue
 		case "patch", "navigate":
 			if ui.LoadableURL(a.Href) { // the runtime refuses any other
-				c.queue = append(c.queue, sending{nav: &navigation{a.Href, o.name == "patch"}})
+				c.queue = append(c.queue, sending{nav: &navigation{href: a.Href, patch: o.name == "patch", replace: a.Replace}})
 			}
 			continue
 		}

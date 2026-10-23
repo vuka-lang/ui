@@ -1171,6 +1171,14 @@ func (c Commands) SetText(target Target, text string) Commands {
 //	<button onClick={ui.JS.Patch("/pets?page=2")}>Next</button>
 func (c Commands) Patch(href string) Commands { return c.add("patch", jsArg{"href", navURL(href)}) }
 
+// PatchReplace is Patch taking the current history entry's place instead of
+// adding one: what a write of the page's URL state (an @ui.URL field, web's
+// Query) does, so that back leaves the page rather than stepping through
+// its tabs.
+func (c Commands) PatchReplace(href string) Commands {
+	return c.add("patch", jsArg{"href", navURL(href)}, jsArg{"replace", true})
+}
+
 // Navigate moves a live page to another page, href, over its connection:
 // the new page's components mount, and the address bar changes. On a page
 // with no connection, for another origin, or when href's route isn't a
