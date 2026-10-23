@@ -30,6 +30,16 @@ func TestButtonRenders(t *testing.T) {
 	contains(t, link, "<a", `href="/back"`, "data-vk-link", "vk-btn")
 }
 
+// A Link marks itself for the runtime: active while the address matches,
+// its class, and when it is fetched ahead.
+func TestLinkActive(t *testing.T) {
+	s := render(t, ui.Link(ui.LinkProps{Href: "/books", Active: ui.ActivePrefix, ActiveClass: "on", Prefetch: ui.PrefetchViewport, Children: ui.Text("Books")}))
+	contains(t, s, `href="/books"`, "data-vk-link", `data-vk-active="prefix"`, `data-vk-active-class="on"`, `data-vk-prefetch="viewport"`)
+	if s := render(t, ui.Link(ui.LinkProps{Href: "/"})); strings.Contains(s, "data-vk-active") || strings.Contains(s, "data-vk-prefetch") {
+		t.Errorf("a plain link: %s", s)
+	}
+}
+
 func TestButtonLoading(t *testing.T) {
 	s := render(t, ui.Submit{Loading: true, Children: ui.Text("Save")})
 	// A loading submit button is busy, disabled, spins, and carries the hook
