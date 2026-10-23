@@ -277,6 +277,28 @@ func (viewerJSON) Render(ctx context.Context, w io.Writer) error {
 	return err
 }
 
+// BrowserVars is the template variables an island's component may read
+// (ctx.value("name") in its mount's context): package web sets it to the
+// variables of the context processors the app lists as web.Browser, as a
+// JSON object by name; nil or an empty object when none.
+var BrowserVars func(ctx context.Context) any
+
+// browserVarsJSON is an island's data-vk-vars, written at render time.
+type browserVarsJSON struct{}
+
+func (browserVarsJSON) Render(ctx context.Context, w io.Writer) error {
+	var v any
+	if BrowserVars != nil {
+		v = BrowserVars(ctx)
+	}
+	j, err := marshal(v)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(j)
+	return err
+}
+
 // urlFields are the fields of an island's struct its LiveSchema gives a URL
 // (or tagged url:"name"): its wire name → the query parameter the page's
 // address keeps it in.

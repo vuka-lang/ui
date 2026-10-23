@@ -538,10 +538,11 @@ type instance struct {
 	fresh    bool
 	key      any // its tag's key, written on its root as data-vk-key
 
-	tree       *ui.Tree // its last render, on a v2 connection
-	shadow     *sframe  // what the client holds of it; nil: nothing yet
-	rendered   bool     // rendered this pass (not skipped)
-	contextual bool     // context-dependent output must not use state-only render reuse
+	tree       *ui.Tree          // its last render, on a v2 connection
+	shadow     *sframe           // what the client holds of it; nil: nothing yet
+	rendered   bool              // rendered this pass (not skipped)
+	contextual bool              // context-dependent output must not use state-only render reuse
+	vars       map[string]uint64 // the template variables its last render read, at their versions
 }
 
 func (in *instance) ID() string { return in.id }
@@ -582,6 +583,15 @@ type scope struct {
 }
 
 func (sc *scope) ContextRead() { sc.in.contextual = true }
+
+// VarRead records a template variable the instance's render read
+// (ui.ReadVar), at its version.
+func (sc *scope) VarRead(name string, ver uint64) {
+	if sc.in.vars == nil {
+		sc.in.vars = map[string]uint64{}
+	}
+	sc.in.vars[name] = ver
+}
 
 func (sc *scope) Handler(_ context.Context, fn any) string {
 	sc.in.handlers = append(sc.in.handlers, fn)
@@ -760,7 +770,7 @@ func (s *Session) renderAll() error {
 func (s *Session) visit(in *instance, same bool) error {
 	set := in.set
 	in.set = false
-	if same && !in.fresh && !set && !in.contextual {
+	if same && !in.fresh && !set && !in.contextual && !s.varsMoved(in) {
 		if tracked, changed := ui.TrackedState(in.comp); tracked && !changed {
 			if s.verify {
 				return s.verifySkip(in)
@@ -769,6 +779,26 @@ func (s *Session) visit(in *instance, same bool) error {
 		}
 	}
 	return s.renderInst(in)
+}
+
+// varsMoved reports whether a template variable the instance's last render
+// read has another version now: what the variable's processor read changed
+// (the URL, the signed-in identity, its permissions), and so may what the
+// render showed.
+func (s *Session) varsMoved(in *instance) bool {
+	if len(in.vars) == 0 {
+		return false
+	}
+	src := ui.VarSourceOf(s.ctx)
+	if src == nil {
+		return true
+	}
+	for name, ver := range in.vars {
+		if src.VarVersion(s.ctx, name) != ver {
+			return true
+		}
+	}
+	return false
 }
 
 // keep keeps an instance's last render and visits the instances it rendered,
@@ -801,6 +831,7 @@ func (s *Session) renderInst(in *instance) error {
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
 	in.contextual = false
+	clear(in.vars)
 	var node ui.Node
 	if in.comp == nil {
 		// An adopted page's new tags are its URL's again: what its hooks set
