@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -58,5 +59,16 @@ func TestContextConcurrentRenderIsolation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPageCrumbs(t *testing.T) {
+	if c := ui.PageCrumbs(context.Background()); c != nil {
+		t.Errorf("no crumbs set: %v", c)
+	}
+	want := []ui.Crumb{{Label: "Admin", Href: "/admin"}, {Label: "Users"}}
+	ctx := ui.WithPageCrumbs(ui.WithPageTitle(context.Background(), "Users"), want)
+	if got := ui.PageCrumbs(ctx); !reflect.DeepEqual(got, want) || ui.PageTitle(ctx) != "Users" {
+		t.Errorf("PageCrumbs %v, PageTitle %q", got, ui.PageTitle(ctx))
 	}
 }
