@@ -1,6 +1,17 @@
 package ui
 
 // Column describes one column of a Table or DataTable over rows of type T.
+//
+// In a template each <slot:column> inside the tag is one Column, in order:
+// its attributes set the fields (a quoted header is text) and its content,
+// with let naming the row, is Cell:
+//
+//	<ui.DataTable page={Page} onPage={GoTo}>
+//	  <slot:column header="Title" let={b}><b>{b.Title}</b></slot:column>
+//	  <slot:column header="Pages" align="right" let={b}>{b.Pages}</slot:column>
+//	</ui.DataTable>
+//
+// A <slot:header> inside a <slot:column> gives a header with markup.
 type Column[T any] struct {
 	// Header is the heading cell's content.
 	Header Node
