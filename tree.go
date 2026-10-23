@@ -383,6 +383,8 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 			return "", nil
 		}
 		return b.value(ctx, ResolveContext(ctx, n))
+	case keyedNode:
+		return b.value(n.in(ctx), n.n)
 	}
 	if v, ok := n.(viewer); ok {
 		return b.value(ctx, v.View())

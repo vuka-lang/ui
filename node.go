@@ -181,6 +181,28 @@ func Ctx(build func(ctx context.Context) Node) Node { return ctxNode(build) }
 
 type ctxNode func(context.Context) Node
 
+// Keyed renders n with key scoping the stateful components in it, as an
+// element's key attribute scopes those inside the element, and adds no
+// markup: on a live page, a component in n keeps its instance across renders
+// while key is the same, and mounts afresh when key changes, though its tag
+// is in the same place.
+func Keyed(key any, n Node) Node { return keyedNode{key, n} }
+
+type keyedNode struct {
+	key any
+	n   Node
+}
+
+func (n keyedNode) Render(ctx context.Context, w io.Writer) error { return renderHTML(ctx, w, n) }
+
+// in is ctx with the key scoping the components rendered with it.
+func (n keyedNode) in(ctx context.Context) context.Context {
+	if h := liveHost(ctx); h != nil {
+		return h.Keyed(ctx, n.key)
+	}
+	return ctx
+}
+
 // Nodes is the children a loop, if or match block produces.
 func Nodes(build func(add func(Node))) Node { return Builder(build) }
 

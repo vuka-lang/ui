@@ -430,6 +430,13 @@ type Route struct {
 	Render   func(ctx context.Context) ui.Node
 	Redirect string
 	Updates  map[ui.Stateful]any
+	// Keep keeps, on a navigation, the instances the new page renders
+	// where the old one rendered them, as a patch does, instead of
+	// unmounting every one first; those it doesn't render are unmounted
+	// after it renders. A router keeps a layout's components this way,
+	// giving the page below the layout a ui.Keyed key of its own per
+	// page, so that the page's components mount afresh.
+	Keep bool
 }
 
 // Router resolves the URLs a connected page navigates to.
@@ -476,7 +483,7 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 	if rt.Ctx != nil {
 		s.ctx = rt.Ctx
 	}
-	if !patch || len(rt.Updates) == 0 {
+	if !rt.Keep && (!patch || len(rt.Updates) == 0) {
 		for _, in := range s.order()[1:] {
 			unmount(in)
 		}
