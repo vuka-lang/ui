@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Tabs is a tab bar underlining the active tab; each tab may carry a count:
@@ -10,6 +11,8 @@ type Tabs struct {
 	Tabs  []Tab
 	Class string
 }
+</script>
+
 <div class={withClass("vk-tabs", Class)} role="tablist">
   for _, tab := range Tabs {
     {tab.node()}

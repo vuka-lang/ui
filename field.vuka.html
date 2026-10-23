@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Field is a form field: its control, label, help and error. It renders the
@@ -122,6 +123,8 @@ func (f Field) input() Node {
 		nonEmpty(f.Step),
 	)
 }
+</script>
+
 <div class={f.classes()}>
   if f.kind == kindCheckbox {
     <label class="vk-check" for={f.id()}>

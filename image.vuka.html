@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Image is a network-friendly <img>: lazy, responsive, reserved and decoded
@@ -65,6 +66,8 @@ func (im Image) img() Node {
 		when(im.Height > 0, im.Height),
 	)
 }
+</script>
+
 <>
   if im.Overlay == nil {
     {im.img()}

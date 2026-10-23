@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Form is a token-styled form wired for live submit and change handlers:
@@ -47,6 +48,8 @@ func (f Form) method() string {
 	}
 	return f.Method
 }
+</script>
+
 <form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...}>
   if f.Error != "" {
     <Alert variant={AlertError}>{f.Error}</Alert>

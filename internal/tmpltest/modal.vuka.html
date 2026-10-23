@@ -1,3 +1,4 @@
+<script lang="go">
 package tmpltest
 
 import "github.com/vuka-lang/ui/v2"
@@ -17,6 +18,8 @@ func (m *Modal) open() ui.Commands {
 }
 
 func (m *Modal) close() ui.Commands { return ui.JS.Hide(ui.Ref("dialog")).PopFocus() }
+</script>
+
 <div>
   <button onClick={m.open()}>Edit</button>
   <input type="checkbox" ref="all" onChange={ui.JS.

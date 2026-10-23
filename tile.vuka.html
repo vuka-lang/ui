@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Tile is a dashboard stat card: an icon badge beside a big number and its
@@ -30,6 +31,8 @@ func (t Tile) badgeClass() string {
 // icon is the badge's named icon; the Icon field shadows the func in the
 // markup.
 func (t Tile) icon() Node { return Icon(t.Icon) }
+</script>
+
 <div class={withClass("vk-tile", t.Class)}>
   if t.Icon != "" {
     <span class={t.badgeClass()}>{t.icon()}</span>

@@ -1,3 +1,4 @@
+<script lang="go">
 package templdemo
 
 import (
@@ -21,6 +22,8 @@ func (b *Inbox) Read() { b.read.Update(func(n int) int { return n + 1 }) }
 func (b *Inbox) opaque() ui.Node {
 	return Opaque(InboxPanel{Badge: b.Unread - b.read.Get(), Read: b.Read})
 }
+</script>
+
 <div class="inbox">
   if b.Opaque {
     {b.opaque()}

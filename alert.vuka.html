@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Alert is an inline message box in one of four tones:
@@ -26,6 +27,8 @@ func (a Alert) classes() string {
 	}
 	return withClass("vk-alert vk-alert--"+string(variant), a.Class)
 }
+</script>
+
 <div class={classes()} role="alert">
   <div class="vk-alert__body">
     if Title != "" {

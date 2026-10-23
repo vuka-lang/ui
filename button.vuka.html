@@ -1,3 +1,4 @@
+<script lang="go">
 package ui
 
 // Button is a token-styled button, or a link when Href is set:
@@ -96,6 +97,8 @@ func (b Button) content() Node {
 {icon}
 {label}`, icon, label)
 }
+</script>
+
 <>
   if b.Href != "" {
     <a class={b.classes()} href={b.Href} id={nonEmpty(b.ID)} title={nonEmpty(b.Title)} data-vk-link={b.Nav} aria-disabled={when(b.Loading || b.Disabled, "true")} {b.Attrs...}>

@@ -2,8 +2,8 @@
 
 The UI library for [Vuka](https://github.com/vuka-lang/vuka): what the
 markup of a `.vuka.html` file renders with. A `.vuka.html` file is one
-component: its Go header declares the struct, the markup below it is the
-struct's view, and the compiler lowers it to calls of this package (which
+component: its `<script lang="go">` declares the struct, the markup below it
+is the struct's view, and the compiler lowers it to calls of this package (which
 declares `const VukaJSX = 3`, Vuka's markup target contract).
 
 - `ui` — `Node` (= `templ.Component`), markup (`HTML`, `Each`, `If`), elements and text, `Safe`, `Style`,
@@ -97,13 +97,14 @@ ui.Card{Title: ui.Text("Members"), NoPad: true, Children: table}
 ```
 
 The kit is written the way an app's components are: `card.vuka.html` declares
-the `Card` struct above its markup, which the compiler makes its `View`
+the `Card` struct in its `<script lang="go">`, above its markup, which the compiler makes its `View`
 method, adding the templ method, `Render(ctx, w)`, that renders it. HTML
 rendering and live sessions read the `View` itself, so a component renders,
 diffs and keys as its markup does.
 
 ```html
 <!-- card.vuka.html -->
+<script lang="go">
 package ui
 
 type Card struct {
@@ -113,6 +114,8 @@ type Card struct {
 	Class    string
 	Children Node
 }
+</script>
+
 <div class={withClass("vk-card", Class)}>
   if Title != nil || Header != nil {
     <div class="vk-card__header">
@@ -130,7 +133,7 @@ Markup reads the struct's fields and methods by bare name (`{Title}`), or
 through the receiver its methods name (`{c.Title}`). A field shadows a
 package name it shares — `Icon`, `Value`, `Class`, `Ref`, `On`, `Page` in
 package ui — so a component with an `Icon` field calls the `Icon` func from
-a method of its header.
+a method in its script.
 
 The former props types are aliases of the components, deprecated:
 `ui.CardProps` is `ui.Card`, and so on for `AlertProps`, `BadgeProps`,

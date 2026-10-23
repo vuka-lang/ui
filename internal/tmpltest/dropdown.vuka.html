@@ -1,3 +1,4 @@
+<script lang="go">
 package tmpltest
 
 import "github.com/vuka-lang/ui/v2"
@@ -8,6 +9,8 @@ type Dropdown struct {
 }
 
 func (d *Dropdown) Opened() { d.opened++ }
+</script>
+
 <div>
   <button onClick={ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").Push(d.Opened)}>Open</button>
   <ul ref="menu" class="hidden" onKeyDown={ui.JS.Key("Escape").AddClass(ui.This, "hidden")}><li>{d.opened}</li></ul>

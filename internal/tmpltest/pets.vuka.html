@@ -1,3 +1,4 @@
+<script lang="go">
 package tmpltest
 
 import "github.com/vuka-lang/ui/v2"
@@ -6,6 +7,8 @@ type Pets struct {
 	Pets     []Pet
 	Children ui.Node
 }
+</script>
+
 <table className="pets">
   for _, p := range Pets {
     <PetRow pet={p} />

@@ -1,3 +1,4 @@
+<script lang="go">
 package templdemo
 
 // InboxPanel is the Inbox's templ Panel, its button calling Read.
@@ -5,6 +6,8 @@ type InboxPanel struct {
 	Badge int
 	Read  func()
 }
+</script>
+
 <Panel heading="Inbox" badge={Badge}>
   <p>Messages arrive here.</p>
   <button onClick={Read}>Read one</button>

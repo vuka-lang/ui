@@ -1,9 +1,12 @@
+<script lang="go">
 package templdemo
 
 // BooksView is BooksPage's page.
 type BooksView struct {
 	Books []string
 }
+</script>
+
 <Layout title="Books" current="/books">
   <Panel heading="Books" badge={len(Books)}><Shelf books={Books} /></Panel>
 </Layout>
