@@ -106,13 +106,15 @@ func AttachLive(c Stateful, inst LiveInstance) { c.vukaLive().inst = inst }
 // (Routed, what web.Live renders) has no parent: the page owns its exported
 // fields once mounted, so the tag rendered again sets none of them, and a new
 // tag in its place, a patch to another URL of the route, sets only URL, the
-// fields its URL binds.
+// fields its URL binds. URLKey (a tag's urlKey attribute, ui.URLKey) is the
+// name the instance keeps its @ui.URL fields' parameters under.
 type ComponentNode struct {
 	Site   string
 	Key    any
 	Props  Stateful
 	Routed bool
 	URL    []string
+	URLKey string
 }
 
 // Component is a stateful component's tag.
@@ -152,6 +154,7 @@ func (n *ComponentNode) static(ctx context.Context) (Stateful, error) {
 		return nil, err
 	}
 	c := CopyLive(n.Props)
+	fillStatic(ctx, c, n.Props, n.URLKey)
 	return c, MountLive(ctx, c)
 }
 

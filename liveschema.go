@@ -74,9 +74,14 @@ type FieldAttr interface{ Apply(*FieldOptions) }
 type FieldOptions struct {
 	Bind     bool          // the component may set it
 	Debounce time.Duration // how long a set waits for more before it is sent
-	URL      string        // the query parameter the page's address keeps it in
-	Defer    string        // the group it loads in after the first render
-	Validate []string      // rules, as a validate tag writes them: "required", "max=50"
+	URL      string        // the query parameter the page's address keeps it in; "" with URLBound: the path parameter of the field's name
+	URLBound bool          // @ui.URL: the address keeps it
+	// URLDefault is the value it takes when the URL has no parameter for
+	// it (HasURLDefault): @ui.URL("page").Default(1).
+	URLDefault    any
+	HasURLDefault bool
+	Defer         string   // the group it loads in after the first render
+	Validate      []string // rules, as a validate tag writes them: "required", "max=50"
 }
 
 // Bind lets the component set the field (live.q.set(v)); a set waits
@@ -92,10 +97,15 @@ func (b Bind) Apply(o *FieldOptions) {
 }
 
 // URL keeps the field in the page's address, as the query parameter it
-// names: the page reads it on load, and a set changes the address.
+// names: the page reads it on load, and a set changes the address. On a
+// component, the field is filled from the URL as it renders and whenever
+// the URL changes, and an event assigning it writes the URL (see
+// URLFields). A bare @ui.URL, URL(""), binds the route's path parameter of
+// the field's name; Default gives the value it takes when the URL has no
+// parameter for it.
 type URL string
 
-func (u URL) Apply(o *FieldOptions) { o.URL = string(u) }
+func (u URL) Apply(o *FieldOptions) { o.URL, o.URLBound = string(u), true }
 
 // Defer leaves the field out of the page's first render: the group it
 // names loads it after, by the loader LiveSchema's Loads gives the group.
@@ -130,6 +140,11 @@ func (l *LiveSchema) Field(ptr any, attrs ...FieldAttr) {
 			continue
 		}
 		a.Apply(&o)
+	}
+	if o.URLBound {
+		if err := checkURLField(l.t.Field(i), o); err != nil {
+			l.fail("E0335", "@ui.URL on %v", "keep a scalar in the URL, with a default of its type", err)
+		}
 	}
 	l.fields[i] = o
 }
