@@ -805,6 +805,9 @@ func MountIsland(site string, props any, opts ...IslandOpt) Node {
 	if Viewer != nil {
 		attrs = append(attrs, Attr{"data-vk-viewer", viewerJSON{}})
 	}
+	if BrowserVars != nil {
+		attrs = append(attrs, Attr{"data-vk-vars", browserVarsJSON{}})
+	}
 	for _, f := range pj.funcs {
 		// A function prop's handler (data-vk-on-<prop>) or commands
 		// (data-vk-js-<prop>); the prop's tagged value names it.
