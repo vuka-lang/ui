@@ -8,15 +8,25 @@ import (
 	"io"
 )
 
-// Field is a form field: its control, label, help and error. It renders the
+// Field is a form field: its control, label, help and error. Given a field
+// of a struct form (For), it renders that field:
+//
+//	<ui.Field for={Form.Email}/>
+//
+// Otherwise it renders the
 // control its Type names, an HTML input type ("text" by default); Input,
 // Password, Textarea, Select and Checkbox are the fields of each kind:
 //
 //	<ui.Field name="age" label="Age" type="number" min="18"/>
 //	<ui.Input name="email" label="Email" type="email" required/>
 //
-//line field.vuka.html:10
+//line field.vuka.html:15
 type Field struct {
+	// For is a field of a struct form (see Form.For): for={Form.Email}. The
+	// field group is the field's — its label, hint, error and control, the
+	// control's name, id, type, value and ARIA links — and the props set
+	// here override what its tags say.
+	For any
 	// Name is the control's name, matching the form struct's form: tag.
 	Name string
 	// Label is shown above the control; omitted when empty.
@@ -133,63 +143,69 @@ func (f Field) input() Node {
 	)
 }
 
-//line field.vuka.html:128
+//line field.vuka.html:138
 func (f Field) View() Node {
-	var label2 Node
-//line field.vuka.html:129
-	if f.kind == kindCheckbox {
-//line field.vuka.html:131
-		value2 := f.id()
-		label2 = HTML(`
+	var forView2 Node
+//line field.vuka.html:139
+	if f.For != nil {
+		forView2 = f.forView()
+	} else {
+		var label2 Node
+		if f.kind == kindCheckbox {
+//line field.vuka.html:145
+			value2 := f.id()
+			label2 = HTML(`
 <label class="vk-check" for={f.id()}>
   <input type="checkbox" class="vk-check__box" id={value2} name={f.Name} value="true" checked={f.Value == "true"} disabled={f.Disabled} {f.Attrs...}/>
   <span class="vk-check__label">{f.Label}</span>
 </label>`,
-			f.id(),
-			value2,
-			f.Name,
-			f.Value == "true",
-			f.Disabled,
-			f.Attrs,
-			f.Label,
-		)
-	} else {
-		var label22 Node
-//line field.vuka.html:135
-		if f.Label != "" {
-			var span2 Node
-//line field.vuka.html:138
-			if f.Required {
-				span2 = HTML(`<span class="vk-field__req" aria-hidden="true">*</span>`)
-			}
-			label22 = HTML(`
+				f.id(),
+				value2,
+				f.Name,
+				f.Value == "true",
+				f.Disabled,
+				f.Attrs,
+				f.Label,
+			)
+		} else {
+			var label22 Node
+//line field.vuka.html:149
+			if f.Label != "" {
+				var span2 Node
+//line field.vuka.html:152
+				if f.Required {
+					span2 = HTML(`<span class="vk-field__req" aria-hidden="true">*</span>`)
+				}
+				label22 = HTML(`
 <label class="vk-field__label" for={f.id()}>
   {f.Label}
   {span2}
 </label>`, f.id(), f.Label, span2)
-		}
-		label2 = HTML(`
+			}
+			label2 = HTML(`
 {label22}
 {f.input()}`, label22, f.input())
-	}
-	var div Node
-//line field.vuka.html:145
-	if f.Help != "" {
-		div = HTML(`<div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>`, f.id()+"-help", f.Help)
-	}
-	var div2 Node
-//line field.vuka.html:148
-	if f.invalid() {
-		div2 = HTML(`<div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>`, f.id()+"-error", f.Error)
-	}
-//line field.vuka.html:128
-	return HTML(`
+		}
+		var div Node
+//line field.vuka.html:159
+		if f.Help != "" {
+			div = HTML(`<div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>`, f.id()+"-help", f.Help)
+		}
+		var div2 Node
+//line field.vuka.html:162
+		if f.invalid() {
+			div2 = HTML(`<div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>`, f.id()+"-error", f.Error)
+		}
+		forView2 = HTML(`
 <div class={f.classes()}>
   {label2}
   {div}
   {div2}
 </div>`, f.classes(), label2, div, div2)
+	}
+//line field.vuka.html:138
+	return forView2
 }
 
-//line field.vuka.html:151
+//line field.vuka.html:167
 func (f Field) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

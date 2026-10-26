@@ -297,6 +297,24 @@ func CheckParams(t reflect.Type, inj Injector) []*ParamError {
 		}
 		add(m.Name, false, mt, 1, eventCall, file, line)
 	}
+	// The Clean and Choices methods of the page's forms, called as hooks are.
+	for _, f := range reflect.VisibleFields(t) {
+		ft := derefType(f.Type)
+		if !f.IsExported() || f.Anonymous || !isForm(ft) {
+			continue
+		}
+		form := formTypeOf(ft)
+		methods := []*reflect.Method{form.clean}
+		for _, fl := range form.fields {
+			methods = append(methods, form.cleans[fl.path], fl.choices)
+		}
+		for _, m := range methods {
+			if m != nil {
+				file, line := declaredAt(m.Func)
+				add(f.Name+"."+m.Name, true, m.Type, 1, hookCall, file, line)
+			}
+		}
+	}
 	return out
 }
 

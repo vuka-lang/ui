@@ -1,13 +1,23 @@
 <script lang="go">
 package ui
 
-// Field is a form field: its control, label, help and error. It renders the
+// Field is a form field: its control, label, help and error. Given a field
+// of a struct form (For), it renders that field:
+//
+//	<ui.Field for={Form.Email}/>
+//
+// Otherwise it renders the
 // control its Type names, an HTML input type ("text" by default); Input,
 // Password, Textarea, Select and Checkbox are the fields of each kind:
 //
 //	<ui.Field name="age" label="Age" type="number" min="18"/>
 //	<ui.Input name="email" label="Email" type="email" required/>
 type Field struct {
+	// For is a field of a struct form (see Form.For): for={Form.Email}. The
+	// field group is the field's — its label, hint, error and control, the
+	// control's name, id, type, value and ARIA links — and the props set
+	// here override what its tags say.
+	For any
 	// Name is the control's name, matching the form struct's form: tag.
 	Name string
 	// Label is shown above the control; omitted when empty.
@@ -125,6 +135,10 @@ func (f Field) input() Node {
 }
 </script>
 
+<>
+if f.For != nil {
+  {f.forView()}
+} else {
 <div class={f.classes()}>
   if f.kind == kindCheckbox {
     <label class="vk-check" for={f.id()}>
@@ -149,3 +163,5 @@ func (f Field) input() Node {
     <div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>
   }
 </div>
+}
+</>
