@@ -313,21 +313,16 @@ func (s *Session) noHandler(target string) error {
 	return fmt.Errorf("live: no handler %q: %s (%s) takes no push named %s", target, what, id, n)
 }
 
-// typeName is a component's type as an error names it: its package's name
-// and the type's, a generic one's type arguments elided.
+// typeName is a component's type as an error names it, its package's name
+// and the type's ("views.Table"), a generic one's type arguments elided
+// ("views.Table[…]").
 func typeName(t reflect.Type) string {
-	if t == nil {
-		return "the page"
-	}
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	name, _, generic := strings.Cut(t.Name(), "[")
+	name, _, generic := strings.Cut(t.String(), "[")
 	if generic {
 		name += "[…]"
-	}
-	if pkg := t.PkgPath(); pkg != "" {
-		name = pkg[strings.LastIndexByte(pkg, '/')+1:] + "." + name
 	}
 	return name
 }
