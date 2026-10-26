@@ -995,7 +995,8 @@ func (s *Session) verifySkip(in *instance) error {
 	return nil
 }
 
-func (s *Session) renderInst(in *instance) error {
+func (s *Session) renderInst(in *instance) (err error) {
+	defer ui.Catch(&err) // a (T, error) call in its markup failing
 	in.seen, in.rendered = s.pass, true
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
 	clear(in.forms)

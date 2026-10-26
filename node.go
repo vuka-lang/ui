@@ -332,12 +332,13 @@ func (n Boundary) Render(ctx context.Context, w io.Writer) error { return render
 func (n ctxNode) Render(ctx context.Context, w io.Writer) error  { return renderHTML(ctx, w, n) }
 
 // String renders n as HTML into a string.
-func String(ctx context.Context, n Node) (string, error) {
+func String(ctx context.Context, n Node) (s string, err error) {
 	if n == nil {
 		return "", nil
 	}
+	defer Catch(&err)
 	var b strings.Builder
-	err := n.Render(ctx, &b)
+	err = n.Render(ctx, &b)
 	return b.String(), err
 }
 

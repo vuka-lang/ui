@@ -47,7 +47,8 @@ type TreeHost interface {
 // shape says; anything else is a frame of one dynamic. ctx should carry a
 // live host; with verify, statics already known for a Key are rendered again
 // and compared, and a difference is an error.
-func BuildTree(ctx context.Context, n Node, verify bool) (*Tree, error) {
+func BuildTree(ctx context.Context, n Node, verify bool) (t *Tree, err error) {
+	defer Catch(&err)
 	b := &treeBuilder{verify: verify}
 	b.h = HTMLRenderer{ctx: ctx}
 	if f, ok := n.(*Frame); ok && f != nil {
