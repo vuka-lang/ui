@@ -51,7 +51,7 @@ func TestPushByName(t *testing.T) {
 				t.Fatalf("join: %+v", m)
 			}
 			live.AllowPush(typ)
-			if m := push("Add", "1"); m.Type != live.Error || m.Error != `live: no handler "c1:Add"` {
+			if m := push("Add", "1"); m.Type != live.Error || !strings.HasPrefix(m.Error, `live: no handler "c1:Add": live_test.Pushed (c1) takes no push named Add`) {
 				t.Errorf("a component with no pushes allowed took one: %+v", m)
 			}
 			live.AllowPush(typ, "Add", "Bumped", "Render", "Help")
@@ -66,7 +66,7 @@ func TestPushByName(t *testing.T) {
 				t.Fatalf("PushEvent: %+v", m.JS)
 			}
 			for _, name := range []string{"Update", "Render", "Mount", "Help", "ID", "Subscribe", "PushJS", "add", "Missing"} {
-				if m := push(name, ""); m.Type != live.Error || m.Error != `live: no handler "c1:`+name+`"` {
+				if m := push(name, ""); m.Type != live.Error || !strings.HasPrefix(m.Error, `live: no handler "c1:`+name+`"`) {
 					t.Errorf("%s was pushed: %+v", name, m)
 				}
 			}

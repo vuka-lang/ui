@@ -97,14 +97,14 @@ func TestPushJS(t *testing.T) {
 		}
 		reply := s.Handle(live.ClientMessage{Type: live.EventMsg, Event: ui.Event{Target: "c1:2", Type: "click"}})
 		if len(reply.JS) != 1 || reply.JS[0].ID != "c1" ||
-			string(reply.JS[0].Ops) != `[["add_class",{"to":{"ref":"list"},"names":["hidden"]}],["push",{"h":"c1:3"}]]` {
+			string(reply.JS[0].Ops) != `[["add_class",{"to":{"ref":"list"},"names":["hidden"]}],["push",{"h":"c1:0p"}]]` {
 			t.Fatalf("v%d patch: %s", v, live.Marshal(reply))
 		}
 		if v == 2 && len(reply.Trees) != 1 || v == 1 && len(reply.Updates) != 1 {
 			t.Fatalf("v%d patch: %s", v, live.Marshal(reply))
 		}
-		// The pushed handler is registered after the render's own.
-		if p, err := s.Event(ui.Event{Target: "c1:3", Type: "click"}); err != nil || p.JS != nil {
+		// The pushed handler has an id of its own, apart from the render's.
+		if p, err := s.Event(ui.Event{Target: "c1:0p", Type: "click"}); err != nil || p.JS != nil {
 			t.Fatalf("v%d: %+v %v", v, p, err)
 		}
 		if !strings.Contains(s.HTML(), "<p>0/11/</p>") {

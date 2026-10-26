@@ -207,7 +207,7 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 	defer s.mu.Unlock()
 	fn := s.handler(ev.Target)
 	if fn == nil {
-		return Patch{}, publicErr{fmt.Errorf("live: no handler %q", ev.Target)}
+		return Patch{}, publicErr{s.noHandler(ev.Target)}
 	}
 	ctx, edit := s.beginURL(s.ctx)
 	herr := callHandler(ctx, fn, ev)
@@ -244,8 +244,9 @@ func (s *Session) Component(target string) ui.Stateful {
 }
 
 // handler is the function target names: an instance's handler by number
-// ("c1:0"), or a method of its component by name ("c1:Inc", what the
-// component's scripts push) when AllowPush allows it.
+// ("c1:0"), one a command it pushed names ("c1:0p", see pushHandler), or
+// a method of its component by name ("c1:Inc", what the component's
+// scripts push) when AllowPush allows it.
 func (s *Session) handler(target string) any {
 	id, n, ok := strings.Cut(target, ":")
 	in := s.byID[id]
@@ -253,7 +254,9 @@ func (s *Session) handler(target string) any {
 		return nil
 	}
 	var fn any
-	if h, err := strconv.Atoi(n); err != nil {
+	if p, ok := strings.CutSuffix(n, "p"); ok && isNumber(p) {
+		fn = in.pushes[n]
+	} else if h, err := strconv.Atoi(n); err != nil {
 		fn = pushable(in.comp, n)
 	} else if h >= 0 && h < len(in.handlers) {
 		fn = in.handlers[h]
@@ -274,6 +277,54 @@ func (s *Session) handler(target string) any {
 		}
 	}
 	return fn
+}
+
+// isNumber reports whether s is a decimal number, no sign.
+func isNumber(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// noHandler is the error of an event whose target names no handler, saying
+// whose it would have been and why it's gone.
+func (s *Session) noHandler(target string) error {
+	id, n, _ := strings.Cut(target, ":")
+	in := s.byID[id]
+	switch {
+	case in == nil:
+		return fmt.Errorf("live: no handler %q: no component %s is mounted (it was unmounted, or the page navigated)", target, id)
+	case in.comp == nil && n != "":
+		return fmt.Errorf("live: no handler %q: the page's last render has %d", target, len(in.handlers))
+	}
+	what := typeName(in.typ)
+	if p, ok := strings.CutSuffix(n, "p"); ok && isNumber(p) {
+		return fmt.Errorf("live: no handler %q: %s (%s) keeps the handlers of its last %d pushed commands, and this one is older", target, what, id, maxPushes)
+	}
+	if isNumber(n) {
+		return fmt.Errorf("live: no handler %q: %s (%s): its last render has %d", target, what, id, len(in.handlers))
+	}
+	return fmt.Errorf("live: no handler %q: %s (%s) takes no push named %s", target, what, id, n)
+}
+
+// typeName is a component's type as an error names it, its package's name
+// and the type's ("views.Table"), a generic one's type arguments elided
+// ("views.Table[…]").
+func typeName(t reflect.Type) string {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	name, _, generic := strings.Cut(t.String(), "[")
+	if generic {
+		name += "[…]"
+	}
+	return name
 }
 
 // AllowPush lets a component's scripts push its methods by name: typ is
@@ -545,6 +596,9 @@ type instance struct {
 	kids     []*instance          // in render order, this pass
 	occ      map[string]int
 	handlers []any
+	pushes   map[string]any // the handlers of the commands it pushed, by id (pushHandler)
+	pushIDs  []string       // their ids, oldest first, at most maxPushes
+	pushSeq  int            // the number of the next one
 	topics   []string
 	js       []ui.Commands // pushed since the last reply
 	seen     int
@@ -584,7 +638,7 @@ func (s *Session) pushed() ([]JSPush, error) {
 	var out []JSPush
 	for _, in := range s.order() {
 		for _, c := range in.js {
-			ops, err := ui.EncodeJS(ui.WithLiveHost(s.ctx, &scope{in: in}), c)
+			ops, err := ui.EncodeJS(ui.WithLiveHost(s.ctx, &scope{in: in, push: true}), c)
 			if err != nil {
 				in.js = nil
 				return nil, err
@@ -601,6 +655,7 @@ func (s *Session) pushed() ([]JSPush, error) {
 type scope struct {
 	in   *instance
 	keys string
+	push bool // encoding commands the instance pushed, not its render
 }
 
 func (sc *scope) ContextRead() { sc.in.contextual = true }
@@ -615,8 +670,36 @@ func (sc *scope) VarRead(name string, ver uint64) {
 }
 
 func (sc *scope) Handler(_ context.Context, fn any) string {
+	if sc.push {
+		return sc.in.pushHandler(fn)
+	}
 	sc.in.handlers = append(sc.in.handlers, fn)
 	return sc.in.id + ":" + strconv.Itoa(len(sc.in.handlers)-1)
+}
+
+// maxPushes is how many pushed commands' handlers an instance keeps.
+const maxPushes = 64
+
+// pushHandler registers fn, the handler of a Push step in a command the
+// instance pushed (ui.Live.PushJS), and returns its id: "c1:0p", its
+// number among the instance's pushes. Unlike its render's handlers, which
+// each render numbers afresh, it stays until maxPushes later pushes have
+// replaced it, so that a render between the push and the event it sends —
+// the join's after an HTTP render, another component's event, a message —
+// leaves it working, and its id never names another handler.
+func (in *instance) pushHandler(fn any) string {
+	if in.pushes == nil {
+		in.pushes = map[string]any{}
+	}
+	n := strconv.Itoa(in.pushSeq) + "p"
+	in.pushSeq++
+	in.pushes[n] = fn
+	in.pushIDs = append(in.pushIDs, n)
+	if len(in.pushIDs) > maxPushes {
+		delete(in.pushes, in.pushIDs[0])
+		in.pushIDs = slices.Delete(in.pushIDs, 0, 1)
+	}
+	return in.id + ":" + n
 }
 
 // StateKey names a state the instance renders: its id, the state's site,
@@ -628,7 +711,7 @@ func (sc *scope) StateKey(_ context.Context, site string) string {
 }
 
 func (sc *scope) Keyed(ctx context.Context, key any) context.Context {
-	return ui.WithLiveHost(ctx, &scope{sc.in, sc.keys + keyText(key) + "/"})
+	return ui.WithLiveHost(ctx, &scope{sc.in, sc.keys + keyText(key) + "/", sc.push})
 }
 
 func keyText(k any) string { return ui.KeyText(k) }
