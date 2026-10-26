@@ -270,6 +270,9 @@ func isEventName(name string) bool {
 // live render writes it.
 func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 	name := a.Name
+	if l, ok := a.Value.(lazyValue); ok {
+		a.Value = l.fn(h.ctx)
+	}
 	if set, ok := a.Value.(attrSet); ok {
 		for _, a := range set {
 			if err := h.attrNamed(tag, e, a); err != nil {

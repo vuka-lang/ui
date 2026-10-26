@@ -62,6 +62,9 @@ type Patch struct {
 	Trees   []TreeUpdate `json:"trees,omitempty"`
 	JS      []JSPush     `json:"js,omitempty"`
 	Error   string       `json:"error,omitempty"`
+	// Err is the handler's error as it returned it, for a transport to
+	// read (a plain form post answering 422, or a redirect); never sent.
+	Err error `json:"-"`
 }
 
 // JSPush is JS commands a component pushed (ui.Live.PushJS), for the
@@ -209,15 +212,55 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 	if fn == nil {
 		return Patch{}, s.noHandler(ev.Target)
 	}
+	return s.run(fn, ev)
+}
+
+// run calls a handler for ev, renders the page again and returns what
+// changed. A handler's error redirecting (ui.RedirectOf: web.Redirect) moves
+// the page there instead of being shown, and one that shows only in the page
+// (ui.QuietError: a form that didn't pass its checks) isn't the patch's
+// Error; both are its Err.
+func (s *Session) run(fn any, ev ui.Event) (Patch, error) {
 	ctx, edit := s.beginURL(s.ctx)
 	herr := callHandler(ctx, fn, ev)
 	s.root.js = append(s.root.js, s.endURL(edit)...)
+	if to, ok := ui.RedirectOf(herr); ok && ui.LoadableURL(to) {
+		s.root.js = append(s.root.js, ui.JS.Navigate(to))
+	}
 	p, err := s.patch()
-	if herr != nil {
+	p.Err = herr
+	if _, redirect := ui.RedirectOf(herr); herr != nil && !redirect && !ui.QuietError(herr) {
 		p.Error = s.errorText(herr)
 	}
 	return p, err
 }
+
+// Submit submits the form of the page whose identity is id (its _vk_form
+// field) with values, as a plain HTML POST of it does: the submit handler
+// its last render registered runs as the form's submit event would, and
+// the page renders again. The patch's Err is the handler's: ui.ErrFormInvalid
+// when the form didn't pass its checks, a redirect, or the handler's own.
+func (s *Session) Submit(id string, values url.Values) (Patch, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var fn any
+	for _, in := range s.order() {
+		if f, ok := in.forms[id]; ok {
+			fn = f
+			break
+		}
+	}
+	if fn == nil {
+		return Patch{}, &NoFormError{ID: id}
+	}
+	return s.run(fn, ui.Event{Target: "form:" + id, Type: "submit", Form: values})
+}
+
+// NoFormError is the error of a submit naming a form the page doesn't
+// render (Session.Submit).
+type NoFormError struct{ ID string }
+
+func (e *NoFormError) Error() string { return fmt.Sprintf("live: the page has no form %q", e.ID) }
 
 // Handler is the function an event's target names ("c1:0"): a method
 // value such as c.Inc, for a transport to say which handler an event ran
@@ -602,6 +645,7 @@ type instance struct {
 	occ      map[string]int
 	handlers []any
 	pushes   map[string]any // the handlers of the commands it pushed, by id (pushHandler)
+	forms    map[string]any // the submit handlers of the forms its last render has, by identity
 	pushIDs  []string       // their ids, oldest first, at most maxPushes
 	pushSeq  int            // the number of the next one
 	topics   []string
@@ -672,6 +716,18 @@ func (sc *scope) VarRead(name string, ver uint64) {
 		sc.in.vars = map[string]uint64{}
 	}
 	sc.in.vars[name] = ver
+}
+
+// Form keeps the submit handler of a form the instance renders, for a
+// plain POST of it (Submit).
+func (sc *scope) Form(id string, submit any) {
+	if sc.push {
+		return
+	}
+	if sc.in.forms == nil {
+		sc.in.forms = map[string]any{}
+	}
+	sc.in.forms[id] = submit
 }
 
 func (sc *scope) Handler(_ context.Context, fn any) string {
@@ -942,6 +998,7 @@ func (s *Session) verifySkip(in *instance) error {
 func (s *Session) renderInst(in *instance) error {
 	in.seen, in.rendered = s.pass, true
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
+	clear(in.forms)
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
 	in.contextual = false
 	clear(in.vars)

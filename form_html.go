@@ -8,7 +8,19 @@ import (
 	"io"
 )
 
-// Form is a token-styled form wired for live submit and change handlers:
+// Form is a token-styled form. Given the form it renders (For, a struct
+// embedding FormState), it binds, checks and submits it itself:
+//
+//	<ui.Form for={Form} onSubmit={Save}/>
+//
+// renders every field of the form and a submit button, and Save — taking
+// the form, its dependencies injected — runs only once every rule and Clean
+// method passed; errors show in the form and its error summary. With
+// children, the markup is the page's (<ui.Field for>, model={…}). Without
+// a live connection the form posts to the page, which answers 422 with
+// the form and its errors, or 303 once Save succeeded. See the forms guide.
+//
+// Without For it is a plain form wired for live submit and change handlers:
 //
 //	<ui.Form onSubmit={p.Save} error={p.formError}>
 //		<ui.Input name="name" label="Name" value={p.name} required error={p.errs["name"]}/>
@@ -27,9 +39,27 @@ import (
 // the host (see Field.Error and Form.Error) rather than read from the
 // runtime.
 //
-//line form.vuka.html:22
+//line form.vuka.html:34
 type Form struct {
-	ID string
+	// For is the form a struct form renders: for={Form}, a struct embedding
+	// FormState (the compiler writes ui.For(&p.Form)).
+	For any
+	// Key tells forms of one type on a page apart (a list's inline-edit
+	// forms): their submits, errors and ids. The compiler binds a key={…}
+	// attribute to it.
+	Key any
+	// Validate is when a struct form's checks run: "" as the visitor uses
+	// each field and on submit, "submit" only on submit (a question per
+	// page), "off" never (Save checks it itself).
+	Validate string
+	// Submit is what a submit sent while one is in flight does: "prevent"
+	// (the default) drops it, "abort" sends it and ignores the first's
+	// reply, "allow" sends it.
+	Submit string
+	// SubmitLabel is the submit button's text in a childless struct form;
+	// "Save" by default.
+	SubmitLabel string
+	ID          string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy
 	// state until the reply.
@@ -58,31 +88,37 @@ func (f Form) method() string {
 	return f.Method
 }
 
-//line form.vuka.html:53
+//line form.vuka.html:83
 func (f Form) View() Node {
-	var alert Node
-//line form.vuka.html:54
-	if f.Error != "" {
-		alert = Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)}
-	}
-//line form.vuka.html:53
-	return HTML(`
+	var forView2 Node
+//line form.vuka.html:84
+	if f.For != nil {
+		forView2 = f.forView()
+	} else {
+		var alert Node
+		if f.Error != "" {
+			alert = Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)}
+		}
+		forView2 = HTML(`
 <form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...}>
   {alert}
   {f.CSRF}
   {f.Children}
 </form>`,
-		withClass("vk-form", f.Class),
-		f.method(),
-		nonEmpty(f.ID),
-		nonEmpty(f.Action),
-		on("onSubmit", f.OnSubmit),
-		on("onInput", f.OnChange),
-		alert,
-		f.CSRF,
-		f.Children,
-	)
+			withClass("vk-form", f.Class),
+			f.method(),
+			nonEmpty(f.ID),
+			nonEmpty(f.Action),
+			on("onSubmit", f.OnSubmit),
+			on("onInput", f.OnChange),
+			alert,
+			f.CSRF,
+			f.Children,
+		)
+	}
+//line form.vuka.html:83
+	return forView2
 }
 
-//line form.vuka.html:59
+//line form.vuka.html:95
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

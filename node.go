@@ -186,17 +186,27 @@ type ctxNode func(context.Context) Node
 // markup: on a live page, a component in n keeps its instance across renders
 // while key is the same, and mounts afresh when key changes, though its tag
 // is in the same place.
-func Keyed(key any, n Node) Node { return keyedNode{key, n} }
+func Keyed(key any, n Node) Node { return keyedNode{key: key, n: n} }
 
 type keyedNode struct {
-	key any
-	n   Node
+	key  any
+	n    Node
+	with func(context.Context) context.Context // set: the context n renders with, instead of a key's
+}
+
+// withContext renders n with the context with makes of its own: what a
+// component tells those inside it (a form, to its fields).
+func withContext(with func(context.Context) context.Context, n Node) Node {
+	return keyedNode{n: n, with: with}
 }
 
 func (n keyedNode) Render(ctx context.Context, w io.Writer) error { return renderHTML(ctx, w, n) }
 
 // in is ctx with the key scoping the components rendered with it.
 func (n keyedNode) in(ctx context.Context) context.Context {
+	if n.with != nil {
+		return n.with(ctx)
+	}
 	if h := liveHost(ctx); h != nil {
 		return h.Keyed(ctx, n.key)
 	}
