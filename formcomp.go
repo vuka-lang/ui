@@ -281,7 +281,11 @@ func (b boundField) errorNode(ctx context.Context, e forms.Error, shows bool, cl
 	if len(class) > 0 {
 		cls = withClass(cls, class[0])
 	}
-	return El("p", []Attr{{"class", cls}, {"id", b.st.id(b.f.path) + "-error"}},
+	key := e.Key
+	if key == "" {
+		key = forms.DefaultKey(e)
+	}
+	return El("p", []Attr{{"class", cls}, {"id", b.st.id(b.f.path) + "-error"}, {"data-vk-error", key}},
 		El("span", []Attr{{"class", "vk-sr-only"}}, Text("Error:")), Text(" "+b.st.message(ctx, e)))
 }
 

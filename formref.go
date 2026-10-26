@@ -361,3 +361,52 @@ func cmpOr(a, b string) string {
 	}
 	return b
 }
+
+// FieldPath is the path of the field a pointer names, field pointing into
+// one of the values outer point to (see For): "email", "address.city".
+// Tests name the fields they fill by it.
+func FieldPath(field any, outer ...any) (string, error) {
+	b, err := For(field, outer...).resolve()
+	if err != nil {
+		// outer may be a page holding the form: find the form among its fields
+		for _, o := range outer {
+			if form := formHolding(reflect.ValueOf(o), reflect.ValueOf(field)); form.IsValid() {
+				b, err = For(field, form.Interface()).resolve()
+				break
+			}
+		}
+	}
+	if err != nil {
+		return "", err
+	}
+	if b.f == nil {
+		return "", fmt.Errorf("ui: FieldPath: %s is the form, not a field of it", b.st.ft.t.Name())
+	}
+	return b.f.path, nil
+}
+
+// formHolding is a pointer to the form among v's fields (v a pointer to a
+// struct) that holds the field p points to; invalid when none does.
+func formHolding(v, p reflect.Value) reflect.Value {
+	for v.Kind() == reflect.Pointer && !v.IsNil() && v.Elem().Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Pointer || v.IsNil() || v.Elem().Kind() != reflect.Struct || p.Kind() != reflect.Pointer {
+		return reflect.Value{}
+	}
+	st := v.Elem()
+	for i := 0; i < st.NumField(); i++ {
+		f := st.Field(i)
+		if f.Kind() == reflect.Pointer && !f.IsNil() {
+			f = f.Elem()
+		}
+		if f.Kind() != reflect.Struct || !f.CanAddr() {
+			continue
+		}
+		at := f.Addr().Pointer()
+		if p.Pointer() >= at && p.Pointer() < at+f.Type().Size() && isForm(f.Type()) {
+			return f.Addr()
+		}
+	}
+	return reflect.Value{}
+}

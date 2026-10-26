@@ -163,7 +163,7 @@ func TestFormTiming(t *testing.T) {
 	// leaving it non-empty: its error shows, not the empty required ones
 	send(t, c, inputTarget, "focusout", formValues(c.HTML(), map[string]string{"email": "pa@", ui.FormUsedField: "email"}))
 	html := c.HTML()
-	if !strings.Contains(html, `id="signup-email-error"><span class="vk-sr-only">Error:</span> Enter an email address in the correct format, like name@example.com</p>`) {
+	if !strings.Contains(html, `id="signup-email-error" data-vk-error="validate.email"><span class="vk-sr-only">Error:</span> Enter an email address in the correct format, like name@example.com</p>`) {
 		t.Fatalf("no email error after blur:\n%s", html)
 	}
 	if !strings.Contains(html, `aria-invalid="true" aria-describedby="signup-email-hint signup-email-error"`) && !strings.Contains(html, `aria-describedby="signup-email-hint signup-email-error" aria-invalid="true"`) {
