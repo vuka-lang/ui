@@ -52,6 +52,7 @@ type formState struct {
 	submitted  bool
 	submitting bool
 	summary    bool // the last render showed a <ui.Summary>, so the form doesn't add its own
+	inRender   bool // its <ui.Form> is rendering: its controls are counted
 	summaryNow bool
 	key        string // the form's key attribute, as text: identity and ids
 	idem       string // the idempotency key of the next submit

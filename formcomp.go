@@ -78,8 +78,8 @@ func (f Form) forView() Node {
 			kids = append(kids, Alert{Variant: AlertError, Children: Text(f.Error)})
 		}
 		kids = append(kids, Ctx(func(ctx context.Context) Node {
-			if st.summary {
-				return nil // the form renders its <ui.Summary> elsewhere
+			if st.summary || f.NoSummary {
+				return nil // the form renders its <ui.Summary> elsewhere, or none
 			}
 			return summaryOf(ctx, b, "")
 		}))
@@ -91,7 +91,7 @@ func (f Form) forView() Node {
 			return context.WithValue(ctx, currentKey{}, &current{b: b})
 		}, body))
 		kids = append(kids, El("input", []Attr{{"type", "hidden"}, {"name", FormFieldsField}, {"value", lazyValue{func(ctx context.Context) any {
-			st.rendered, st.summary = st.rendering, st.summaryNow
+			st.rendered, st.summary, st.inRender = st.rendering, st.summaryNow, false
 			return signFields(formKeyOf(ctx), identity, fieldList(st.rendering, st.ft))
 		}}}}))
 		return El("form", attrs, kids...)
@@ -103,7 +103,7 @@ func (f Form) forView() Node {
 func (st *formState) beginRender() {
 	st.rendering = map[string]string{}
 	st.controls, st.hints, st.errorShown = map[string]int{}, map[string]bool{}, map[string]bool{}
-	st.summaryNow = false
+	st.summaryNow, st.inRender = false, true
 }
 
 func keyString(k any) string {

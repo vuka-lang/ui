@@ -59,7 +59,10 @@ type Form struct {
 	// SubmitLabel is the submit button's text in a childless struct form;
 	// "Save" by default.
 	SubmitLabel string
-	ID          string
+	// NoSummary leaves out the error summary a struct form shows at its top
+	// after a failed submit: focus goes to the first field in error instead.
+	NoSummary bool
+	ID        string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy
 	// state until the reply.
@@ -88,10 +91,10 @@ func (f Form) method() string {
 	return f.Method
 }
 
-//line form.vuka.html:83
+//line form.vuka.html:86
 func (f Form) View() Node {
 	var forView2 Node
-//line form.vuka.html:84
+//line form.vuka.html:87
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
@@ -116,9 +119,9 @@ func (f Form) View() Node {
 			f.Children,
 		)
 	}
-//line form.vuka.html:83
+//line form.vuka.html:86
 	return forView2
 }
 
-//line form.vuka.html:95
+//line form.vuka.html:98
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

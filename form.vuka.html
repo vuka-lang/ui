@@ -50,6 +50,9 @@ type Form struct {
 	// SubmitLabel is the submit button's text in a childless struct form;
 	// "Save" by default.
 	SubmitLabel string
+	// NoSummary leaves out the error summary a struct form shows at its top
+	// after a failed submit: focus goes to the first field in error instead.
+	NoSummary bool
 	ID          string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy

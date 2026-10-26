@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -344,5 +345,30 @@ func TestMessages(t *testing.T) {
 	ctx = forms.WithCatalogue(ctx, forms.Messages{"validate.required": "{Label} can't be empty"})
 	if got := forms.Text(ctx, forms.Error{Rule: "required"}, "Name"); got != "Name can't be empty" {
 		t.Errorf("a catalogue's message: %q", got)
+	}
+}
+
+type needsDep struct {
+	ui.FormState
+	Email string
+}
+
+type mailer struct{}
+
+func (f *needsDep) CleanEmail(ctx context.Context, m *mailer) error { return nil }
+
+type depPage struct {
+	ui.Live
+	Form needsDep
+}
+
+func (p *depPage) Render() ui.Node { return nil }
+
+// TestFormCheckParams: a form's Clean methods' dependencies are checked
+// with the page's handlers.
+func TestFormCheckParams(t *testing.T) {
+	errs := ui.CheckParams(reflect.TypeFor[depPage](), nil)
+	if len(errs) != 1 || !strings.Contains(errs[0].Error(), "depPage.Form.CleanEmail's 2nd parameter, *ui_test.mailer, is not provided") {
+		t.Errorf("%v", errs)
 	}
 }

@@ -320,6 +320,9 @@ func (st *formState) renderField(path, mods string) {
 // first control in the render, then the id with -2, -3, … (the radios of a
 // group): an error summary's link goes to the first.
 func (st *formState) controlID(path string) string {
+	if !st.inRender {
+		return st.id(path)
+	}
 	if st.controls == nil {
 		st.controls = map[string]int{}
 	}
