@@ -14,14 +14,15 @@ import (
 
 // renderHTML is every built-in Node's Render: a walk into an HTMLRenderer
 // writing through a pooled buffer, in chunks.
-func renderHTML(ctx context.Context, w io.Writer, n Node) error {
+func renderHTML(ctx context.Context, w io.Writer, n Node) (err error) {
+	defer Catch(&err)
 	sw, ok := w.(io.StringWriter)
 	if !ok {
 		sw = stringWriter{w}
 	}
 	h := renderers.Get().(*HTMLRenderer)
 	h.ctx, h.w, h.out, h.buf = ctx, sw, w, h.buf[:0]
-	err := Walk(ctx, n, h)
+	err = Walk(ctx, n, h)
 	h.flush()
 	if err == nil {
 		err = h.err
