@@ -156,7 +156,7 @@ func TestErrorText(t *testing.T) {
 		{"c0:1", "", "internal error"},
 		{"c0:2", "", "title is taken"},
 		{"c0:3", "x", `live: input event: "x" isn't a whole number`},
-		{"c0:9", "", `live: no handler "c0:9"`},
+		{"c0:9", "", `live: no handler "c0:9": the page's last render has 4`},
 	} {
 		m, _ := c.Send(live.ClientMessage{Type: live.EventMsg, Ref: 1, Event: ui.Event{Target: tc.target, Type: "input", Value: tc.value}})
 		if m.Error != tc.want {

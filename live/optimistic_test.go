@@ -124,7 +124,7 @@ func TestReplyPerEvent(t *testing.T) {
 		}{
 			{"c1:5", `{"type":"patch","ref":7}`},
 			{"c1:6", `{"type":"patch","ref":7,"error":"no"}`},
-			{"c9:0", `{"type":"error","ref":7,"error":"live: no handler \"c9:0\""}`},
+			{"c9:0", `{"type":"error","ref":7,"error":"live: no handler \"c9:0\": no component c9 is mounted (it was unmounted, or the page navigated)"}`},
 		} {
 			got := string(s.HandleJSON([]byte(`{"type":"event","ref":7,"target":"` + tt.target + `","event":"click"}`)))
 			if got != tt.want {
