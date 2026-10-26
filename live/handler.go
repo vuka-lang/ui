@@ -76,18 +76,22 @@ func payload(t reflect.Type, ev ui.Event) (reflect.Value, error) {
 	if len(ev.Data) > 0 && s == "" { // an island's function prop called with a scalar
 		var err error
 		if s, err = scalarData(ev.Data); err != nil {
-			return reflect.New(t).Elem(), publicErr{fmt.Errorf("live: %s event payload: %w", ev.Type, err)}
+			return reflect.New(t).Elem(), publicErr{fmt.Errorf("live: %s event payload: %w", ev.Type, err), fmt.Sprintf("live: %s event payload doesn't parse", ev.Type)}
 		}
 	}
 	v := reflect.New(t).Elem()
 	if u, ok := v.Addr().Interface().(encoding.TextUnmarshaler); ok {
 		if err := u.UnmarshalText([]byte(s)); err != nil {
-			return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err)}
+			short := fmt.Sprintf("live: %s event: %q doesn't parse", ev.Type, s)
+			if m, ok := PublicMessage(err); ok {
+				short = fmt.Sprintf("live: %s event: %s", ev.Type, m)
+			}
+			return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err), short}
 		}
 		return v, nil
 	}
 	if err := setScalar(v, s); err != nil {
-		return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err)}
+		return v, publicErr{fmt.Errorf("live: %s event: %w", ev.Type, err), fmt.Sprintf("live: %s event: %s", ev.Type, publicText(err))}
 	}
 	return v, nil
 }
@@ -111,7 +115,7 @@ func structPayload(ptr reflect.Value, ev ui.Event) error {
 // jsonPayload binds an island emit's JSON argument (ev.Data) into ptr (a *T).
 func jsonPayload(ptr any, ev ui.Event) error {
 	if err := json.Unmarshal(ev.Data, ptr); err != nil {
-		return publicErr{fmt.Errorf("live: %s event payload: %w", ev.Type, err)}
+		return publicErr{fmt.Errorf("live: %s event payload: %w", ev.Type, err), fmt.Sprintf("live: %s event payload doesn't parse", ev.Type)}
 	}
 	return nil
 }
@@ -170,7 +174,7 @@ func setScalar(v reflect.Value, s string) error {
 		}
 		v.SetFloat(n)
 	default:
-		return fmt.Errorf("can't take a %s", v.Type())
+		return publicErr{fmt.Errorf("can't take a %s", v.Type()), "can't take this value"}
 	}
 	return nil
 }
@@ -204,14 +208,14 @@ func bindForm(v reflect.Value, form url.Values) error {
 			s := reflect.MakeSlice(fv.Type(), len(vals), len(vals))
 			for j, x := range vals {
 				if err := setScalar(s.Index(j), x); err != nil {
-					return publicErr{fmt.Errorf("live: field %s: %w", name, err)}
+					return publicErr{fmt.Errorf("live: field %s: %w", name, err), fmt.Sprintf("live: field %s: %s", name, publicText(err))}
 				}
 			}
 			fv.Set(s)
 			continue
 		}
 		if err := setScalar(fv, vals[0]); err != nil {
-			return publicErr{fmt.Errorf("live: field %s: %w", name, err)}
+			return publicErr{fmt.Errorf("live: field %s: %w", name, err), fmt.Sprintf("live: field %s: %s", name, publicText(err))}
 		}
 	}
 	return nil

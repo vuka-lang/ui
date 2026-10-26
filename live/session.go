@@ -207,7 +207,7 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 	defer s.mu.Unlock()
 	fn := s.handler(ev.Target)
 	if fn == nil {
-		return Patch{}, publicErr{s.noHandler(ev.Target)}
+		return Patch{}, s.noHandler(ev.Target)
 	}
 	ctx, edit := s.beginURL(s.ctx)
 	herr := callHandler(ctx, fn, ev)
@@ -297,20 +297,25 @@ func isNumber(s string) bool {
 func (s *Session) noHandler(target string) error {
 	id, n, _ := strings.Cut(target, ":")
 	in := s.byID[id]
+	e := &NoHandlerError{Target: target}
 	switch {
 	case in == nil:
-		return fmt.Errorf("live: no handler %q: no component %s is mounted (it was unmounted, or the page navigated)", target, id)
+		e.reason = fmt.Sprintf("no component %s is mounted (it was unmounted, or the page navigated)", id)
+		return e
 	case in.comp == nil && n != "":
-		return fmt.Errorf("live: no handler %q: the page's last render has %d", target, len(in.handlers))
+		e.Component = "page"
+		e.reason = fmt.Sprintf("the page's last render has %d", len(in.handlers))
+		return e
 	}
-	what := typeName(in.typ)
+	e.Component = typeName(in.typ)
 	if p, ok := strings.CutSuffix(n, "p"); ok && isNumber(p) {
-		return fmt.Errorf("live: no handler %q: %s (%s) keeps the handlers of its last %d pushed commands, and this one is older", target, what, id, maxPushes)
+		e.reason = fmt.Sprintf("%s (%s) keeps the handlers of its last %d pushed commands, and this one is older", e.Component, id, maxPushes)
+	} else if isNumber(n) {
+		e.reason = fmt.Sprintf("%s (%s): its last render has %d", e.Component, id, len(in.handlers))
+	} else {
+		e.reason = fmt.Sprintf("%s (%s) takes no push named %s", e.Component, id, n)
 	}
-	if isNumber(n) {
-		return fmt.Errorf("live: no handler %q: %s (%s): its last render has %d", target, what, id, len(in.handlers))
-	}
-	return fmt.Errorf("live: no handler %q: %s (%s) takes no push named %s", target, what, id, n)
+	return e
 }
 
 // typeName is a component's type as an error names it, its package's name

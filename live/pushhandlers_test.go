@@ -2,6 +2,7 @@ package live_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -166,6 +167,48 @@ func TestPushedHandlerExpiry(t *testing.T) {
 	_, err = s.Event(ui.Event{Target: "c7:0p", Type: "push"})
 	if want := `live: no handler "c7:0p": no component c7 is mounted (it was unmounted, or the page navigated)`; err == nil || err.Error() != want {
 		t.Fatalf("got  %v\nwant %s", err, want)
+	}
+}
+
+// TestNoHandlerHidesDetail: with a transport's error text that shows the
+// browser only public messages, a no-handler reply is the short form,
+// naming no Go type; the full reason is what the hook (and so the log)
+// gets.
+func TestNoHandlerHidesDetail(t *testing.T) {
+	var logged []string
+	hide := func(err error) string {
+		logged = append(logged, err.Error())
+		if m, ok := live.PublicMessage(err); ok {
+			return m
+		}
+		return "internal error"
+	}
+	for _, v := range []int{1, 2} {
+		s := live.NewSession(context.Background(), countedPage)
+		s.SetErrorText(hide)
+		if m := s.Handle(live.ClientMessage{Type: live.Join, V: v}); m.Type != live.Render {
+			t.Fatal(m.Error)
+		}
+		for _, tc := range []struct{ target, full string }{
+			{"c2:9", `live: no handler "c2:9": live_test.CountedOf[…] (c2): its last render has 1`},
+			{"c1:Secret", `live: no handler "c1:Secret": live_test.Counted (c1) takes no push named Secret`},
+			{"c7:0p", `live: no handler "c7:0p": no component c7 is mounted (it was unmounted, or the page navigated)`},
+		} {
+			logged = nil
+			got := string(s.HandleJSON([]byte(`{"type":"event","ref":7,"target":"` + tc.target + `","event":"push"}`)))
+			want := `{"type":"error","ref":7,"error":"live: no handler \"` + tc.target + `\""}`
+			if got != want || strings.Contains(got, "live_test") {
+				t.Errorf("v%d %s: got %s, want %s", v, tc.target, got, want)
+			}
+			if len(logged) != 1 || logged[0] != tc.full {
+				t.Errorf("v%d %s: the hook got %q, want %q", v, tc.target, logged, tc.full)
+			}
+		}
+		var nh *live.NoHandlerError
+		_, err := s.Event(ui.Event{Target: "c2:9", Type: "push"})
+		if !errors.As(err, &nh) || nh.Target != "c2:9" || nh.Component != "live_test.CountedOf[…]" {
+			t.Errorf("v%d: %#v", v, err)
+		}
 	}
 }
 

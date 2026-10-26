@@ -143,7 +143,9 @@ func TestErrorText(t *testing.T) {
 			ui.El("button", []ui.Attr{a("onClick", ui.On(func() error { return secret }))}),
 			ui.El("button", []ui.Attr{a("onClick", ui.On(func() { panic("at /srv/app/secret.go:12") }))}),
 			ui.El("button", []ui.Attr{a("onClick", ui.On(func() error { return public{"title is taken"} }))}),
-			ui.El("input", []ui.Attr{a("onInput", ui.On(func(n int) {}))}))
+			ui.El("input", []ui.Attr{a("onInput", ui.On(func(n int) {}))}),
+			ui.El("input", []ui.Attr{a("onInput", ui.On(func(struct{ N int }) {}))}),
+			ui.El("input", []ui.Attr{a("onInput", ui.On(func(level) {}))}))
 	}
 	s := live.NewSession(context.Background(), page)
 	s.SetErrorText(hide)
@@ -151,20 +153,23 @@ func TestErrorText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct{ target, value, want string }{
-		{"c0:0", "", "internal error"},
-		{"c0:1", "", "internal error"},
-		{"c0:2", "", "title is taken"},
-		{"c0:3", "x", `live: input event: "x" isn't a whole number`},
-		{"c0:9", "", `live: no handler "c0:9": the page's last render has 4`},
+	for _, tc := range []struct{ target, value, data, want, full string }{
+		{"c0:0", "", "", "internal error", "password_hash"},
+		{"c0:1", "", "", "internal error", "secret.go"},
+		{"c0:2", "", "", "title is taken", "title is taken"},
+		{"c0:3", "x", "", `live: input event: "x" isn't a whole number`, `"x" isn't a whole number`},
+		{"c0:4", "", `{"N":"x"}`, `live: input event payload doesn't parse`, "Go struct field .N of type int"},
+		{"c0:5", "May 1st", "", `live: input event: "May 1st" doesn't parse`, "levels.go:9: no level named"},
+		{"c0:9", "", "", `live: no handler "c0:9"`, `live: no handler "c0:9": the page's last render has 6`},
 	} {
-		m, _ := c.Send(live.ClientMessage{Type: live.EventMsg, Ref: 1, Event: ui.Event{Target: tc.target, Type: "input", Value: tc.value}})
+		logged = nil
+		m, _ := c.Send(live.ClientMessage{Type: live.EventMsg, Ref: 1, Event: ui.Event{Target: tc.target, Type: "input", Value: tc.value, Data: []byte(tc.data)}})
 		if m.Error != tc.want {
 			t.Errorf("%s: %q, want %q", tc.target, m.Error, tc.want)
 		}
-	}
-	if len(logged) != 5 || !strings.Contains(logged[0], "password_hash") || !strings.Contains(logged[1], "secret.go") {
-		t.Fatalf("the hook sees the real errors: %q", logged)
+		if len(logged) != 1 || !strings.Contains(logged[0], tc.full) {
+			t.Errorf("%s: the hook sees the real error: %q, want %q", tc.target, logged, tc.full)
+		}
 	}
 
 	// Mount's error and panic on a join, and without the hook, the text.
@@ -187,6 +192,14 @@ func TestErrorText(t *testing.T) {
 }
 
 type public struct{ msg string }
+
+// level is a value whose UnmarshalText errors say more than a browser
+// should read.
+type level int
+
+func (l *level) UnmarshalText(b []byte) error {
+	return errors.New("levels.go:9: no level named " + string(b))
+}
 
 func (p public) Error() string         { return p.msg }
 func (p public) PublicMessage() string { return p.msg }
