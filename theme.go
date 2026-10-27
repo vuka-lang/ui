@@ -126,7 +126,7 @@ const Styles = `:root{
 .vk-btn[aria-busy="true"]{pointer-events:none}
 .vk-btn[aria-busy="true"] .vk-btn__icon,.vk-form[aria-busy="true"] .vk-btn--submit .vk-btn__icon{display:none}
 .vk-btn[aria-busy="true"]::before,.vk-form[aria-busy="true"] .vk-btn--submit::before{content:"";width:1em;height:1em;margin-right:.1rem;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:vk-spin .6s linear infinite}
-.vk-form[aria-busy="true"] .vk-btn--submit{pointer-events:none;opacity:.85}
+.vk-form[aria-busy="true"] .vk-btn--submit{opacity:.85}
 
 /* Actions */
 .vk-actions{display:flex;gap:.5rem;align-items:center;justify-content:flex-end;flex-wrap:wrap}
@@ -197,6 +197,8 @@ const Styles = `:root{
 .vk-field__error{font-weight:600}
 .vk-field__reveal{align-self:flex-start;font:inherit;font-size:.8rem;padding:.2rem .5rem;border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg);cursor:pointer}
 .vk-field__reveal[aria-pressed="true"]{background:color-mix(in srgb,var(--ui-primary) 12%,transparent)}
+.vk-field__ok{color:var(--ui-success);font-weight:700;font-size:.9rem}
+.vk-field__update{align-self:flex-start}
 .vk-fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:.5rem;min-width:0}
 .vk-fieldset__legend{font-weight:600;font-size:.9rem;padding:0;margin-bottom:.25rem}
 .vk-choices{display:flex;flex-direction:column;gap:.4rem}
