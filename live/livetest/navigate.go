@@ -127,7 +127,8 @@ func (c *Client) navigate(n navigation) (live.ServerMessage, error) {
 }
 
 // linkOf is the ui.Link a click on e follows: e or its nearest ancestor
-// that is an a element marked data-vk-link, with no target but _self.
+// that is an a element marked data-vk-link, with no target but _self and
+// not data-vk-reload (the browser's to load).
 func (c *Client) linkOf(e *node) *node {
 	for ; e != nil; e = e.parent {
 		if e.tag != "a" {
@@ -136,7 +137,7 @@ func (c *Client) linkOf(e *node) *node {
 		if _, ok := c.get(e, "data-vk-link"); !ok {
 			return nil
 		}
-		if t, _ := c.get(e, "target"); t != "" && t != "_self" {
+		if t, _ := c.get(e, "target"); t != "" && t != "_self" || c.hasAttr(e, "data-vk-reload") {
 			return nil
 		}
 		return e

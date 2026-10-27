@@ -35,9 +35,10 @@ func TestButtonRenders(t *testing.T) {
 func TestLinkActive(t *testing.T) {
 	s := render(t, ui.Link(ui.LinkProps{Href: "/books", Active: ui.ActivePrefix, ActiveClass: "on", Prefetch: ui.PrefetchViewport, Children: ui.Text("Books")}))
 	contains(t, s, `href="/books"`, "data-vk-link", `data-vk-active="prefix"`, `data-vk-active-class="on"`, `data-vk-prefetch="viewport"`)
-	if s := render(t, ui.Link(ui.LinkProps{Href: "/"})); strings.Contains(s, "data-vk-active") || strings.Contains(s, "data-vk-prefetch") {
+	if s := render(t, ui.Link(ui.LinkProps{Href: "/"})); strings.Contains(s, "data-vk-active") || strings.Contains(s, "data-vk-prefetch") || strings.Contains(s, "data-vk-reload") {
 		t.Errorf("a plain link: %s", s)
 	}
+	contains(t, render(t, ui.Link(ui.LinkProps{Href: "/report", Reload: true})), `href="/report"`, "data-vk-link", "data-vk-reload")
 }
 
 func TestButtonLoading(t *testing.T) {
