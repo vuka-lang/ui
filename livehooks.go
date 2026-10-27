@@ -55,7 +55,10 @@ func MountPage(ctx context.Context, p any) error {
 		return err
 	}
 	if hasMount(t) {
-		return liveHooks(reflect.ValueOf(p)).mount(ctx)
+		if err := liveHooks(reflect.ValueOf(p)).mount(ctx); err != nil {
+			return err
+		}
 	}
+	attachForms(reflect.ValueOf(p))
 	return nil
 }

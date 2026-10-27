@@ -208,8 +208,26 @@ func (b boundField) modelAttrs(spec ModelSpec) []Attr {
 	if tag == "textarea" && f.placeholder != "" {
 		add("placeholder", f.placeholder)
 	}
-	if f.required() && configOf(nil).RequiredAttr {
-		add("required", true)
+	if f.required() && !(choice && typ == "checkbox") {
+		add("required", lazyValue{func(ctx context.Context) any {
+			if configOf(ctx).RequiredAttr {
+				return true
+			}
+			return nil
+		}})
+	}
+	if tag == "input" && !choice {
+		for _, a := range constraintAttrs(f, typ) {
+			add(a.Name, a.Value)
+		}
+		raw := f.raw || hasMod(spec.Mods, "raw")
+		if !hasMod(spec.Mods, "number") {
+			add("data-vk-check", lazyValue{func(ctx context.Context) any { return b.checkSpec(ctx, raw) }})
+		}
+	}
+	if tag == "textarea" || tag == "select" {
+		raw := f.raw || hasMod(spec.Mods, "raw")
+		add("data-vk-check", lazyValue{func(ctx context.Context) any { return b.checkSpec(ctx, raw) }})
 	}
 	if hasMod(spec.Mods, "lazy") {
 		out = append(out, Attr{Name: "data-vk-lazy", Value: true})
@@ -273,11 +291,7 @@ func (b boundField) choices(ctx context.Context) ([]Option, error) {
 	if b.f.choices == nil {
 		return nil, nil
 	}
-	opts, err := choices(ctx, b.f.choices, b.form)
-	if err != nil {
-		return nil, fmt.Errorf("ui: %s.%s: %w", b.st.ft.t.Name(), b.f.choices.Name, err)
-	}
-	return opts, nil
+	return b.st.choicesOf(ctx, b.value(), b.f)
 }
 
 // ModelSelected reports whether an <option value={v}> of a <select
@@ -355,7 +369,23 @@ func (st *formState) message(ctx context.Context, e forms.Error) string {
 	if f := st.ft.byPath[e.Path]; f != nil {
 		label = f.label
 	}
-	return forms.Text(ctx, e, label)
+	return forms.Text(messageCtx(ctx), e, label)
+}
+
+// keepMessages notes what the form's messages are resolved with, for
+// ErrorOf and Errors outside a render.
+func (st *formState) keepMessages(ctx context.Context) {
+	if ctx != nil {
+		st.msgs = forms.Detach(messageCtx(ctx))
+	}
+}
+
+// messages is what the form's messages are resolved with outside a render.
+func (st *formState) messages() context.Context {
+	if st.msgs != nil {
+		return st.msgs
+	}
+	return messageCtx(context.Background())
 }
 
 func cmpOr(a, b string) string {

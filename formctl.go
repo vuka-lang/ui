@@ -29,6 +29,36 @@ type Config struct {
 	// and the attribute treats whitespace as a value where the binder trims
 	// it.
 	RequiredAttr bool
+	// BrowserChecks has a struct form's controls carry the rules the
+	// browser can check exactly as the server does (required, len, min,
+	// max, email, oneof), with their messages, so a submit sent without a
+	// live connection shows its errors at once instead of after a round
+	// trip; the server still checks every submit. Off by default: the
+	// messages then ride in the page's markup.
+	BrowserChecks bool
+	// Messages is the app's message catalogue: its own wording of the
+	// default messages, its message keys' texts, its labels' translations
+	// (forms.Messages, forms.Translations). A request's own catalogue
+	// (forms.WithCatalogue) comes before it, the default English wording
+	// after.
+	Messages forms.Catalogue
+}
+
+// messageCtx is ctx resolving messages with its config's catalogue too.
+func messageCtx(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return forms.WithBase(ctx, configOf(ctx).Messages)
+}
+
+// tr is text in ctx's language (forms.Translate): a label, a hint, the
+// form components' own words by key ("form.problem").
+func tr(ctx context.Context, text string) string {
+	if text == "" {
+		return ""
+	}
+	return forms.Translate(messageCtx(ctx), text)
 }
 
 var (
@@ -244,9 +274,18 @@ func newIdemKey() string {
 // error, and a plain POST answers 422 with the form.
 var ErrFormInvalid = errors.New("ui: the form has errors")
 
+// ErrFormIntent is what a form's submit answers when a button with an
+// intent sent it ("update": the form renders again, its choices following
+// its new values) rather than a submit of the form: a plain POST answers
+// 200 with the form, Save not called.
+var ErrFormIntent = errors.New("ui: the form was sent for an intent, not submitted")
+
 // QuietError reports whether a handler's error shows only in the page (a
-// form's ErrFormInvalid), not as an error message of its own.
-func QuietError(err error) bool { return errors.Is(err, ErrFormInvalid) }
+// form's ErrFormInvalid, ErrFormIntent), not as an error message of its
+// own.
+func QuietError(err error) bool {
+	return errors.Is(err, ErrFormInvalid) || errors.Is(err, ErrFormIntent)
+}
 
 // RedirectOf is where err, a handler's error, sends the visitor: a value
 // with a RedirectLocation method, as web.Redirect has.
@@ -332,6 +371,18 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 	if seq, err := strconv.ParseInt(ev.Form.Get(FormSeqField), 10, 64); err == nil && seq > st.seq {
 		st.seq = seq
 	}
+	if ev.Form.Get(FormIntentField) == "update" {
+		// the no-script Update button: the form takes its values, its
+		// choices follow them, nothing is saved
+		st.usedFrom(ev.Form)
+		st.bind(c.form.Elem(), ev.Form, st.renderedFrom(ctx, ev.Form))
+		if c.validate == "" {
+			if err := st.check(ctx, c.form.Elem(), true); err != nil {
+				return err
+			}
+		}
+		return ErrFormIntent
+	}
 	key := ev.Form.Get(FormIdemField)
 	store := formStoreOf(ctx)
 	if key != "" {
@@ -371,14 +422,14 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 	}
 	st.submitting = false
 	if herr == nil {
-		st.succeeded()
+		st.succeeded(form)
 		if key != "" {
 			store.Finish(key, FormOutcome{Done: true})
 		}
 		return nil
 	}
 	if loc, ok := RedirectOf(herr); ok {
-		st.succeeded()
+		st.succeeded(form)
 		if key != "" {
 			store.Finish(key, FormOutcome{Done: true, Redirect: loc})
 		}
@@ -405,6 +456,10 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 	abandon()
 	return herr
 }
+
+// savedOver answers the browser asking again once a successful submit's
+// Saved is over: the form renders, Saved false.
+func (c *formCtl) savedOver(context.Context) error { return nil }
 
 // payload binds the page's handler's payload: the form (T or *T, a copy
 // sharing the form's state), the event, or its values.

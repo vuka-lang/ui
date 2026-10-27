@@ -118,7 +118,7 @@ func sameProps(to, from ui.Stateful) bool {
 	dst, src := reflect.ValueOf(to).Elem(), reflect.ValueOf(from).Elem()
 	live := reflect.TypeFor[ui.Live]()
 	for i := 0; i < dst.NumField(); i++ {
-		if f := dst.Type().Field(i); f.IsExported() && f.Type != live && !sameValue(dst.Field(i), src.Field(i)) {
+		if f := dst.Type().Field(i); f.IsExported() && f.Type != live && !ui.IsFormField(f.Type) && !sameValue(dst.Field(i), src.Field(i)) {
 			return false
 		}
 	}

@@ -20,6 +20,7 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 	if ft.err != nil {
 		return ft.err
 	}
+	st.keepMessages(ctx)
 	st.errs = st.errs[:0]
 	for _, f := range ft.fields {
 		if e, ok := st.parsed[f.path]; ok {
@@ -27,6 +28,14 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 			continue
 		}
 		if e, ok := f.verdict(form); ok {
+			st.errs = append(st.errs, e)
+			continue
+		}
+		e, ok, err := st.checkChoice(ctx, form, f, live)
+		if err != nil {
+			return err
+		}
+		if ok {
 			st.errs = append(st.errs, e)
 		}
 	}
@@ -39,7 +48,7 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 		}
 	}
 	cctx := formCtx(ctx, live)
-	recv := form.Addr()
+	recv := ft.receiver(form)
 	for _, f := range ft.fields {
 		m := ft.cleans[f.path]
 		if m == nil {
@@ -214,4 +223,75 @@ func choices(ctx context.Context, m *reflect.Method, recv reflect.Value) (opts [
 		return nil, out[1].Interface().(error)
 	}
 	return out[0].Interface().([]Option), nil
+}
+
+// checkChoice checks that a field with choices (<Field>Choices) holds one
+// of them. While the visitor types, a value no longer among them — a City
+// once its Country changed — is cleared, its error (an empty required
+// field's) showing on submit; on submit it is an error.
+func (st *formState) checkChoice(ctx context.Context, form reflect.Value, f *formField, live bool) (forms.Error, bool, error) {
+	if f.choices == nil {
+		return forms.Error{}, false, nil
+	}
+	v, err := form.FieldByIndexErr(f.index)
+	if err != nil || v.IsZero() {
+		return forms.Error{}, false, nil
+	}
+	opts, err := st.choicesOf(ctx, form, f)
+	if err != nil {
+		return forms.Error{}, false, err
+	}
+	allowed := make(map[string]bool, len(opts))
+	for _, o := range opts {
+		allowed[o.Value] = true
+	}
+	var stray bool
+	if v.Kind() == reflect.Slice && v.Type().Elem().Kind() != reflect.Uint8 {
+		for i := 0; i < v.Len(); i++ {
+			stray = stray || !allowed[valueText(v.Index(i))]
+		}
+	} else {
+		stray = !allowed[valueText(v)]
+	}
+	if !stray {
+		return forms.Error{}, false, nil
+	}
+	if live && v.CanSet() {
+		if v.Kind() == reflect.Slice {
+			kept := reflect.MakeSlice(v.Type(), 0, v.Len())
+			for i := 0; i < v.Len(); i++ {
+				if allowed[valueText(v.Index(i))] {
+					kept = reflect.Append(kept, v.Index(i))
+				}
+			}
+			if kept.Len() == 0 {
+				kept = reflect.Zero(v.Type())
+			}
+			v.Set(kept)
+		} else {
+			v.SetZero()
+		}
+		if e, ok := f.verdict(form); ok {
+			return e, true, nil
+		}
+		return forms.Error{}, false, nil
+	}
+	return f.errorFor(rule{name: "choice"}, ""), true, nil
+}
+
+// choicesOf are a field's choices, its <Field>Choices called once per
+// event (bind) or render.
+func (st *formState) choicesOf(ctx context.Context, form reflect.Value, f *formField) ([]Option, error) {
+	if opts, ok := st.memo[f.path]; ok {
+		return opts, nil
+	}
+	opts, err := choices(ctx, f.choices, st.ft.receiver(form))
+	if err != nil {
+		return nil, fmt.Errorf("ui: %s.%s: %w", st.ft.t.Name(), f.choices.Name, err)
+	}
+	if st.memo == nil {
+		st.memo = map[string][]Option{}
+	}
+	st.memo[f.path] = opts
+	return opts, nil
 }

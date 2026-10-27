@@ -170,7 +170,7 @@ func TestFormTiming(t *testing.T) {
 	if !strings.Contains(html, `aria-invalid="true" aria-describedby="signup-email-hint signup-email-error"`) && !strings.Contains(html, `aria-describedby="signup-email-hint signup-email-error" aria-invalid="true"`) {
 		t.Errorf("the control isn't linked to its error:\n%s", html)
 	}
-	if strings.Contains(html, "Enter full name") || strings.Contains(html, "vk-summary") {
+	if strings.Contains(html, `id="signup-name-error"`) || strings.Contains(html, "vk-summary") {
 		t.Errorf("an empty required field flagged, or a summary, before submit:\n%s", html)
 	}
 	// letters in a digits field show at once; a fixed length at its length
@@ -179,7 +179,7 @@ func TestFormTiming(t *testing.T) {
 		t.Errorf("no error for letters in a numeric field:\n%s", c.HTML())
 	}
 	send(t, c, inputTarget, "input", formValues(c.HTML(), map[string]string{"email": "pa@", "postcode": "123456"}))
-	if !strings.Contains(c.HTML(), "Postcode must be 5 characters") {
+	if !strings.Contains(c.HTML(), "</span> Postcode must be 5 characters</p>") {
 		t.Errorf("no error at a fixed length's length:\n%s", c.HTML())
 	}
 	// fixing a shown error clears it as soon as it's fixed
@@ -266,7 +266,7 @@ func TestFormFailAndUnchecked(t *testing.T) {
 	p.got.fail = nil
 	delete(ok, "agree")
 	send(t, c, submitTarget, "submit", formValues(c.HTML(), ok))
-	if p.got.last.Form.Agree || !strings.Contains(c.HTML(), "Accept the terms to continue") {
+	if p.got.last.Form.Agree || !strings.Contains(c.HTML(), `<a href="#signup-agree">Accept the terms to continue</a>`) {
 		t.Errorf("an unticked rendered checkbox isn't false: %v", p.got.last.Form.Agree)
 	}
 }

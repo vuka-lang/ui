@@ -889,12 +889,13 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 func marker(id string) string { return "\x00vk:" + id + "\x00" }
 
 // copyProps sets the exported fields of to from from: a parent's render sets
-// every prop again.
+// every prop again, but a form (ui.IsFormField), which is the instance's
+// own: what the visitor typed in it, its errors.
 func copyProps(to, from ui.Stateful) {
 	dst, src := reflect.ValueOf(to).Elem(), reflect.ValueOf(from).Elem()
 	live := reflect.TypeFor[ui.Live]()
 	for i := 0; i < dst.NumField(); i++ {
-		if f := dst.Type().Field(i); f.IsExported() && f.Type != live {
+		if f := dst.Type().Field(i); f.IsExported() && f.Type != live && !ui.IsFormField(f.Type) {
 			dst.Field(i).Set(src.Field(i))
 		}
 	}

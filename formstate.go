@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/vuka-lang/ui/v2/forms"
@@ -48,7 +49,13 @@ type formState struct {
 	hints      map[string]bool   // its fields with a hint
 	errorShown map[string]bool   // its fields showing their error
 
-	base       reflect.Value // the form's values when it was first rendered or bound: Changed's baseline
+	base       reflect.Value       // the form's values when it was first rendered or bound, or loaded: Changed's and Dirty's baseline
+	pending    reflect.Value       // a record Load was given before the form was attached, loaded when it is
+	gen        int                 // bumped by Load and Reset: the browser's fields take the server's values when it changes
+	savedUntil time.Time           // Saved's end: 2s after a successful submit
+	bound      map[string]string   // the rendered fields the last bind took, with their modifiers: what Apply writes
+	msgs       context.Context     // what the form's messages are resolved with (forms.Detach of its last render's or check's context)
+	memo       map[string][]Option // the fields' choices, called once per event
 	submitted  bool
 	submitting bool
 	summary    bool // the last render showed a <ui.Summary>, so the form doesn't add its own
@@ -75,15 +82,31 @@ func attachForm(ptr reflect.Value) *formState {
 		ptr = ptr.Elem()
 	}
 	v := ptr.Elem()
-	ft := formTypeOf(v.Type())
-	fs := v.FieldByIndex(ft.state).Addr().Interface().(*FormState)
+	var ft *formType
+	if ptr.Type().Implements(modelFormType) {
+		names := v.FieldByName("names")
+		list := make([]string, names.Len())
+		for i := range list {
+			list[i] = names.Index(i).String()
+		}
+		ft = modelFormTypeOf(v.Type(), list)
+	} else {
+		ft = formTypeOf(v.Type())
+	}
+	fs := (*FormState)(v.FieldByIndex(ft.state).Addr().UnsafePointer())
 	if fs.st == nil {
 		fs.st = &formState{}
 	}
 	st := fs.st
 	if st.ft == nil {
 		st.ft = ft
-		st.base = cloneValue(v)
+		if st.pending.IsValid() {
+			rec := st.pending
+			st.pending = reflect.Value{}
+			st.load(v, rec)
+		} else {
+			st.base = cloneValue(v)
+		}
 	}
 	return st
 }
@@ -116,7 +139,7 @@ func (s *FormState) ErrorOf(field any) string {
 		return ""
 	}
 	if e, ok := st.visible(f.path); ok {
-		return forms.Text(context.Background(), e, f.label)
+		return forms.Text(st.messages(), e, f.label)
 	}
 	return ""
 }
@@ -167,8 +190,9 @@ func (s *FormState) Touched(field any) bool {
 	return f != nil && (st.used[f.path] || st.submitted)
 }
 
-// Changed reports whether the field's value differs from the one it had
-// when the form was first rendered.
+// Changed reports whether the field's value differs from the one the form
+// was loaded with (Load), or first rendered with; a successful submit
+// makes its values the new ones.
 func (s *FormState) Changed(field any) bool {
 	st, f := s.fieldOf(field)
 	if f == nil || !st.base.IsValid() {
@@ -343,11 +367,12 @@ func fullLength(form reflect.Value, f *formField) bool {
 }
 
 // succeeded clears what a successful submit leaves behind: errors, the
-// used fields, the submitted state; the next submit gets another key.
-func (st *formState) succeeded() {
-	st.errs, st.pinned, st.failed, st.raw, st.parsed = nil, nil, nil, nil, nil
-	st.used, st.shown, st.vis = nil, nil, nil
-	st.submitted = false
+// used fields, the submitted state; the form's values are its baseline
+// now, it is Saved for a while, and the next submit gets another key.
+func (st *formState) succeeded(form reflect.Value) {
+	st.clear()
+	st.base = cloneValue(form)
+	st.savedUntil = time.Now().Add(savedFor)
 	st.idem = ""
 }
 

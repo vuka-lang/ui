@@ -48,6 +48,9 @@ type Field struct {
 	Placeholder string
 	Required    bool
 	Disabled    bool
+	// OK shows a tick beside a struct form's field (For) once the visitor
+	// used it and it passes every check: off by default.
+	OK bool
 	// Rows is a textarea's height; 3 when 0.
 	Rows int
 	// Min, Max and Step bound a number or date control.
@@ -143,16 +146,16 @@ func (f Field) input() Node {
 	)
 }
 
-//line field.vuka.html:138
+//line field.vuka.html:141
 func (f Field) View() Node {
 	var forView2 Node
-//line field.vuka.html:139
+//line field.vuka.html:142
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
 		var label2 Node
 		if f.kind == kindCheckbox {
-//line field.vuka.html:145
+//line field.vuka.html:148
 			value2 := f.id()
 			label2 = HTML(`
 <label class="vk-check" for={f.id()}>
@@ -169,10 +172,10 @@ func (f Field) View() Node {
 			)
 		} else {
 			var label22 Node
-//line field.vuka.html:149
+//line field.vuka.html:152
 			if f.Label != "" {
 				var span2 Node
-//line field.vuka.html:152
+//line field.vuka.html:155
 				if f.Required {
 					span2 = HTML(`<span class="vk-field__req" aria-hidden="true">*</span>`)
 				}
@@ -187,12 +190,12 @@ func (f Field) View() Node {
 {f.input()}`, label22, f.input())
 		}
 		var div Node
-//line field.vuka.html:159
+//line field.vuka.html:162
 		if f.Help != "" {
 			div = HTML(`<div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>`, f.id()+"-help", f.Help)
 		}
 		var div2 Node
-//line field.vuka.html:162
+//line field.vuka.html:165
 		if f.invalid() {
 			div2 = HTML(`<div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>`, f.id()+"-error", f.Error)
 		}
@@ -203,9 +206,9 @@ func (f Field) View() Node {
   {div2}
 </div>`, f.classes(), label2, div, div2)
 	}
-//line field.vuka.html:138
+//line field.vuka.html:141
 	return forView2
 }
 
-//line field.vuka.html:167
+//line field.vuka.html:170
 func (f Field) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

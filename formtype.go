@@ -4,6 +4,7 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"unicode"
@@ -24,6 +25,7 @@ type formType struct {
 	byPath  map[string]*formField
 	clean   *reflect.Method            // Clean(ctx, deps…) error
 	cleans  map[string]*reflect.Method // Clean<Field>, by path
+	recv    []int                      // the index of the value the methods are of: nil for the form, Value's for a ModelForm
 	err     error
 }
 
@@ -47,6 +49,8 @@ type formField struct {
 	rules                    []rule
 	msgs                     map[string]string // the msg: tag, rule → key
 	choices                  *reflect.Method   // <Field>Choices
+	depends                  []string          // the paths of the fields its choices follow (depends:)
+	tag                      reflect.StructTag
 }
 
 var (
@@ -65,6 +69,12 @@ func formTypeOf(t reflect.Type) *formType {
 	return v.(*formType)
 }
 
+// IsFormField reports whether a component's field of type t holds a form
+// (a struct embedding FormState, or a pointer to one): the component's own
+// state, which a parent's render doesn't set again as it does its other
+// props.
+func IsFormField(t reflect.Type) bool { return isForm(derefType(t)) }
+
 // isForm reports whether t is a struct embedding FormState.
 func isForm(t reflect.Type) bool {
 	if t.Kind() != reflect.Struct {
@@ -78,14 +88,22 @@ func buildFormType(t reflect.Type) *formType {
 	ft := &formType{t: t, name: kebab(t.Name()), byPath: map[string]*formField{}, cleans: map[string]*reflect.Method{}}
 	sf, _ := t.FieldByName("FormState")
 	ft.state, ft.stateAt = sf.Index, sf.Offset
-	ft.addFields(t, nil, 0, "", "")
 	pt := reflect.PointerTo(t)
+	if pt.Implements(modelFormType) {
+		// a ModelForm: the fields and methods are its Value's, a model's
+		vf, _ := t.FieldByName("Value")
+		ft.name, ft.recv = kebab(vf.Type.Name()), vf.Index
+		ft.addFields(vf.Type, vf.Index, vf.Offset, "", "")
+		pt = reflect.PointerTo(vf.Type)
+	} else {
+		ft.addFields(t, nil, 0, "", "")
+	}
 	for i := 0; i < pt.NumMethod(); i++ {
 		m := pt.Method(i)
-		if _, own := formStateType.MethodByName(m.Name); own {
+		if _, own := formStateType.MethodByName(m.Name); own && ft.recv == nil {
 			continue
 		}
-		if _, own := reflect.PointerTo(formStateType).MethodByName(m.Name); own {
+		if _, own := reflect.PointerTo(formStateType).MethodByName(m.Name); own && ft.recv == nil {
 			continue
 		}
 		switch name := m.Name; {
@@ -104,7 +122,36 @@ func buildFormType(t reflect.Type) *formType {
 			}
 		}
 	}
+	for _, f := range ft.fields {
+		for _, d := range strings.Fields(strings.ReplaceAll(f.tag.Get("depends"), ",", " ")) {
+			if p := ft.byGoPath(strings.ReplaceAll(d, ".", "")); p != nil && p != f {
+				f.depends = append(f.depends, p.path)
+			} else if ft.err == nil {
+				ft.err = fmt.Errorf("ui: %s.%s: depends:%q names no field of the form", t.Name(), f.goPath, d)
+			}
+		}
+	}
 	return ft
+}
+
+// isParent reports whether other fields' choices depend on the field at
+// path (depends:).
+func (ft *formType) isParent(path string) bool {
+	for _, f := range ft.fields {
+		if slices.Contains(f.depends, path) {
+			return true
+		}
+	}
+	return false
+}
+
+// receiver is the value a form's methods are called on: the form, or a
+// ModelForm's Value.
+func (ft *formType) receiver(form reflect.Value) reflect.Value {
+	if ft.recv == nil {
+		return form.Addr()
+	}
+	return form.FieldByIndex(ft.recv).Addr()
 }
 
 // byGoPath is the field a method's name names: Email for CleanEmail,
@@ -141,7 +188,7 @@ func (ft *formType) addFields(t reflect.Type, index []int, offset uintptr, path,
 		}
 		f := &formField{
 			path: joinPath(path, name), goName: sf.Name, goPath: joinPath(goPath, sf.Name),
-			index: idx, offset: offset + sf.Offset, typ: sf.Type,
+			index: idx, offset: offset + sf.Offset, typ: sf.Type, tag: sf.Tag,
 			label: sf.Tag.Get("label"), help: sf.Tag.Get("help"), placeholder: sf.Tag.Get("placeholder"),
 		}
 		if f.label == "" {
