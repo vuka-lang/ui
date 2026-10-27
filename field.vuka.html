@@ -39,6 +39,9 @@ type Field struct {
 	Placeholder string
 	Required    bool
 	Disabled    bool
+	// OK shows a tick beside a struct form's field (For) once the visitor
+	// used it and it passes every check: off by default.
+	OK bool
 	// Rows is a textarea's height; 3 when 0.
 	Rows int
 	// Min, Max and Step bound a number or date control.

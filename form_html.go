@@ -62,7 +62,12 @@ type Form struct {
 	// NoSummary leaves out the error summary a struct form shows at its top
 	// after a failed submit: focus goes to the first field in error instead.
 	NoSummary bool
-	ID        string
+	// ConfirmLeave has the browser ask before the visitor leaves the page
+	// — closing it, following a link, going back — while the form has
+	// changes not saved: values differing from the ones it was loaded
+	// with (FormState.Dirty), or typed and not yet sent.
+	ConfirmLeave bool
+	ID           string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy
 	// state until the reply.
@@ -91,10 +96,10 @@ func (f Form) method() string {
 	return f.Method
 }
 
-//line form.vuka.html:86
+//line form.vuka.html:91
 func (f Form) View() Node {
 	var forView2 Node
-//line form.vuka.html:87
+//line form.vuka.html:92
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
@@ -119,9 +124,9 @@ func (f Form) View() Node {
 			f.Children,
 		)
 	}
-//line form.vuka.html:86
+//line form.vuka.html:91
 	return forView2
 }
 
-//line form.vuka.html:98
+//line form.vuka.html:103
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

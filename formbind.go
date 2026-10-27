@@ -23,6 +23,7 @@ const (
 	FormIdemField   = "_vk_idem"   // the submit's idempotency key
 	FormCSRFField   = "_vk_csrf"   // the CSRF token
 	FormSeqField    = "_vk_seq"    // the runtime's sequence number of a change
+	FormIntentField = "_vk_intent" // a submit button's intent: "update" renders the form again, Save not called
 )
 
 // bind sets the form's fields from what a submit or a change sent. The form
@@ -34,7 +35,8 @@ const (
 // parse leaves the field empty and is kept as typed, its error the field's
 // until it changes.
 func (st *formState) bind(form reflect.Value, vals url.Values, rendered map[string]string) {
-	st.raw, st.parsed = nil, nil
+	st.raw, st.parsed, st.memo = nil, nil, nil
+	st.bound = rendered
 	for _, f := range st.ft.fields {
 		if f.group {
 			continue

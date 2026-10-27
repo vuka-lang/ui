@@ -53,7 +53,12 @@ type Form struct {
 	// NoSummary leaves out the error summary a struct form shows at its top
 	// after a failed submit: focus goes to the first field in error instead.
 	NoSummary bool
-	ID          string
+	// ConfirmLeave has the browser ask before the visitor leaves the page
+	// — closing it, following a link, going back — while the form has
+	// changes not saved: values differing from the ones it was loaded
+	// with (FormState.Dirty), or typed and not yet sent.
+	ConfirmLeave bool
+	ID           string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy
 	// state until the reply.
