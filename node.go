@@ -125,6 +125,9 @@ func Text(v any) Node {
 	return TextNode(toString(v))
 }
 
+// Textf is text formatted like fmt.Sprintf.
+func Textf(format string, args ...any) Node { return TextNode(fmt.Sprintf(format, args...)) }
+
 // Child is a {expr} child: a Node as is, nil as nothing, an error as its
 // message, a []Node or []any as each element in turn, anything else as Text.
 func Child(x any) Node {
