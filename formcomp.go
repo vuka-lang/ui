@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -51,8 +52,10 @@ func (f Form) forView() Node {
 			{"novalidate", true},
 			{"data-vk-form", identity},
 			{"data-vk-submit", cmpOr(f.Submit, "prevent")},
-			{"data-vk-problem", tr(ctx, "form.problem")},
 			{"onSubmit", On(ctl.submit)},
+		}
+		if configOf(ctx).BrowserChecks {
+			attrs = append(attrs, Attr{"data-vk-words", formWords(ctx)})
 		}
 		if st.gen > 0 {
 			attrs = append(attrs, Attr{"data-vk-gen", st.gen})
@@ -117,6 +120,14 @@ func (f Form) forView() Node {
 		}}}}))
 		return El("form", attrs, kids...)
 	})
+}
+
+// formWords are the words the runtime writes when it shows errors itself
+// (a submit's checks without a connection): the summary's title and the
+// errors' hidden prefix, in the visitor's language.
+func formWords(ctx context.Context) string {
+	b, _ := json.Marshal(map[string]string{"problem": tr(ctx, "form.problem"), "error": tr(ctx, "form.error")})
+	return string(b)
 }
 
 // beginRender starts the form's render: what it notes of its fields (the

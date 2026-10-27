@@ -9,9 +9,10 @@ import (
 )
 
 // Browser checks: a control carries the constraint attributes whose
-// meaning in the browser is exactly the server's, and the rules the
-// runtime can check before a submit sent without a connection, with their
-// messages — the server's words, the server still deciding.
+// meaning in the browser is exactly the server's, and, with
+// Config.BrowserChecks, the rules the runtime can check before a submit
+// sent without a connection, with their messages — the server's words,
+// the server still deciding.
 //
 // Left out, and why (vuka vet notes it on the field):
 //   - pattern, always: the browser's regular expressions aren't Go's;
@@ -49,9 +50,10 @@ func constraintAttrs(f *formField, typ string) []Attr {
 }
 
 // checkKind is how the runtime reads a field's value for its checks: "s"
-// text, "i" a whole number, "f" a number, "b" a checkbox, "l" the ticked
-// boxes of a group; "" for a value it can't read as the binder does (a
-// date, a TextUnmarshaler).
+// text, "i" a whole number, "u" one not below 0, "f" a number, "b" a
+// checkbox, "l" the ticked boxes of a group; "" for a value it can't read
+// as the binder does: a date, a TextUnmarshaler, a number of fewer bits
+// (whose range the runtime doesn't know).
 func checkKind(f *formField) string {
 	base := derefType(f.typ)
 	switch {
@@ -59,9 +61,11 @@ func checkKind(f *formField) string {
 		return ""
 	case base.Kind() == reflect.String:
 		return "s"
-	case isInt(base):
+	case base.Kind() == reflect.Int || base.Kind() == reflect.Int64:
 		return "i"
-	case isFloat(base):
+	case base.Kind() == reflect.Uint || base.Kind() == reflect.Uint64:
+		return "u"
+	case base.Kind() == reflect.Float64:
 		return "f"
 	case base.Kind() == reflect.Bool:
 		return "b"
@@ -85,7 +89,7 @@ func checkKind(f *formField) string {
 func (b boundField) checkSpec(ctx context.Context, raw bool) any {
 	f, st := b.f, b.st
 	kind := checkKind(f)
-	if kind == "" || len(f.rules) == 0 {
+	if kind == "" || len(f.rules) == 0 || !configOf(ctx).BrowserChecks {
 		return nil
 	}
 	var rules [][]any

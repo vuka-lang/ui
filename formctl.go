@@ -29,6 +29,13 @@ type Config struct {
 	// and the attribute treats whitespace as a value where the binder trims
 	// it.
 	RequiredAttr bool
+	// BrowserChecks has a struct form's controls carry the rules the
+	// browser can check exactly as the server does (required, len, min,
+	// max, email, oneof), with their messages, so a submit sent without a
+	// live connection shows its errors at once instead of after a round
+	// trip; the server still checks every submit. Off by default: the
+	// messages then ride in the page's markup.
+	BrowserChecks bool
 	// Messages is the app's message catalogue: its own wording of the
 	// default messages, its message keys' texts, its labels' translations
 	// (forms.Messages, forms.Translations). A request's own catalogue

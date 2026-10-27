@@ -356,7 +356,7 @@ func TestTranslations(t *testing.T) {
 		"validate.max.string": "{Label} isizidi herufi {n}",
 		"validate.min.number": "{Label} iwe {n} au zaidi",
 	}}
-	ui.Configure(ui.Config{Messages: sw})
+	ui.Configure(ui.Config{Messages: sw, BrowserChecks: true})
 	defer ui.Configure(ui.Config{})
 	type swForm struct {
 		ui.FormState
@@ -369,7 +369,7 @@ func TestTranslations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{">Jina kamili</label>", ">Tutakutumia kiungo</div>", "Bio<span class=\"vk-field__marker\"> (si lazima)</span>", `data-vk-problem="Kuna tatizo"`, "Weka jina kamili"} {
+	for _, want := range []string{">Jina kamili</label>", ">Tutakutumia kiungo</div>", "Bio<span class=\"vk-field__marker\"> (si lazima)</span>", `data-vk-words="{&#34;error&#34;:&#34;Kosa:&#34;,&#34;problem&#34;:&#34;Kuna tatizo&#34;}"`, "Weka jina kamili"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("missing %s in\n%s", want, html)
 		}
@@ -411,6 +411,11 @@ func TestConstraintAttrs(t *testing.T) {
 	if !strings.Contains(qty, `type="number"`) || !strings.Contains(qty, `min="1" max="9"`) {
 		t.Errorf("a number input's bounds: %s", qty)
 	}
+	if strings.Contains(html, "data-vk-check") {
+		t.Errorf("browser checks without Config.BrowserChecks")
+	}
+	checked, _ := ui.String(ui.WithConfig(context.Background(), ui.Config{BrowserChecks: true}), ui.Form{For: ui.For(&shapes{})})
+	pin = regexp.MustCompile(`<input[^>]*name="pin"[^>]*>`).FindString(checked)
 	if !strings.Contains(pin, `data-vk-check="{&#34;d&#34;:1,&#34;k&#34;:&#34;s&#34;,&#34;r&#34;:[[&#34;required&#34;,null,&#34;Enter pin&#34;,&#34;validate.required&#34;],[&#34;len&#34;,4,&#34;Pin must be 4 characters&#34;,&#34;validate.len.string&#34;]],&#34;t&#34;:1}"`) {
 		t.Errorf("the browser's checks: %s", pin)
 	}
