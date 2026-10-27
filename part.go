@@ -310,8 +310,8 @@ const DefaultPartLimit = 8
 // at: the page before it, its parts after).
 const PartsScript = `<script data-vk-parts>window.__vkP=function(i){var t=document.querySelector('template[data-vk-part="'+i+'"]');if(!t)return;var w=document.createTreeWalker(document,128),s=null,n,x;while(n=w.nextNode())if(n.data==="vk-part:"+i){s=n;break}if(s){var p=s.parentNode;for(n=s.nextSibling;n&&!(n.nodeType===8&&n.data==="/vk-part:"+i);n=x){x=n.nextSibling;p.removeChild(n)}p.insertBefore(t.content,s);p.removeChild(s);if(n)p.removeChild(n)}t.parentNode.removeChild(t);document.dispatchEvent(new CustomEvent("vk:part",{detail:{id:i}}))}</script>`
 
-// Stream runs the page's deferred methods, Limit at once, and writes each
-// part to w as its method returns — those of a group (Defer("stats"))
+// Stream writes PartsScript and flushes, then runs the page's deferred
+// methods, Limit at once, and writes each part to w as its method returns — those of a group (Defer("stats"))
 // together — flushing after each: a <template data-vk-part> holding its
 // markup and the call of the script moving it into place. A part whose
 // markup meets another part's method running gets that part's slot, filled
@@ -371,6 +371,13 @@ func (p *Parts) Stream(ctx context.Context, w io.Writer, flush func() error, o S
 	p.mu.Unlock()
 	if _, err := io.WriteString(w, PartsScript); err != nil {
 		return err
+	}
+	if flush != nil {
+		// The page so far and the script: a navigation reading the reply
+		// shows the page once it has the script.
+		if err := flush(); err != nil {
+			return err
+		}
 	}
 	for _, c := range waiting {
 		p.start(c)

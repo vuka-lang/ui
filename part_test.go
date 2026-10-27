@@ -99,11 +99,18 @@ func TestPartStream(t *testing.T) {
 		t.Fatalf("the shell called the method (%d) or has no parts", p.calls.Load())
 	}
 	var out bytes.Buffer
-	flushes := 0
+	var flushed []string
 	done := make(chan error)
+	first := make(chan struct{})
 	go func() {
-		done <- ps.Stream(context.Background(), &out, func() error { flushes++; return nil }, ui.StreamOptions{})
+		done <- ps.Stream(context.Background(), &out, func() error {
+			if flushed = append(flushed, out.String()); len(flushed) == 1 {
+				close(first)
+			}
+			return nil
+		}, ui.StreamOptions{})
 	}()
+	<-first // the script is sent before the method returns
 	close(p.wait)
 	if err := <-done; err != nil {
 		t.Fatal(err)
@@ -119,8 +126,8 @@ func TestPartStream(t *testing.T) {
 	if want := `<template data-vk-part="vk-p1"><p>7 open</p></template><script>__vkP("vk-p1")</script><template data-vk-part="vk-p2"><b>7</b></template><script>__vkP("vk-p2")</script>`; s != want {
 		t.Errorf("parts: got %s, want %s", s, want)
 	}
-	if flushes != 1 {
-		t.Errorf("%d flushes, want 1", flushes)
+	if len(flushed) != 2 || flushed[0] != ui.PartsScript {
+		t.Errorf("flushed %q, want the script, then the parts", flushed)
 	}
 }
 
@@ -170,8 +177,8 @@ func TestPartGroupAndNesting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(writes) != 1 {
-		t.Errorf("a group's parts came in %d flushes, want 1: %q", len(writes), writes)
+	if len(writes) != 2 {
+		t.Errorf("a group's parts came in %d flushes after the script's, want 1: %q", len(writes)-1, writes)
 	}
 	s := strings.TrimPrefix(out.String(), ui.PartsScript)
 	if want := `<template data-vk-part="vk-p1"><div>ab</div></template><script>__vkP("vk-p1")</script><template data-vk-part="vk-p2"><i>b</i></template><script>__vkP("vk-p2")</script>`; s != want {
