@@ -7,9 +7,12 @@ type LinkProps struct {
 	// stays mounted when the server says so (an Update taking the URL),
 	// else mounts again.
 	Patch bool
-	ID    string
-	Class string
-	Title string
+	// Reload leaves the link to the browser: it loads the page as a new
+	// document, never moving the page in place (data-vk-reload).
+	Reload bool
+	ID     string
+	Class  string
+	Title  string
 	// Target and Rel as an a element's: a link with a target other than
 	// _self is left to the browser.
 	Target string
@@ -64,24 +67,30 @@ const (
 	PrefetchViewport LinkPrefetch = "viewport"
 )
 
-// Link is a link a live page follows over its connection:
+// Link is a link the runtime follows in place: a live page over its
+// connection, any other page over HTTP, the new page patched into the
+// document (web's navigation):
 //
 //	<ui.Link href="/books/7">Dune</ui.Link>            another page: its components mount
 //	<ui.Link href="/books?page=2" patch>Next</ui.Link>  this page, other parameters
 //	<ui.Link href="/books" active="prefix" activeClass="on">Books</ui.Link>  current while under /books
+//	<ui.Link href="/report" reload>Report</ui.Link>     always a page load
 //
 // It renders an a element with href, marked data-vk-link (data-vk-link="patch"
-// with Patch), so it is an ordinary link wherever the runtime doesn't take
-// it: without JavaScript, on a page that isn't connected, opened in a new
-// tab or with a modifier key, or to another origin. Href is sanitized as an
-// a element's (templ.URL), and the runtime follows only paths and http and
-// https URLs.
+// with Patch, data-vk-reload with Reload), so it is an ordinary link wherever
+// the runtime doesn't take it: without JavaScript, on a live page that isn't
+// connected, opened in a new tab or with a modifier key, or to another
+// origin. Href is sanitized as an a element's (templ.URL), and the runtime
+// follows only paths and http and https URLs.
 func Link(p LinkProps) Node {
 	mark := any(true)
 	if p.Patch {
 		mark = "patch"
 	}
 	attrs := []Attr{{"href", p.Href}, {"data-vk-link", mark}}
+	if p.Reload {
+		attrs = append(attrs, Attr{"data-vk-reload", true})
+	}
 	for _, a := range [...]Attr{{"id", p.ID}, {"class", p.Class}, {"title", p.Title}, {"target", p.Target}, {"rel", p.Rel},
 		{"data-vk-active", string(p.Active)}, {"data-vk-active-class", string(p.ActiveClass)}, {"data-vk-prefetch", string(p.Prefetch)}} {
 		if a.Value != "" {
