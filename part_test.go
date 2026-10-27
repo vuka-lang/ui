@@ -51,10 +51,10 @@ func init() {
 func (p *partPage) View() ui.Node {
 	return ui.Group{
 		ui.El("h1", nil, ui.Text("Title")),
-		ui.Part(p.Stats, ui.PartFallback{Pending: ui.Text("…"), Error: ui.Text("no stats")}, func(n int) ui.Node {
+		ui.Part(p, (*partPage).Stats, ui.PartFallback{Pending: ui.Text("…"), Error: ui.Text("no stats")}, func(n int) ui.Node {
 			return ui.El("p", nil, ui.Textf("%d open", n))
 		}),
-		ui.Part(p.Stats, nil, func(n int) ui.Node { return ui.El("b", nil, ui.Text(n)) }),
+		ui.Part(p, (*partPage).Stats, nil, func(n int) ui.Node { return ui.El("b", nil, ui.Text(n)) }),
 	}
 }
 
@@ -79,8 +79,8 @@ func TestPartInPlace(t *testing.T) {
 		t.Errorf("failing: got %s, want %s", got, want)
 	}
 	// a method without a timing attribute runs in place even where parts stream
-	ctx, ps := ui.WithParts(context.Background())
-	got = renderIn(t, ctx, ui.Part(p.Now, nil, func(s string) ui.Node { return ui.Text(s) }))
+	ctx, ps := ui.WithParts(context.Background(), ui.PartsOptions{})
+	got = renderIn(t, ctx, ui.Part(p, (*partPage).Now, nil, func(s string) ui.Node { return ui.Text(s) }))
 	if got != "now" || ps.Pending() {
 		t.Errorf("an undeferred part: %q, pending %v", got, ps.Pending())
 	}
@@ -90,25 +90,25 @@ var slotRE = regexp.MustCompile(`<!--vk-part:(vk-p\d+)-->(.*?)<!--/vk-part:vk-p\
 
 func TestPartStream(t *testing.T) {
 	p := &partPage{wait: make(chan struct{})}
-	ctx, ps := ui.WithParts(context.Background())
+	ctx, ps := ui.WithParts(context.Background(), ui.PartsOptions{})
 	shell := renderIn(t, ctx, p.View())
 	if want := `<h1>Title</h1><!--vk-part:vk-p1-->…<!--/vk-part:vk-p1--><!--vk-part:vk-p2--><span aria-busy="true"></span><!--/vk-part:vk-p2-->`; shell != want {
 		t.Fatalf("shell: got %s, want %s", shell, want)
 	}
-	if p.calls.Load() != 0 || !ps.Pending() {
-		t.Fatalf("the shell called the method (%d) or has no parts", p.calls.Load())
+	if !ps.Pending() {
+		t.Fatal("the shell has no parts")
 	}
 	var out bytes.Buffer
 	var flushed []string
 	done := make(chan error)
 	first := make(chan struct{})
 	go func() {
-		done <- ps.Stream(context.Background(), &out, func() error {
+		done <- ps.Stream(&out, func() error {
 			if flushed = append(flushed, out.String()); len(flushed) == 1 {
 				close(first)
 			}
 			return nil
-		}, ui.StreamOptions{})
+		})
 	}()
 	<-first // the script is sent before the method returns
 	close(p.wait)
@@ -133,11 +133,8 @@ func TestPartStream(t *testing.T) {
 
 func TestPartStreamError(t *testing.T) {
 	p := &partPage{fail: true}
-	ctx, ps := ui.WithParts(context.Background())
-	renderIn(t, ctx, p.View())
-	var out bytes.Buffer
 	var failed []string
-	err := ps.Stream(context.Background(), &out, nil, ui.StreamOptions{
+	ctx, ps := ui.WithParts(context.Background(), ui.PartsOptions{
 		ErrorText: func(err error) string { return "down: " + err.Error() },
 		Written: func(name string, err error) {
 			if err != nil {
@@ -145,6 +142,9 @@ func TestPartStreamError(t *testing.T) {
 			}
 		},
 	})
+	renderIn(t, ctx, p.View())
+	var out bytes.Buffer
+	err := ps.Stream(&out, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,21 +159,21 @@ func TestPartStreamError(t *testing.T) {
 
 func TestPartGroupAndNesting(t *testing.T) {
 	p := &partPage{}
-	ctx, ps := ui.WithParts(context.Background())
+	ctx, ps := ui.WithParts(context.Background(), ui.PartsOptions{})
 	page := ui.Group{
-		ui.Part(p.A, nil, func(a string) ui.Node {
+		ui.Part(p, (*partPage).A, nil, func(a string) ui.Node {
 			// a part inside a part: B's, of A's group, arrives with it
-			return ui.El("div", nil, ui.Text(a), ui.Part(p.B, nil, func(b string) ui.Node { return ui.Text(b) }))
+			return ui.El("div", nil, ui.Text(a), ui.Part(p, (*partPage).B, nil, func(b string) ui.Node { return ui.Text(b) }))
 		}),
-		ui.Part(p.B, nil, func(b string) ui.Node { return ui.El("i", nil, ui.Text(b)) }),
+		ui.Part(p, (*partPage).B, nil, func(b string) ui.Node { return ui.El("i", nil, ui.Text(b)) }),
 	}
 	renderIn(t, ctx, page)
 	var out bytes.Buffer
 	var writes []string
-	err := ps.Stream(context.Background(), &out, func() error {
+	err := ps.Stream(&out, func() error {
 		writes = append(writes, out.String())
 		return nil
-	}, ui.StreamOptions{})
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,10 +188,10 @@ func TestPartGroupAndNesting(t *testing.T) {
 
 func TestPartPerValue(t *testing.T) {
 	a, b := &partPage{}, &partPage{}
-	ctx, ps := ui.WithParts(context.Background())
+	ctx, ps := ui.WithParts(context.Background(), ui.PartsOptions{})
 	show := func(n int) ui.Node { return ui.Text(n) }
-	renderIn(t, ctx, ui.Group{ui.Part(a.Stats, nil, show), ui.Part(b.Stats, nil, show), ui.Part(a.Stats, nil, show)})
-	if err := ps.Stream(context.Background(), &bytes.Buffer{}, nil, ui.StreamOptions{}); err != nil {
+	renderIn(t, ctx, ui.Group{ui.Part(a, (*partPage).Stats, nil, show), ui.Part(b, (*partPage).Stats, nil, show), ui.Part(a, (*partPage).Stats, nil, show)})
+	if err := ps.Stream(&bytes.Buffer{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if a.calls.Load() != 1 || b.calls.Load() != 1 {
@@ -201,11 +201,11 @@ func TestPartPerValue(t *testing.T) {
 
 func TestPartStreamCanceled(t *testing.T) {
 	p := &partPage{wait: make(chan struct{})}
-	ctx, ps := ui.WithParts(context.Background())
+	rctx, cancel := context.WithCancel(context.Background())
+	ctx, ps := ui.WithParts(rctx, ui.PartsOptions{})
 	renderIn(t, ctx, p.View())
-	sctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error)
-	go func() { done <- ps.Stream(sctx, &bytes.Buffer{}, nil, ui.StreamOptions{}) }()
+	go func() { done <- ps.Stream(&bytes.Buffer{}, nil) }()
 	time.Sleep(10 * time.Millisecond)
 	cancel()
 	select {
@@ -215,5 +215,57 @@ func TestPartStreamCanceled(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("Stream didn't return when its context was canceled")
+	}
+}
+
+// A method starts as the render meets its part, before the stream.
+func TestPartStartsAtOnce(t *testing.T) {
+	p := &partPage{wait: make(chan struct{})}
+	ctx, ps := ui.WithParts(context.Background(), ui.PartsOptions{})
+	renderIn(t, ctx, p.View())
+	for i := 0; i < 500 && p.calls.Load() == 0; i++ {
+		time.Sleep(time.Millisecond)
+	}
+	if p.calls.Load() != 1 {
+		t.Fatalf("Stats called %d times before the stream, want 1", p.calls.Load())
+	}
+	close(p.wait)
+	if err := ps.Stream(&bytes.Buffer{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	pending := &partPage{}
+	ctx, ps = ui.WithParts(context.Background(), ui.PartsOptions{Pending: true})
+	renderIn(t, ctx, pending.View())
+	time.Sleep(20 * time.Millisecond)
+	if pending.calls.Load() != 0 || !ps.Pending() {
+		t.Errorf("Pending: %d calls", pending.calls.Load())
+	}
+	ps.Stop()
+}
+
+// valuePage has a method of a value receiver: equal values share a call.
+type valuePage struct{ id int }
+
+var valueCalls atomic.Int32
+
+func (v valuePage) Count(ctx context.Context) (int, error) { valueCalls.Add(1); return v.id, nil }
+
+func init() { vuka.RegisterFunc(valuePage.Count, ui.Defer("")) }
+
+func TestPartValueReceiver(t *testing.T) {
+	valueCalls.Store(0)
+	ctx, ps := ui.WithParts(context.Background(), ui.PartsOptions{})
+	show := func(n int) ui.Node { return ui.Text(n) }
+	a, b := valuePage{1}, valuePage{2}
+	renderIn(t, ctx, ui.Group{ui.Part(a, valuePage.Count, nil, show), ui.Part(b, valuePage.Count, nil, show), ui.Part(a, valuePage.Count, nil, show)})
+	var out bytes.Buffer
+	if err := ps.Stream(&out, nil); err != nil {
+		t.Fatal(err)
+	}
+	if valueCalls.Load() != 2 {
+		t.Errorf("Count called %d times, want once per value", valueCalls.Load())
+	}
+	if s := strings.TrimPrefix(out.String(), ui.PartsScript); !strings.Contains(s, `"vk-p1">1<`) || !strings.Contains(s, `"vk-p2">2<`) || !strings.Contains(s, `"vk-p3">1<`) {
+		t.Errorf("parts: %s", s)
 	}
 }

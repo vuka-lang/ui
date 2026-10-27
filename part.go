@@ -13,7 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"unsafe"
 
 	"github.com/vuka-lang/vuka/v2"
 	"github.com/vuka-lang/vuka/v2/diag"
@@ -32,32 +31,42 @@ import (
 //
 // is, in the generated Go,
 //
-//	ui.Part(p.Stats, ui.HTML(`<span class="skeleton"></span>`), func(stats Stats) ui.Node {
+//	ui.Part(p, (*Index).Stats, ui.HTML(`<span class="skeleton"></span>`), func(stats Stats) ui.Node {
 //		return ui.HTML(`<p>{stats.Open} open</p>`, stats.Open)
 //	})
 //
 // Part is what markup written in Go calls too. A page rendered for a
 // request web streams (WithParts) gets the fallback in the part's place,
-// then each part as its method returns; anywhere else — a live page, a
+// its method starting as the render meets the part, then each part as its
+// method returns; anywhere else — a live page, a
 // fragment, a test rendering a Node — the method runs as the part renders,
 // in place.
 
 // Part is the part of a page or component that method m's result renders:
-// render's markup once m returns, fallback until then. m is a method of the
-// page or component, as a method value (p.Stats), returning (V, error); its
-// attributes say when it runs (Defer). A part whose method fails renders the
-// fallback's Error (PartFallback), else a short message with role="alert";
-// the rest of the page is unaffected. A nil fallback is an empty <span
-// aria-busy="true">.
+// render's markup once m returns, fallback until then. m is a method
+// expression of the page's or component's type, (*Index).Stats or
+// Index.Stats, returning (V, error), and recv the value it is called on;
+// its attributes say when it runs (Defer). A part whose method fails renders
+// the fallback's Error (PartFallback), else a short message with
+// role="alert"; the rest of the page is unaffected. A nil fallback is an
+// empty <span aria-busy="true">.
 //
-// One request calls a method once, however many parts name it: parts of the
-// same method of the same value (a pointer receiver) share its result.
-func Part[V any](m func(context.Context) (V, error), fallback Node, render func(V) Node) Node {
+// One request calls a method once on a receiver, however many parts name
+// it: parts of the same method of the same pointer (or of equal values)
+// share its result.
+func Part[R, V any](recv R, m func(R, context.Context) (V, error), fallback Node, render func(V) Node) Node {
 	if m == nil || render == nil {
 		panic("ui: Part needs a method and a render function")
 	}
-	key, method := partKeyOf(unsafe.Pointer(&m), m)
-	run := func(ctx context.Context) (any, error) { return m(ctx) }
+	pc := reflect.ValueOf(m).Pointer()
+	method := partMethodOf(pc, m)
+	key := partKey{pc: pc}
+	if v := reflect.ValueOf(&recv).Elem(); v.Comparable() {
+		key.recv = v.Interface()
+	} else {
+		key.recv = new(byte) // shared with no other part
+	}
+	run := func(ctx context.Context) (any, error) { return m(recv, ctx) }
 	show := func(v any) Node { return render(v.(V)) }
 	return ctxNode(func(ctx context.Context) Node {
 		return resolvePart(ctx, key, method, run, fallback, show)
@@ -76,37 +85,17 @@ func (f PartFallback) Render(ctx context.Context, w io.Writer) error {
 	return f.Pending.Render(ctx, w)
 }
 
-// partKey names a method of a value: its code, and the receiver of a method
-// value of a pointer receiver.
+// partKey names a method called on a receiver: its code, and the receiver.
 type partKey struct {
 	pc   uintptr
-	recv unsafe.Pointer
-	own  unsafe.Pointer // a func value that isn't a pointer's method value: itself, shared with no other
+	recv any
 }
 
-// partKeyOf is the key of the func value ptr points to, fn, and what Part
-// knows of it. A method value of a pointer receiver is a closure whose word
-// after its code is the receiver, as the gc compiler makes it (cmd/compile's
-// method value wrappers, -fm).
-func partKeyOf(ptr unsafe.Pointer, fn any) (partKey, partMethod) {
-	clo := *(*unsafe.Pointer)(ptr)
-	pc := *(*uintptr)(clo)
-	k, m := partKey{pc: pc}, partMethodOf(pc, fn)
-	if m.ptrMethod {
-		k.recv = *(*unsafe.Pointer)(unsafe.Add(clo, unsafe.Sizeof(uintptr(0))))
-	} else {
-		k.own = clo
-	}
-	return k, m
-}
-
-// partMethod is what Part knows of a method from its code: its name, and
-// when it runs.
+// partMethod is what Part knows of a method: its name, and when it runs.
 type partMethod struct {
-	name      string // "Index.Stats"
-	ptrMethod bool   // a method value of a pointer receiver
-	deferred  bool   // @ui.Defer
-	group     string // its Defer's group: "" for its own
+	name     string // "Index.Stats"
+	deferred bool   // @ui.Defer
+	group    string // its Defer's group: "" for its own
 }
 
 var partMethods sync.Map // pc → partMethod
@@ -119,9 +108,7 @@ func partMethodOf(pc uintptr, fn any) partMethod {
 	}
 	var m partMethod
 	if f := runtime.FuncForPC(pc); f != nil {
-		full := f.Name()
-		m.ptrMethod = strings.HasSuffix(full, "-fm") && strings.Contains(full, ".(*")
-		m.name = shortFuncName(full)
+		m.name = shortFuncName(f.Name())
 	}
 	var d Defer
 	if ref, err := vuka.FuncOf(fn); err == nil && ref.Attrs.Attr(&d) {
@@ -132,7 +119,7 @@ func partMethodOf(pc uintptr, fn any) partMethod {
 }
 
 // shortFuncName is a method's name as messages give it: "Index.Stats" for
-// "example.com/app/pages.(*Index).Stats-fm".
+// "example.com/app/pages.(*Index).Stats".
 func shortFuncName(s string) string {
 	s = strings.TrimSuffix(s, "-fm")
 	if i := strings.LastIndexByte(s, '/'); i >= 0 {
@@ -162,7 +149,7 @@ func resolvePart(ctx context.Context, key partKey, m partMethod, run func(contex
 	}
 	c, slot := ps.slot(ctx, key, m, run, show, failed)
 	if slot == nil {
-		return partContent(c.v, c.err, show, failed, ps.errText)
+		return partContent(c.v, c.err, show, failed, ps.o.ErrorText)
 	}
 	if pending == nil {
 		pending = RawHTML(`<span aria-busy="true"></span>`)
@@ -202,24 +189,28 @@ func partError(err error, failed Node, text func(error) string) Node {
 
 // Parts are the deferred parts of a page rendered for one request: what
 // WithParts puts in its context. The page renders with each part's fallback
-// in a slot; Stream then runs their methods and writes each part as it
-// arrives.
+// in a slot, each method starting as the render meets its first part;
+// Stream then writes each part as it arrives.
 type Parts struct {
-	mu      sync.Mutex
-	calls   map[partKey]*partCall
-	order   []*partCall // in the order the page met them
-	slots   []*partSlot // not written yet
-	n       int         // slots so far, naming them
-	running bool        // Stream has started: a call met now starts at once
-	start   func(*partCall)
-	errText func(error) string
+	o      PartsOptions
+	ctx    context.Context // the methods': canceled by Stop
+	cancel context.CancelFunc
+	sem    chan struct{}
+	wake   chan struct{}
+
+	mu        sync.Mutex
+	calls     map[partKey]*partCall
+	order     []*partCall // in the order the page met them
+	slots     []*partSlot // not written yet
+	n         int         // slots so far, naming them
+	streaming bool        // Stream has started: a part of a method returned renders in place
 }
 
 type partCall struct {
 	m     partMethod
 	ctx   context.Context
 	run   func(context.Context) (any, error)
-	state int // 0 waiting, 1 running, 2 done
+	done  bool
 	v     any
 	err   error
 	slots []*partSlot
@@ -235,61 +226,13 @@ type partSlot struct {
 
 type partsKey struct{}
 
-// WithParts is ctx for rendering a page whose deferred parts stream: a part
-// renders its fallback, its method run by Stream.
-func WithParts(ctx context.Context) (context.Context, *Parts) {
-	p := &Parts{calls: map[partKey]*partCall{}}
-	return context.WithValue(ctx, partsKey{}, p), p
-}
-
-func partsOf(ctx context.Context) *Parts {
-	p, _ := ctx.Value(partsKey{}).(*Parts)
-	return p
-}
-
-// slot is the call of the method key names and, while it runs, a new slot
-// for its part; nil when it has returned.
-func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(context.Context) (any, error), show func(any) Node, failed Node) (*partCall, *partSlot) {
-	p.mu.Lock()
-	c := p.calls[key]
-	if c == nil {
-		c = &partCall{m: m, ctx: ctx, run: run}
-		p.calls[key] = c
-		p.order = append(p.order, c)
-	}
-	if c.state == 2 {
-		p.mu.Unlock()
-		return c, nil
-	}
-	p.n++
-	s := &partSlot{id: "vk-p" + strconv.Itoa(p.n), ctx: ctx, call: c, show: show, failed: failed}
-	c.slots = append(c.slots, s)
-	p.slots = append(p.slots, s)
-	start := p.running && c.state == 0
-	if start {
-		c.state = 1
-	}
-	p.mu.Unlock()
-	if start {
-		p.start(c)
-	}
-	return c, s
-}
-
-// Pending reports whether the page has parts to stream.
-func (p *Parts) Pending() bool {
-	if p == nil {
-		return false
-	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return len(p.slots) > 0
-}
-
-// StreamOptions are how Stream runs a page's parts.
-type StreamOptions struct {
+// PartsOptions are how a page's deferred methods run.
+type PartsOptions struct {
 	// Limit is how many methods run at once: DefaultPartLimit when zero.
 	Limit int
+	// Pending leaves the methods unrun: the page shows its fallbacks only
+	// (a HEAD request, a test of the page's first paint).
+	Pending bool
 	// Observe, if set, is called as each method starts, with its context
 	// and name ("Index.Stats"); the context it returns is the one the
 	// method gets, and done is called when it returns.
@@ -305,69 +248,121 @@ type StreamOptions struct {
 // DefaultPartLimit is how many of a page's deferred methods run at once.
 const DefaultPartLimit = 8
 
+// WithParts is ctx for rendering a page whose deferred parts stream: a part
+// renders its fallback, its method starting at once (o.Limit at a time),
+// in a context canceled when ctx is or Stop is called. Stream writes the
+// parts.
+func WithParts(ctx context.Context, o PartsOptions) (context.Context, *Parts) {
+	if o.Limit <= 0 {
+		o.Limit = DefaultPartLimit
+	}
+	p := &Parts{o: o, calls: map[partKey]*partCall{}, sem: make(chan struct{}, o.Limit), wake: make(chan struct{}, 1)}
+	p.ctx, p.cancel = context.WithCancel(ctx)
+	return context.WithValue(ctx, partsKey{}, p), p
+}
+
+func partsOf(ctx context.Context) *Parts {
+	p, _ := ctx.Value(partsKey{}).(*Parts)
+	return p
+}
+
+// Stop cancels the methods still running: for a page whose parts won't be
+// written (rendered again by a live session, failed), or written already.
+func (p *Parts) Stop() {
+	if p != nil {
+		p.cancel()
+	}
+}
+
+// slot is the call of the method key names and, while it runs, a new slot
+// for its part; nil when it has returned and the stream has started (in
+// the page the stream follows, every part has a slot).
+func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(context.Context) (any, error), show func(any) Node, failed Node) (*partCall, *partSlot) {
+	p.mu.Lock()
+	c := p.calls[key]
+	start := c == nil && !p.o.Pending
+	if c == nil {
+		c = &partCall{m: m, ctx: ctx, run: run}
+		p.calls[key] = c
+		p.order = append(p.order, c)
+	}
+	if c.done && p.streaming {
+		p.mu.Unlock()
+		return c, nil
+	}
+	p.n++
+	s := &partSlot{id: "vk-p" + strconv.Itoa(p.n), ctx: ctx, call: c, show: show, failed: failed}
+	c.slots = append(c.slots, s)
+	p.slots = append(p.slots, s)
+	p.mu.Unlock()
+	if start {
+		p.start(c)
+	}
+	return c, s
+}
+
+// start runs c's method on a goroutine of its own, when one of Limit is
+// free.
+func (p *Parts) start(c *partCall) {
+	go func() {
+		var v any
+		var err error
+		select {
+		case p.sem <- struct{}{}:
+			cctx, stop := context.WithCancel(c.ctx)
+			unhook := context.AfterFunc(p.ctx, stop)
+			end := func(error) {}
+			if p.o.Observe != nil {
+				cctx, end = p.o.Observe(cctx, c.m.name)
+			}
+			v, err = callPart(cctx, c.run)
+			end(err)
+			unhook()
+			stop()
+			<-p.sem
+		case <-p.ctx.Done():
+			err = p.ctx.Err()
+		}
+		p.mu.Lock()
+		c.v, c.err, c.done = v, err, true
+		p.mu.Unlock()
+		select {
+		case p.wake <- struct{}{}:
+		default:
+		}
+	}()
+}
+
+// Pending reports whether the page has parts to stream.
+func (p *Parts) Pending() bool {
+	if p == nil {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.slots) > 0
+}
+
 // PartsScript is the script the stream starts with: what moves each part
 // into its place as it arrives (and the mark a navigation's reply is cut
 // at: the page before it, its parts after).
 const PartsScript = `<script data-vk-parts>window.__vkP=function(i){var t=document.querySelector('template[data-vk-part="'+i+'"]');if(!t)return;var w=document.createTreeWalker(document,128),s=null,n,x;while(n=w.nextNode())if(n.data==="vk-part:"+i){s=n;break}if(s){var p=s.parentNode;for(n=s.nextSibling;n&&!(n.nodeType===8&&n.data==="/vk-part:"+i);n=x){x=n.nextSibling;p.removeChild(n)}p.insertBefore(t.content,s);p.removeChild(s);if(n)p.removeChild(n)}t.parentNode.removeChild(t);document.dispatchEvent(new CustomEvent("vk:part",{detail:{id:i}}))}</script>`
 
-// Stream writes PartsScript and flushes, then runs the page's deferred
-// methods, Limit at once, and writes each part to w as its method returns — those of a group (Defer("stats"))
-// together — flushing after each: a <template data-vk-part> holding its
-// markup and the call of the script moving it into place. A part whose
-// markup meets another part's method running gets that part's slot, filled
-// later in the stream. It returns when every part is written, or ctx (the
-// request's) is done, its methods' contexts canceled.
-func (p *Parts) Stream(ctx context.Context, w io.Writer, flush func() error, o StreamOptions) error {
+// Stream writes PartsScript and flushes, then each part to w once its
+// method has returned — those of a group (Defer("stats")) together, in the
+// order the page met them — flushing after each batch: a <template
+// data-vk-part> holding its markup and the call of the script moving it
+// into place. A part whose markup meets another part's method running gets
+// that part's slot, filled later in the stream. It returns when every part
+// is written, or the request's context is done; then it stops the methods
+// still running.
+func (p *Parts) Stream(w io.Writer, flush func() error) error {
+	defer p.Stop()
 	if !p.Pending() {
 		return nil
 	}
-	limit := o.Limit
-	if limit <= 0 {
-		limit = DefaultPartLimit
-	}
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	sem := make(chan struct{}, limit)
-	wake := make(chan struct{}, 1)
 	p.mu.Lock()
-	p.errText = o.ErrorText
-	p.start = func(c *partCall) {
-		go func() {
-			var err error
-			var v any
-			select {
-			case sem <- struct{}{}:
-				cctx, stop := context.WithCancel(c.ctx)
-				unhook := context.AfterFunc(ctx, stop)
-				end := func(error) {}
-				if o.Observe != nil {
-					cctx, end = o.Observe(cctx, c.m.name)
-				}
-				v, err = callPart(cctx, c.run)
-				end(err)
-				unhook()
-				stop()
-				<-sem
-			case <-ctx.Done():
-				err = ctx.Err()
-			}
-			p.mu.Lock()
-			c.v, c.err, c.state = v, err, 2
-			p.mu.Unlock()
-			select {
-			case wake <- struct{}{}:
-			default:
-			}
-		}()
-	}
-	p.running = true
-	var waiting []*partCall
-	for _, c := range p.order {
-		if c.state == 0 {
-			c.state = 1
-			waiting = append(waiting, c)
-		}
-	}
+	p.streaming = true
 	p.mu.Unlock()
 	if _, err := io.WriteString(w, PartsScript); err != nil {
 		return err
@@ -379,22 +374,8 @@ func (p *Parts) Stream(ctx context.Context, w io.Writer, flush func() error, o S
 			return err
 		}
 	}
-	for _, c := range waiting {
-		p.start(c)
-	}
 	for {
-		p.mu.Lock()
-		left := len(p.slots)
-		p.mu.Unlock()
-		if left == 0 {
-			return nil
-		}
-		select {
-		case <-wake:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-		wrote, err := p.writeReady(w, o)
+		wrote, err := p.writeReady(w)
 		if err != nil {
 			return err
 		}
@@ -403,27 +384,32 @@ func (p *Parts) Stream(ctx context.Context, w io.Writer, flush func() error, o S
 				return err
 			}
 		}
-		if err := ctx.Err(); err != nil {
-			return err
+		if !p.Pending() {
+			return nil
+		}
+		select {
+		case <-p.wake:
+		case <-p.ctx.Done():
+			return p.ctx.Err()
 		}
 	}
 }
 
 // writeReady writes the slots whose groups have all returned.
-func (p *Parts) writeReady(w io.Writer, o StreamOptions) (bool, error) {
+func (p *Parts) writeReady(w io.Writer) (bool, error) {
 	wrote := false
 	for {
 		p.mu.Lock()
 		var ready []*partSlot
 		groups := map[string]bool{} // groups with a call still running
 		for _, c := range p.order {
-			if c.state != 2 && c.m.group != "" {
+			if !c.done && c.m.group != "" {
 				groups[c.m.group] = true
 			}
 		}
 		rest := p.slots[:0]
 		for _, s := range p.slots {
-			if c := s.call; c.state == 2 && (c.m.group == "" || !groups[c.m.group]) {
+			if c := s.call; c.done && (c.m.group == "" || !groups[c.m.group]) {
 				ready = append(ready, s)
 			} else {
 				rest = append(rest, s)
@@ -436,9 +422,9 @@ func (p *Parts) writeReady(w io.Writer, o StreamOptions) (bool, error) {
 		}
 		var buf bytes.Buffer
 		for _, s := range ready {
-			html, err := s.render(p.errText)
-			if o.Written != nil {
-				o.Written(s.call.m.name, err)
+			html, err := s.render(p.o.ErrorText)
+			if p.o.Written != nil {
+				p.o.Written(s.call.m.name, err)
 			}
 			buf.WriteString(`<template data-vk-part="` + s.id + `">`)
 			buf.Write(html)
