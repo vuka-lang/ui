@@ -93,10 +93,12 @@ type partKey struct {
 
 // partMethod is what Part knows of a method: its name, and when it runs.
 type partMethod struct {
-	name     string // "Index.Stats"
-	deferred bool   // @ui.Defer
-	group    string // its Defer's group: "" for its own
-	boundary bool   // a <ui.Suspense>: its body is the part (suspense.go)
+	name        string // "Index.Stats"
+	deferred    bool   // @ui.Defer
+	group       string // its Defer's group: "" for its own
+	independent bool
+	async       bool
+	boundary    bool // a <ui.Suspense>: its body is the part (suspense.go)
 }
 
 var partMethods sync.Map // pc → partMethod
@@ -141,7 +143,7 @@ func resolvePart(ctx context.Context, key partKey, m partMethod, run func(contex
 		pending, failed = f.Pending, f.Error
 	}
 	ps := partsOf(ctx)
-	if ps != nil && m.deferred && !m.boundary && boundaryOf(ctx) != nil {
+	if ps != nil && m.deferred && !m.boundary && !m.independent && boundaryOf(ctx) != nil {
 		// Inside a boundary, which streams: the part is its.
 		cctx, end := ctx, func(error) {}
 		if ps.o.Observe != nil {
@@ -323,6 +325,17 @@ func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(co
 // free.
 func (p *Parts) start(c *partCall) {
 	go func() {
+		if c.m.async {
+			v, err := callPart(c.ctx, c.run)
+			p.mu.Lock()
+			c.v, c.err, c.done = v, err, true
+			p.mu.Unlock()
+			select {
+			case p.wake <- struct{}{}:
+			default:
+			}
+			return
+		}
 		var v any
 		var err error
 		select {
