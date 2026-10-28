@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vuka-lang/vuka/v2"
 	"github.com/vuka-lang/vuka/v2/diag"
@@ -300,8 +301,11 @@ func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(co
 	start := c == nil && !p.o.Pending
 	if c == nil {
 		c = &partCall{m: m, ctx: ctx, run: run}
+		if boundaryOf(ctx) != nil {
+			c.ctx = partLifetime{Context: ctx, request: p.ctx}
+		}
 		if m.boundary {
-			c.ctx = context.WithValue(ctx, boundaryKey{}, c)
+			c.ctx = context.WithValue(c.ctx, boundaryKey{}, c)
 		}
 		p.calls[key] = c
 		p.order = append(p.order, c)
@@ -561,3 +565,14 @@ var (
 	contextType = reflect.TypeFor[context.Context]()
 	errorType   = reflect.TypeFor[error]()
 )
+
+// Nested parts keep their boundary's values, but live until the request
+// ends rather than until the outer part's body has finished rendering.
+type partLifetime struct {
+	context.Context
+	request context.Context
+}
+
+func (c partLifetime) Deadline() (time.Time, bool) { return c.request.Deadline() }
+func (c partLifetime) Done() <-chan struct{}       { return c.request.Done() }
+func (c partLifetime) Err() error                  { return c.request.Err() }
