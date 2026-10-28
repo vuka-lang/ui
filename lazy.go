@@ -37,7 +37,7 @@ func LazyValue[T any](ctx context.Context, run func(context.Context) (T, error))
 // LazyPart renders inline until a deferred binding is read. At that point
 // the element becomes a part, its render continuing in the background.
 // A render reaching no binding stays inline and starts no deferred work.
-func LazyPart(fallback, failed Node, body func(context.Context) Node) Node {
+func LazyPart(fallback, failed Node, body func(context.Context) Node, group ...string) Node {
 	if f, ok := fallback.(PartFallback); ok {
 		fallback, failed = f.Pending, f.Error
 	}
@@ -75,6 +75,9 @@ func LazyPart(fallback, failed Node, body func(context.Context) Node) Node {
 			run := func(context.Context) (any, error) { <-done; return buf.Bytes(), err }
 			show := func(v any) Node { return RawHTML(v.([]byte)) }
 			m := partMethod{name: "Binding", deferred: true, independent: true, async: true}
+			if len(group) > 0 {
+				m.group = group[0]
+			}
 			return resolvePart(ctx, partKey{recv: new(byte)}, m, run, PartFallback{Pending: fallback, Error: failed}, show)
 		default:
 			if err != nil {

@@ -1,12 +1,14 @@
 package ui_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/vuka-lang/ui/v2"
 )
@@ -60,5 +62,44 @@ func TestLazyPartError(t *testing.T) {
 	renderIn(t, ctx, n)
 	if writes := stream(t, ps); len(writes) != 1 || !strings.Contains(writes[0], ">failed<") {
 		t.Fatal(writes)
+	}
+}
+
+func TestLazyPartInsideSelectiveBoundary(t *testing.T) {
+	request, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	ctx, ps := ui.WithParts(request, ui.PartsOptions{Limit: 1})
+	defer ps.Stop()
+	ready := make(chan struct{})
+	n := ui.Suspense(ui.Text("outer"), nil, func(ctx context.Context) ui.Node {
+		return ui.Group{ui.Text("ready"), ui.LazyPart(ui.Text("inner"), nil, func(ctx context.Context) ui.Node {
+			return ui.Text(ui.LazyValue(ctx, func(ctx context.Context) (string, error) {
+				select {
+				case <-ready:
+					return "done", nil
+				case <-ctx.Done():
+					return "", ctx.Err()
+				}
+			}))
+		})}
+	})
+	renderIn(t, ctx, n)
+	var buf bytes.Buffer
+	var writes []string
+	var once sync.Once
+	if err := ps.Stream(&buf, func() error {
+		text := buf.String()
+		buf.Reset()
+		writes = append(writes, text)
+		if strings.Contains(text, "ready") {
+			once.Do(func() { close(ready) })
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	writes = writes[1:]
+	if len(writes) != 2 || !strings.Contains(writes[0], "ready") || !strings.Contains(writes[0], "inner") || !strings.Contains(writes[1], ">done<") {
+		t.Fatalf("nested writes: %q", writes)
 	}
 }
