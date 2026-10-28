@@ -96,6 +96,7 @@ type partMethod struct {
 	name     string // "Index.Stats"
 	deferred bool   // @ui.Defer
 	group    string // its Defer's group: "" for its own
+	boundary bool   // a <ui.Suspense>: its body is the part (suspense.go)
 }
 
 var partMethods sync.Map // pc → partMethod
@@ -140,6 +141,19 @@ func resolvePart(ctx context.Context, key partKey, m partMethod, run func(contex
 		pending, failed = f.Pending, f.Error
 	}
 	ps := partsOf(ctx)
+	if ps != nil && m.deferred && !m.boundary && boundaryOf(ctx) != nil {
+		// Inside a boundary, which streams: the part is its.
+		cctx, end := ctx, func(error) {}
+		if ps.o.Observe != nil {
+			cctx, end = ps.o.Observe(ctx, m.name)
+		}
+		v, err := callPart(cctx, run)
+		end(err)
+		if err != nil {
+			panic(err) // the boundary's error
+		}
+		return show(v)
+	}
 	if ps == nil || !m.deferred {
 		v, err := callPart(ctx, run)
 		if err != nil {
@@ -222,6 +236,7 @@ type partSlot struct {
 	call   *partCall
 	show   func(any) Node
 	failed Node
+	parent *partCall // the boundary whose markup holds it: written first
 }
 
 type partsKey struct{}
@@ -283,6 +298,9 @@ func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(co
 	start := c == nil && !p.o.Pending
 	if c == nil {
 		c = &partCall{m: m, ctx: ctx, run: run}
+		if m.boundary {
+			c.ctx = context.WithValue(ctx, boundaryKey{}, c)
+		}
 		p.calls[key] = c
 		p.order = append(p.order, c)
 	}
@@ -291,7 +309,7 @@ func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(co
 		return c, nil
 	}
 	p.n++
-	s := &partSlot{id: "vk-p" + strconv.Itoa(p.n), ctx: ctx, call: c, show: show, failed: failed}
+	s := &partSlot{id: "vk-p" + strconv.Itoa(p.n), ctx: ctx, call: c, show: show, failed: failed, parent: boundaryOf(ctx)}
 	c.slots = append(c.slots, s)
 	p.slots = append(p.slots, s)
 	p.mu.Unlock()
@@ -408,10 +426,14 @@ func (p *Parts) writeReady(w io.Writer) (bool, error) {
 			}
 		}
 		rest := p.slots[:0]
+		held := map[*partCall]bool{} // calls with a slot not written yet
 		for _, s := range p.slots {
-			if c := s.call; c.done && (c.m.group == "" || !groups[c.m.group]) {
+			// A slot in a boundary's markup waits for the boundary's: the
+			// page gets the outer first, then the inner.
+			if c := s.call; c.done && (c.m.group == "" || !groups[c.m.group]) && (s.parent == nil || !held[s.parent]) {
 				ready = append(ready, s)
 			} else {
+				held[s.call] = true
 				rest = append(rest, s)
 			}
 		}
