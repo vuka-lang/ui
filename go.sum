@@ -28,3 +28,5 @@ github.com/vuka-lang/vuka/v2 v2.11.0 h1:cVV7AJ2dFxQfgk4gY8pNvdqvErxKiEkVaY5La9TN
 github.com/vuka-lang/vuka/v2 v2.11.0/go.mod h1:rH7t5WrQ8buhdC6tJV7hCjf24XguTCEikr86umiXU+w=
 github.com/vuka-lang/vuka/v2 v2.12.0 h1:SIJ4ieHnaUIlThvJ6r8QQI3inMl5yqWrzJMh53ho/Q4=
 github.com/vuka-lang/vuka/v2 v2.12.0/go.mod h1:rH7t5WrQ8buhdC6tJV7hCjf24XguTCEikr86umiXU+w=
+github.com/vuka-lang/vuka/v2 v2.13.0 h1:sxM7OOVKqJyNwRn96fplHmSXDKlGecXcXivOb6VSqR8=
+github.com/vuka-lang/vuka/v2 v2.13.0/go.mod h1:rH7t5WrQ8buhdC6tJV7hCjf24XguTCEikr86umiXU+w=
