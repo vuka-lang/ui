@@ -484,8 +484,8 @@ func islandFields(v any) (fields []islandField, funcs []islandEmit, ok bool) {
 		if name == "-" {
 			continue
 		}
-		if f.Type == nodeType || (f.Type.Kind() == reflect.Interface && f.Type.Implements(nodeType)) {
-			continue
+		if f.Type == nodeType || (f.Type.Kind() == reflect.Interface && f.Type.Implements(nodeType)) || secretField(f) {
+			continue // a form or a password: never a prop (see Props)
 		}
 		if name == "" {
 			name = f.Name
@@ -579,6 +579,10 @@ func (p islandPropsJSON) json(ctx context.Context) ([]byte, error) {
 				return nil, fmt.Errorf("ui: island prop %s: %w", f.name, err)
 			}
 			out[f.name], js = r, true
+			continue
+		}
+		if v != nil && holdsSecret(reflect.TypeOf(v)) {
+			out[f.name] = propValue(reflect.ValueOf(v), true) // its secrets left out
 			continue
 		}
 		t, err := tagDates(v)
