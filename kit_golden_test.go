@@ -94,6 +94,13 @@ func kitCases() []kitCase {
 		}},
 		{"card/empty", func() ui.Node { return ui.Card{} }},
 
+		{"skeleton", func() ui.Node { return ui.Skeleton{} }},
+		{"skeleton/class-attrs", func() ui.Node {
+			return ui.Skeleton{Class: "h-32 rounded-full", Attrs: []ui.Attr{{Name: "id", Value: "avatar"}}}
+		}},
+		{"skeleton/one-line", func() ui.Node { return ui.Skeleton{Lines: 1} }},
+		{"skeleton/lines", func() ui.Node { return ui.Skeleton{Lines: 3, Class: "w-64"} }},
+
 		{"icon", func() ui.Node { return ui.Icon("check") }},
 		{"icon/classes", func() ui.Node { return ui.Icon("search", "a", "", "b") }},
 		{"icon/unknown", func() ui.Node { return ui.Icon("nope") }},

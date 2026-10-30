@@ -242,7 +242,14 @@ const Styles = `:root{
 .vk-img-wrap{position:relative;overflow:hidden}
 .vk-img-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to top,rgb(0 0 0/.6),rgb(0 0 0/.08),transparent)}
 .vk-img-overlay{position:absolute;inset:0}
-@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}`
+@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}
+
+/* Skeleton */
+.vk-skeleton{display:block;min-height:1em;border-radius:calc(var(--ui-radius) - .125rem);background:var(--ui-subtle);animation:vk-skeleton-pulse 2s cubic-bezier(.4,0,.6,1) infinite}
+.vk-skeleton-lines{display:flex;flex-direction:column;gap:.5rem}
+.vk-skeleton--line{height:1rem} .vk-skeleton--last{width:60%}
+@keyframes vk-skeleton-pulse{50%{opacity:.5}}
+@media (prefers-reduced-motion:reduce){.vk-skeleton{animation:none}}`
 
 // StyleTag is a <style> element holding Styles, to place in a page's head so
 // the components are themed:
