@@ -24,6 +24,7 @@ const (
 	FormCSRFField   = "_vk_csrf"   // the CSRF token
 	FormSeqField    = "_vk_seq"    // the runtime's sequence number of a change
 	FormIntentField = "_vk_intent" // a submit button's intent: "update" renders the form again, Save not called
+	FormCheckField  = "_vk_check"  // a check sent over HTTP: "1" runs the checks only, "submitted" as after a failed submit
 )
 
 // bind sets the form's fields from what a submit or a change sent. The form
