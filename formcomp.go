@@ -154,7 +154,7 @@ func formWords(ctx context.Context) string {
 func (st *formState) beginRender() {
 	st.rendering = map[string]string{}
 	st.controls, st.hints, st.errorShown = map[string]int{}, map[string]bool{}, map[string]bool{}
-	st.summaryNow, st.inRender, st.shownSummary = false, true, nil
+	st.summaryNow, st.inRender, st.shownSummary, st.shownChoices = false, true, nil, nil
 }
 
 // A FormReporter is a FormHost told what each struct form's render showed
@@ -178,6 +178,16 @@ type FormReport struct {
 	// Words are the summary's title and an error's hidden prefix
 	// ("problem", "error"), in the visitor's language.
 	Words map[string]string `json:"words"`
+	// Choices are the options of the fields whose choices depend on others
+	// (depends:), by path, as the render computed them from the values
+	// sent: the runtime puts them in those fields' selects.
+	Choices map[string][]FormChoice `json:"choices,omitempty"`
+}
+
+// FormChoice is one option of a field's choices, as a FormReport carries it.
+type FormChoice struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
 }
 
 // FormFieldError is a field's error as its render shows it.
@@ -215,6 +225,16 @@ func (st *formState) report(ctx context.Context) FormReport {
 			key = forms.DefaultKey(e)
 		}
 		r.Errors = append(r.Errors, FormFieldError{Path: f.path, ID: st.id(f.path), Key: key, Text: st.message(ctx, e)})
+	}
+	for path, opts := range st.shownChoices {
+		if r.Choices == nil {
+			r.Choices = map[string][]FormChoice{}
+		}
+		cs := []FormChoice{}
+		for _, o := range opts {
+			cs = append(cs, FormChoice{o.Value, o.Label})
+		}
+		r.Choices[path] = cs
 	}
 	return r
 }
