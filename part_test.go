@@ -64,8 +64,14 @@ func renderIn(t *testing.T, ctx context.Context, n ui.Node) string {
 	if err := n.Render(ctx, &b); err != nil {
 		t.Fatal(err)
 	}
-	return b.String()
+	return plainIDs(b.String())
 }
+
+// idTag is the tag of a method's name a part's id ends with.
+var idTag = regexp.MustCompile(`(\d)-[0-9a-z]{1,4}([."\-)]|$)`)
+
+// plainIDs is s with its parts' ids untagged: vk-p1 for vk-p1-x8lq.
+func plainIDs(s string) string { return idTag.ReplaceAllString(s, "$1$2") }
 
 func TestPartInPlace(t *testing.T) {
 	p := &partPage{}
@@ -118,7 +124,7 @@ func TestPartStream(t *testing.T) {
 	if p.calls.Load() != 1 {
 		t.Errorf("Stats called %d times, want once for its two parts", p.calls.Load())
 	}
-	s := out.String()
+	s := plainIDs(out.String())
 	if !strings.HasPrefix(s, ui.PartsScript) {
 		t.Errorf("the stream doesn't start with the parts script: %s", s)
 	}
@@ -148,7 +154,7 @@ func TestPartStreamError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := strings.TrimPrefix(out.String(), ui.PartsScript)
+	s := plainIDs(strings.TrimPrefix(out.String(), ui.PartsScript))
 	if want := `<template data-vk-part="vk-p1">no stats</template><script>__vkP("vk-p1")</script><template data-vk-part="vk-p2"><span role="alert">down: stats: down</span></template><script>__vkP("vk-p2")</script>`; s != want {
 		t.Errorf("got %s, want %s", s, want)
 	}
@@ -180,7 +186,7 @@ func TestPartGroupAndNesting(t *testing.T) {
 	if len(writes) != 2 {
 		t.Errorf("a group's parts came in %d flushes after the script's, want 1: %q", len(writes)-1, writes)
 	}
-	s := strings.TrimPrefix(out.String(), ui.PartsScript)
+	s := plainIDs(strings.TrimPrefix(out.String(), ui.PartsScript))
 	if want := `<template data-vk-part="vk-p1"><div>ab</div></template><script>__vkP("vk-p1")</script><template data-vk-part="vk-p2"><i>b</i></template><script>__vkP("vk-p2")</script>`; s != want {
 		t.Errorf("got %s, want %s", s, want)
 	}
@@ -265,7 +271,7 @@ func TestPartValueReceiver(t *testing.T) {
 	if valueCalls.Load() != 2 {
 		t.Errorf("Count called %d times, want once per value", valueCalls.Load())
 	}
-	if s := strings.TrimPrefix(out.String(), ui.PartsScript); !strings.Contains(s, `"vk-p1">1<`) || !strings.Contains(s, `"vk-p2">2<`) || !strings.Contains(s, `"vk-p3">1<`) {
+	if s := plainIDs(strings.TrimPrefix(out.String(), ui.PartsScript)); !strings.Contains(s, `"vk-p1">1<`) || !strings.Contains(s, `"vk-p2">2<`) || !strings.Contains(s, `"vk-p3">1<`) {
 		t.Errorf("parts: %s", s)
 	}
 }

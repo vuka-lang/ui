@@ -31,7 +31,7 @@ func stream(t *testing.T, ps *ui.Parts) []string {
 	var out bytes.Buffer
 	var writes []string
 	err := ps.Stream(&out, func() error {
-		writes = append(writes, strings.TrimPrefix(out.String(), ui.PartsScript))
+		writes = append(writes, plainIDs(strings.TrimPrefix(out.String(), ui.PartsScript)))
 		out.Reset()
 		return nil
 	})
@@ -103,7 +103,7 @@ func TestSuspenseNested(t *testing.T) {
 		close(p.wait)
 	}()
 	writes := strings.Join(stream(t, ps), "")
-	o, i := strings.Index(writes, `"vk-p1"><!--vk-part:vk-p2-->`), strings.Index(writes, `"vk-p2">inner<`)
+	o, i := strings.Index(writes, `"vk-p1"><!--vk-part:vk-p1.1-->`), strings.Index(writes, `"vk-p1.1">inner<`)
 	if o < 0 || i < 0 || i < o {
 		t.Errorf("want the outer, then the inner: %s", writes)
 	}
