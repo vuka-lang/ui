@@ -66,7 +66,7 @@ func (p *pageProbe) Handler(context.Context, any) string {
 	return ""
 }
 
-func (p *pageProbe) Keyed(ctx context.Context, _ any) context.Context { return ctx }
+func (p *pageProbe) Keyed(ctx context.Context, key any) context.Context { return keyedScope(ctx, key) }
 
 // probe is the RenderPage the renderer runs under, or nil.
 func (h *HTMLRenderer) probe() *pageProbe {

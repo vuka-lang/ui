@@ -51,7 +51,7 @@ func LazyPart(fallback, failed Node, body func(context.Context) Node, group ...s
 			return node
 		}
 		state := &lazyRender{first: make(chan struct{})}
-		cctx, stop := context.WithCancel(context.WithValue(partLifetime{Context: ctx, request: ps.ctx}, lazyKey{}, state))
+		cctx, stop := context.WithCancel(context.WithValue(ps.lazyScope(partLifetime{Context: ctx, request: ps.ctx}), lazyKey{}, state))
 		unhook := context.AfterFunc(ps.ctx, stop)
 		done := make(chan struct{})
 		var buf bytes.Buffer

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"html"
 	"io"
 	"log/slog"
@@ -36,12 +37,13 @@ import (
 //		return ui.HTML(`<p>{stats.Open} open</p>`, stats.Open)
 //	})
 //
-// Part is what markup written in Go calls too. A page rendered for a
-// request web streams (WithParts) gets the fallback in the part's place,
-// its method starting as the render meets the part, then each part as its
-// method returns; anywhere else — a live page, a
-// fragment, a test rendering a Node — the method runs as the part renders,
-// in place.
+// Part is what markup written in Go calls too. A page rendered with
+// WithParts gets the fallback in the part's place, its method starting as
+// the render meets the part; StreamParts then writes each part as its
+// method returns, for the runtime to move into place once the page has
+// loaded (package web sends the page whole, then answers the runtime's
+// request for its parts). Anywhere else — a live page, a fragment, a test
+// rendering a Node — the method runs as the part renders, in place.
 
 // Part is the part of a page or component that method m's result renders:
 // render's markup once m returns, fallback until then. m is a method
@@ -217,20 +219,23 @@ type Parts struct {
 
 	mu        sync.Mutex
 	calls     map[partKey]*partCall
-	order     []*partCall // in the order the page met them
-	slots     []*partSlot // not written yet
-	n         int         // slots so far, naming them
-	streaming bool        // Stream has started: a part of a method returned renders in place
+	order     []*partCall     // in the order the page met them
+	slots     []*partSlot     // not written yet
+	counts    map[string]int  // slots and bindings so far in each scope, naming them
+	want      map[string]bool // PartsOptions.Want: nil for every part
+	made      map[string]bool // the wanted parts the render met
+	streaming bool            // Stream has started: a part of a method returned renders in place
 }
 
 type partCall struct {
-	m     partMethod
-	ctx   context.Context
-	run   func(context.Context) (any, error)
-	done  bool
-	v     any
-	err   error
-	slots []*partSlot
+	m       partMethod
+	ctx     context.Context
+	run     func(context.Context) (any, error)
+	started bool
+	done    bool
+	v       any
+	err     error
+	slots   []*partSlot
 }
 
 type partSlot struct {
@@ -261,6 +266,11 @@ type PartsOptions struct {
 	// Written, if set, is called as each part is written, with its
 	// method's name and error (or its markup's): nil for one that rendered.
 	Written func(name string, err error)
+	// Want, if set, is the parts a request for a page's parts asks for, by
+	// their ids (the page's <!--vk-part:id--> marks): only their methods
+	// run, and StreamParts writes only them, and the parts their markup
+	// holds. A part the render no longer meets is written as failed.
+	Want []string
 }
 
 // DefaultPartLimit is how many of a page's deferred methods run at once.
@@ -274,7 +284,13 @@ func WithParts(ctx context.Context, o PartsOptions) (context.Context, *Parts) {
 	if o.Limit <= 0 {
 		o.Limit = DefaultPartLimit
 	}
-	p := &Parts{o: o, calls: map[partKey]*partCall{}, sem: make(chan struct{}, o.Limit), wake: make(chan struct{}, 1)}
+	p := &Parts{o: o, calls: map[partKey]*partCall{}, counts: map[string]int{}, sem: make(chan struct{}, o.Limit), wake: make(chan struct{}, 1)}
+	if o.Want != nil {
+		p.want, p.made = make(map[string]bool, len(o.Want)), map[string]bool{}
+		for _, id := range o.Want {
+			p.want[id] = true
+		}
+	}
 	p.ctx, p.cancel = context.WithCancel(ctx)
 	return context.WithValue(ctx, partsKey{}, p), p
 }
@@ -295,17 +311,19 @@ func (p *Parts) Stop() {
 // slot is the call of the method key names and, while it runs, a new slot
 // for its part; nil when it has returned and the stream has started (in
 // the page the stream follows, every part has a slot).
+//
+// A slot's id is where the render met it — its scope (the page, a part's
+// or boundary's markup, a binding's element, a keyed element) and its
+// number there — and its method's name: rendered again for the same URL,
+// a page names its parts alike, which is how a request for the page's
+// parts (Want) finds them.
 func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(context.Context) (any, error), show func(any) Node, failed Node) (*partCall, *partSlot) {
 	p.mu.Lock()
 	c := p.calls[key]
-	start := c == nil && !p.o.Pending
 	if c == nil {
 		c = &partCall{m: m, ctx: ctx, run: run}
 		if boundaryOf(ctx) != nil {
 			c.ctx = partLifetime{Context: ctx, request: p.ctx}
-		}
-		if m.boundary {
-			c.ctx = context.WithValue(c.ctx, boundaryKey{}, c)
 		}
 		p.calls[key] = c
 		p.order = append(p.order, c)
@@ -314,8 +332,27 @@ func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(co
 		p.mu.Unlock()
 		return c, nil
 	}
-	p.n++
-	s := &partSlot{id: "vk-p" + strconv.Itoa(p.n), ctx: ctx, call: c, show: show, failed: failed, parent: boundaryOf(ctx)}
+	sc := scopeOf(ctx)
+	id := p.nextLocked(sc) + "-" + nameTag(m.name)
+	wanted := p.want == nil || sc.nested || p.want[id]
+	inner := context.WithValue(ctx, scopeKey{}, &partScope{prefix: id + ".", nested: true})
+	s := &partSlot{id: id, ctx: inner, call: c, show: show, failed: failed, parent: boundaryOf(ctx)}
+	if !wanted {
+		// Not asked for: its fallback, in a page no one reads.
+		p.mu.Unlock()
+		return c, s
+	}
+	if p.made != nil {
+		p.made[id] = true
+	}
+	start := !c.started && !p.o.Pending
+	if start {
+		c.started = true
+		if m.boundary {
+			c.ctx = context.WithValue(c.ctx, boundaryKey{}, c)
+			c.ctx = context.WithValue(c.ctx, scopeKey{}, &partScope{prefix: id + ".", nested: true})
+		}
+	}
 	c.slots = append(c.slots, s)
 	p.slots = append(p.slots, s)
 	p.mu.Unlock()
@@ -323,6 +360,65 @@ func (p *Parts) slot(ctx context.Context, key partKey, m partMethod, run func(co
 		p.start(c)
 	}
 	return c, s
+}
+
+// partScope is where a render meets parts: the page (nil), a part's
+// markup, a boundary's or a binding's element (nested: what a request for
+// the page's parts writes with its part, or the page shows inline when its
+// binding is never read), a keyed element.
+// Its parts are numbered in the order it meets them, which a render of
+// its own keeps.
+type partScope struct {
+	prefix string
+	nested bool
+}
+
+type scopeKey struct{}
+
+var rootScope = &partScope{prefix: "vk-p"}
+
+func scopeOf(ctx context.Context) *partScope {
+	if s, _ := ctx.Value(scopeKey{}).(*partScope); s != nil {
+		return s
+	}
+	return rootScope
+}
+
+// nextLocked is the next name in sc, p.mu held.
+func (p *Parts) nextLocked(sc *partScope) string {
+	p.counts[sc.prefix]++
+	return sc.prefix + strconv.Itoa(p.counts[sc.prefix])
+}
+
+// lazyScope is the scope of a binding's element (LazyPart), whose render
+// runs beside the page's.
+func (p *Parts) lazyScope(ctx context.Context) context.Context {
+	sc := scopeOf(ctx)
+	p.mu.Lock()
+	prefix := p.nextLocked(sc) + "b."
+	p.mu.Unlock()
+	return context.WithValue(ctx, scopeKey{}, &partScope{prefix: prefix, nested: true})
+}
+
+// keyedScope is the scope of an element with a key: its parts are named
+// by the key, wherever its list puts it.
+func keyedScope(ctx context.Context, key any) context.Context {
+	if partsOf(ctx) == nil {
+		return ctx
+	}
+	sc := scopeOf(ctx)
+	h := fnv.New64a()
+	fmt.Fprint(h, key)
+	return context.WithValue(ctx, scopeKey{}, &partScope{prefix: sc.prefix + "k" + strconv.FormatUint(h.Sum64()%(36*36*36*36*36*36), 36) + ".", nested: sc.nested})
+}
+
+// nameTag is a short tag of a method's name, in its parts' ids: a page
+// whose markup changed between its render and its parts' gets no part of
+// another method in a part's place.
+func nameTag(name string) string {
+	h := fnv.New32a()
+	io.WriteString(h, name)
+	return strconv.FormatUint(uint64(h.Sum32()%(36*36*36*36)), 36)
 }
 
 // start runs c's method on a goroutine of its own, when one of Limit is
@@ -378,9 +474,11 @@ func (p *Parts) Pending() bool {
 	return len(p.slots) > 0
 }
 
-// PartsScript is the script the stream starts with: what moves each part
-// into its place as it arrives (and the mark a navigation's reply is cut
-// at: the page before it, its parts after).
+// PartsScript is the script Stream starts with: what moves each part into
+// its place as it arrives.
+//
+// Deprecated: package web no longer appends a page's parts to its
+// response; the runtime moves in the parts StreamParts writes.
 const PartsScript = `<script data-vk-parts>window.__vkP=function(i){var t=document.querySelector('template[data-vk-part="'+i+'"]');if(!t)return;var w=document.createTreeWalker(document,128),s=null,n,x;while(n=w.nextNode())if(n.data==="vk-part:"+i){s=n;break}if(s){var p=s.parentNode;for(n=s.nextSibling;n&&!(n.nodeType===8&&n.data==="/vk-part:"+i);n=x){x=n.nextSibling;p.removeChild(n)}p.insertBefore(t.content,s);p.removeChild(s);if(n)p.removeChild(n)}t.parentNode.removeChild(t);document.dispatchEvent(new CustomEvent("vk:part",{detail:{id:i}}))}</script>`
 
 // Stream writes PartsScript and flushes, then each part to w once its
@@ -391,6 +489,9 @@ const PartsScript = `<script data-vk-parts>window.__vkP=function(i){var t=docume
 // that part's slot, filled later in the stream. It returns when every part
 // is written, or the request's context is done; then it stops the methods
 // still running.
+//
+// Deprecated: use StreamParts, whose parts the runtime moves into place
+// with no inline script, in a response of their own.
 func (p *Parts) Stream(w io.Writer, flush func() error) error {
 	defer p.Stop()
 	if !p.Pending() {
@@ -410,7 +511,7 @@ func (p *Parts) Stream(w io.Writer, flush func() error) error {
 		}
 	}
 	for {
-		wrote, err := p.writeReady(w)
+		wrote, err := p.writeReady(w, false)
 		if err != nil {
 			return err
 		}
@@ -430,15 +531,17 @@ func (p *Parts) Stream(w io.Writer, flush func() error) error {
 	}
 }
 
-// writeReady writes the slots whose groups have all returned.
-func (p *Parts) writeReady(w io.Writer) (bool, error) {
+// writeReady writes the slots whose groups have all returned: each part a
+// template and the call of PartsScript moving it into place, or (reply) a
+// template and its end, the runtime moving it.
+func (p *Parts) writeReady(w io.Writer, reply bool) (bool, error) {
 	wrote := false
 	for {
 		p.mu.Lock()
 		var ready []*partSlot
 		groups := map[string]bool{} // groups with a call still running
 		for _, c := range p.order {
-			if !c.done && c.m.group != "" {
+			if c.started && !c.done && c.m.group != "" {
 				groups[c.m.group] = true
 			}
 		}
@@ -465,9 +568,7 @@ func (p *Parts) writeReady(w io.Writer) (bool, error) {
 			if p.o.Written != nil {
 				p.o.Written(s.call.m.name, err)
 			}
-			buf.WriteString(`<template data-vk-part="` + s.id + `">`)
-			buf.Write(html)
-			buf.WriteString(`</template><script>__vkP("` + s.id + `")</script>`)
+			writePart(&buf, s.id, html, reply)
 		}
 		if _, err := w.Write(buf.Bytes()); err != nil {
 			return wrote, err
@@ -475,6 +576,70 @@ func (p *Parts) writeReady(w io.Writer) (bool, error) {
 		wrote = true
 	}
 }
+
+func writePart(buf *bytes.Buffer, id string, html []byte, reply bool) {
+	buf.WriteString(`<template data-vk-part="` + id + `">`)
+	buf.Write(html)
+	if reply {
+		buf.WriteString(`</template><!--vk-parts:` + id + `-->`)
+	} else {
+		buf.WriteString(`</template><script>__vkP("` + id + `")</script>`)
+	}
+}
+
+// StreamParts writes the parts a request for a page's parts asks for
+// (PartsOptions.Want), as Stream does but on their own, with no script:
+// each a <template data-vk-part="id"> holding its markup and the comment
+// <!--vk-parts:id--> ending it, which the runtime moves into place — those
+// of a group together, in the order the page met them, flushing after
+// each batch. A part asked for that the page no longer has (its markup
+// changed since) is written as failed. It returns when every part is
+// written, or the request's context is done; then it stops the methods
+// still running.
+func (p *Parts) StreamParts(w io.Writer, flush func() error) error {
+	defer p.Stop()
+	p.mu.Lock()
+	p.streaming = true
+	p.mu.Unlock()
+	for p.Pending() {
+		wrote, err := p.writeReady(w, true)
+		if err != nil {
+			return err
+		}
+		if wrote && flush != nil {
+			if err := flush(); err != nil {
+				return err
+			}
+		}
+		if !p.Pending() {
+			break
+		}
+		select {
+		case <-p.wake:
+		case <-p.ctx.Done():
+			return p.ctx.Err()
+		}
+	}
+	var buf bytes.Buffer
+	for _, id := range p.o.Want {
+		if !p.made[id] {
+			p.made[id] = true // once
+			if p.o.Written != nil {
+				p.o.Written(id, errPartGone)
+			}
+			writePart(&buf, id, []byte(`<span role="alert">`+html.EscapeString(partErrorText(errPartGone, nil))+`</span>`), true)
+		}
+	}
+	if buf.Len() > 0 {
+		if _, err := w.Write(buf.Bytes()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// errPartGone is the error of a part asked for that the page no longer has.
+var errPartGone = errors.New("ui: the page no longer has this part: its markup changed since it was sent")
 
 // errLivePart is the error of a part whose markup holds a live component.
 var errLivePart = errors.New("ui: a deferred part's markup holds a live component or event handler, which a page that isn't live can't run")
