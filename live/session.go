@@ -37,6 +37,7 @@ type Session struct {
 	byID     map[string]*instance
 	next     int
 	pass     int
+	ids      ids // the pass's names for library components' random ids (ids.go)
 	closed   bool
 	trees    bool // a v2 connection: instances render to trees
 	c        conn
@@ -667,6 +668,7 @@ type instance struct {
 	rendered   bool              // rendered this pass (not skipped)
 	contextual bool              // context-dependent output must not use state-only render reuse
 	vars       map[string]uint64 // the template variables its last render read, at their versions
+	idn        int               // the random ids its render named so far (ids.go)
 }
 
 func (in *instance) ID() string { return in.id }
@@ -998,7 +1000,7 @@ func (s *Session) verifySkip(in *instance) error {
 
 func (s *Session) renderInst(in *instance) (err error) {
 	defer ui.Catch(&err) // a (T, error) call in its markup failing
-	in.seen, in.rendered = s.pass, true
+	in.seen, in.rendered, in.idn = s.pass, true, 0
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
 	clear(in.forms)
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
@@ -1021,6 +1023,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 		if err != nil {
 			return err
 		}
+		s.stableTreeIDs(in, t)
 		in.tree = splitMarkers(t)
 		return nil
 	}
@@ -1030,7 +1033,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 			return err
 		}
 	}
-	own := b.String()
+	own := s.stableIDs(in, b.String())
 	if s.trees {
 		in.tree = splitMarkers(ui.OpaqueTree(own))
 		return nil
