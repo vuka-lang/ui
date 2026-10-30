@@ -59,6 +59,7 @@ func (f Form) forView() Node {
 			{"data-vk-form", identity},
 			{"data-vk-submit", cmpOr(f.Submit, "prevent")},
 		}
+		attrs = append(attrs, f.Attrs...)
 		if overHTTP {
 			attrs = append(attrs, Attr{"data-vk-http", true})
 		} else {

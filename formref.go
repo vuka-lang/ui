@@ -25,8 +25,18 @@ type FieldRef struct {
 }
 
 // For is a reference to the field field points to, outer pointing to the
-// values holding it (see FieldRef).
+// values holding it (see FieldRef). Given a FieldRef (or a pointer to one)
+// it is that reference: a component whose props hold a Model FieldRef gives
+// its control model={Model}, which names the field its tag's model={…} did.
 func For(field any, outer ...any) FieldRef {
+	switch r := field.(type) {
+	case FieldRef:
+		return r
+	case *FieldRef:
+		if r != nil {
+			return *r
+		}
+	}
 	r := FieldRef{field: reflect.ValueOf(field)}
 	for _, o := range outer {
 		r.outer = append(r.outer, reflect.ValueOf(o))

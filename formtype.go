@@ -200,12 +200,7 @@ func (ft *formType) addFields(t reflect.Type, index []int, offset uintptr, path,
 		}
 		f.rules = rules
 		if m := sf.Tag.Get("msg"); m != "" {
-			f.msgs = map[string]string{}
-			for _, part := range strings.Split(m, ",") {
-				if r, key, ok := strings.Cut(strings.TrimSpace(part), "="); ok {
-					f.msgs[r] = key
-				}
-			}
+			f.msgs = parseMsgs(m)
 		}
 		if base := derefType(sf.Type); base.Kind() == reflect.Struct && !isLeaf(base) {
 			f.group = true
@@ -220,6 +215,52 @@ func (ft *formType) addFields(t reflect.Type, index []int, offset uintptr, path,
 		ft.fields = append(ft.fields, f)
 		ft.byPath[f.path] = f
 	}
+}
+
+// parseMsgs reads a msg: tag, rule=message entries separated by commas. A
+// comma ends a message only when the next entry's rule= follows it (spaces
+// between allowed), so a message may hold commas: msg:"required=Enter your
+// name, as on your ID,max=Too long". \, is a comma that would otherwise
+// end it ("…, max=…" in a message's own text), \\ a backslash.
+func parseMsgs(tag string) map[string]string {
+	out := map[string]string{}
+	var b strings.Builder
+	rule := ""
+	flush := func() {
+		if rule != "" {
+			out[rule] = strings.TrimSpace(b.String())
+		}
+		b.Reset()
+	}
+	for i := 0; i < len(tag); i++ {
+		c := tag[i]
+		switch {
+		case c == '\\' && i+1 < len(tag) && (tag[i+1] == ',' || tag[i+1] == '\\'):
+			i++
+			b.WriteByte(tag[i])
+		case rule == "" && c == '=':
+			rule = strings.TrimSpace(b.String())
+			b.Reset()
+		case c == ',' && (rule == "" || msgRuleAt(tag[i+1:])):
+			flush()
+			rule = ""
+		default:
+			b.WriteByte(c)
+		}
+	}
+	flush()
+	return out
+}
+
+// msgRuleAt reports whether s starts with a msg: entry's rule= (after
+// spaces): a name of letters, digits and _, then =.
+func msgRuleAt(s string) bool {
+	s = strings.TrimLeft(s, " ")
+	n := 0
+	for n < len(s) && (s[n] == '_' || 'a' <= s[n] && s[n] <= 'z' || 'A' <= s[n] && s[n] <= 'Z' || n > 0 && '0' <= s[n] && s[n] <= '9') {
+		n++
+	}
+	return n > 0 && n < len(s) && s[n] == '='
 }
 
 func derefType(t reflect.Type) reflect.Type {

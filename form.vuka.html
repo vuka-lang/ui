@@ -75,8 +75,12 @@ type Form struct {
 	// CSRF is an optional hidden token field. Vuka's CSRF is origin-based
 	// (net/http's CrossOriginProtection), so a form needs no token by default
 	// and this is usually nil.
-	CSRF     Node
-	Class    string
+	CSRF  Node
+	Class string
+	// Attrs are any other attributes of the <form> element: autocomplete,
+	// data-*, aria-*. Written on the tag, <ui.Form autocomplete="off">, an
+	// attribute that isn't a field lands here.
+	Attrs    []Attr
 	Children Node
 }
 
@@ -92,7 +96,7 @@ func (f Form) method() string {
 if f.For != nil {
   {f.forView()}
 } else {
-  <form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...}>
+  <form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...} {f.Attrs...}>
     if f.Error != "" {
       <Alert variant={AlertError}>{f.Error}</Alert>
     }
