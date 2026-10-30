@@ -94,7 +94,8 @@ func (f Form) forView() Node {
 			}
 		}
 		if f.Error != "" {
-			kids = append(kids, Alert{Variant: AlertError, Children: Text(f.Error)})
+			// keyed, as the summary is: appearing, it never takes a field's place
+			kids = append(kids, El("div", []Attr{{"id", identity + "-error"}, {"class", "vk-form__error"}}, Alert{Variant: AlertError, Children: Text(f.Error)}))
 		}
 		kids = append(kids, Ctx(func(ctx context.Context) Node {
 			if st.summary || f.NoSummary {

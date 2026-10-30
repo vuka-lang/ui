@@ -202,6 +202,7 @@ const Styles = `:root{
 .vk-fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:.5rem;min-width:0}
 .vk-fieldset__legend{font-weight:600;font-size:.9rem;padding:0;margin-bottom:.25rem}
 .vk-choices{display:flex;flex-direction:column;gap:.4rem}
+.vk-form__error{display:contents}
 .vk-summary{border:3px solid var(--ui-danger);border-radius:var(--ui-radius);padding:.9rem 1rem}
 .vk-summary:focus{outline:3px solid var(--ui-ring);outline-offset:2px}
 .vk-summary__title{margin:0 0 .5rem;font-size:1.05rem}
