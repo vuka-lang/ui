@@ -138,6 +138,22 @@
 <div class="vk-card"><div class="vk-card__body"></div></div>
 --- live
 <main><div class="vk-card"><div class="vk-card__body"></div></div></main>
+=== skeleton
+<div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none min-h-4" aria-hidden="true"></div>
+--- live
+<main><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none min-h-4" aria-hidden="true"></div></main>
+=== skeleton/class-attrs
+<div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none min-h-4 h-32 rounded-full" aria-hidden="true" id="avatar"></div>
+--- live
+<main><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none min-h-4 h-32 rounded-full" aria-hidden="true" id="avatar"></div></main>
+=== skeleton/one-line
+<div class="vk-skeleton-lines flex flex-col gap-2" aria-hidden="true"><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line h-4"></div></div>
+--- live
+<main><div class="vk-skeleton-lines flex flex-col gap-2" aria-hidden="true"><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line h-4"></div></div></main>
+=== skeleton/lines
+<div class="vk-skeleton-lines flex flex-col gap-2 w-64" aria-hidden="true"><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line h-4"></div><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line h-4"></div><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line vk-skeleton--last h-4 w-3/5"></div></div>
+--- live
+<main><div class="vk-skeleton-lines flex flex-col gap-2 w-64" aria-hidden="true"><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line h-4"></div><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line h-4"></div><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line vk-skeleton--last h-4 w-3/5"></div></div></main>
 === icon
 <svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="check"><path d="M5 13l4 4L19 7"/></svg>
 --- live
@@ -446,7 +462,14 @@
 .vk-img-wrap{position:relative;overflow:hidden}
 .vk-img-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to top,rgb(0 0 0/.6),rgb(0 0 0/.08),transparent)}
 .vk-img-overlay{position:absolute;inset:0}
-@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}</style>
+@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}
+
+/* Skeleton */
+.vk-skeleton{display:block;min-height:1em;border-radius:calc(var(--ui-radius) - .125rem);background:var(--ui-subtle);animation:vk-skeleton-pulse 2s cubic-bezier(.4,0,.6,1) infinite}
+.vk-skeleton-lines{display:flex;flex-direction:column;gap:.5rem}
+.vk-skeleton--line{height:1rem} .vk-skeleton--last{width:60%}
+@keyframes vk-skeleton-pulse{50%{opacity:.5}}
+@media (prefers-reduced-motion:reduce){.vk-skeleton{animation:none}}</style>
 --- live
 <main><style data-vk-ui>:root{
   --ui-bg:#ffffff; --ui-fg:#0f172a; --ui-muted:#64748b; --ui-subtle:#f1f5f9;
@@ -683,7 +706,14 @@
 .vk-img-wrap{position:relative;overflow:hidden}
 .vk-img-scrim{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to top,rgb(0 0 0/.6),rgb(0 0 0/.08),transparent)}
 .vk-img-overlay{position:absolute;inset:0}
-@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}</style></main>
+@media (prefers-reduced-motion:reduce){.vk-img{animation:none}}
+
+/* Skeleton */
+.vk-skeleton{display:block;min-height:1em;border-radius:calc(var(--ui-radius) - .125rem);background:var(--ui-subtle);animation:vk-skeleton-pulse 2s cubic-bezier(.4,0,.6,1) infinite}
+.vk-skeleton-lines{display:flex;flex-direction:column;gap:.5rem}
+.vk-skeleton--line{height:1rem} .vk-skeleton--last{width:60%}
+@keyframes vk-skeleton-pulse{50%{opacity:.5}}
+@media (prefers-reduced-motion:reduce){.vk-skeleton{animation:none}}</style></main>
 === tile
 <div class="vk-tile"><span class="vk-tile__icon vk-tile__icon--primary"><svg class="vk-icon" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-vk-icon="file-text"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg></span><div class="vk-tile__body"><div class="vk-tile__value">1,234,567</div><div class="vk-tile__label">Applications</div></div></div>
 --- live

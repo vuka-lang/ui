@@ -74,7 +74,7 @@ render with the file, line and hole:
 
 The kit — `Button`, `Submit`, `Badge`, `Card`, `Alert`, `Modal`, `Tabs`,
 `Table`, `DataTable`, `Form` and its fields (`Field`, `Input`, `Password`,
-`Textarea`, `Select`, `Checkbox`), `Image`, `Tile`, `Toast` and
+`Textarea`, `Select`, `Checkbox`), `Image`, `Skeleton`, `Tile`, `Toast` and
 `ToastContainer`, with the partials `Actions`, `Cancel`, `Icon`, `Spinner` and
 `TileGrid` — is styled by the `--ui-*` tokens `StyleTag` puts in a page. Each
 component is a struct whose fields are its props, and itself a `ui.Node`

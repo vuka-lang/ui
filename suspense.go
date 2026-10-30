@@ -13,8 +13,8 @@ import (
 // with role="alert". A nil fallback is an empty <span aria-busy="true">.
 //
 //	ui.Suspense(ui.Skeleton{Lines: 3}, ui.Text("Couldn't load categories."), func(ctx context.Context) ui.Node {
-//		categories := sync.OnceValue(func() []Category { return ui.Must(p.GetCategories(ctx)) })
-//		return ui.HTML(`<h3>{len(categories())} categories</h3>`, len(categories()))
+//		categories := ui.Must(p.GetCategories(ctx))
+//		return ui.El("h3", nil, ui.Textf("%d categories", len(categories)))
 //	})
 //
 // It is a Part whose method is its body. Inside it a deferred method runs

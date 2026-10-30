@@ -77,6 +77,17 @@ func TestCard(t *testing.T) {
 	contains(t, s, "vk-card", "vk-card__header", "vk-card__title", "Members", "vk-card__header-actions", "vk-actions", "Invite", "vk-card__body", "body")
 }
 
+func TestSkeleton(t *testing.T) {
+	s := render(t, ui.Skeleton{Lines: 3})
+	if n := strings.Count(s, "vk-skeleton--line"); n != 3 {
+		t.Fatalf("%d lines, want 3: %s", n, s)
+	}
+	if n := strings.Count(s, "vk-skeleton--last"); n != 1 || !strings.Contains(s, `aria-hidden="true"`) {
+		t.Fatalf("one short last line, hidden: %s", s)
+	}
+	contains(t, render(t, ui.Skeleton{Class: "h-24"}), "animate-pulse", "motion-reduce:animate-none", "h-24")
+}
+
 func TestIconUnknownIsVisible(t *testing.T) {
 	s := render(t, ui.Icon("does-not-exist"))
 	contains(t, s, "<svg", "vk-icon", `data-vk-icon="does-not-exist"`)

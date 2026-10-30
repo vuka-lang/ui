@@ -1,0 +1,45 @@
+<script lang="go">
+package ui
+
+// Skeleton is a placeholder bone, the shape of content still loading — the
+// fallback of a deferred part or a <ui.Suspense>:
+//
+//	<ui.Fallback for={posts}><ui.Skeleton lines={3}/></ui.Fallback>
+//	<ui.Skeleton class="h-32"/>
+//
+// or in Go, ui.Skeleton{Lines: 3}. It is muted and pulses (not under
+// prefers-reduced-motion), and hidden from assistive technology.
+type Skeleton struct {
+	// Lines stacks that many lines of text, the last one shorter; 0 is a
+	// single bone, sized by Class.
+	Lines int
+	// Class is added to the bone's classes, or to the lines' wrapper.
+	Class string
+	// Attrs are any extra attributes.
+	Attrs []Attr
+}
+
+const skeletonBone = "vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none"
+
+// classes are the bone's, or with Lines the wrapper's.
+func (s Skeleton) classes() string {
+	if s.Lines > 0 {
+		return withClass("vk-skeleton-lines flex flex-col gap-2", s.Class)
+	}
+	return withClass(skeletonBone+" min-h-4", s.Class)
+}
+
+// line is the classes of line i, the last of several shorter.
+func (s Skeleton) line(i int) string {
+	if s.Lines > 1 && i == s.Lines-1 {
+		return skeletonBone + " vk-skeleton--line vk-skeleton--last h-4 w-3/5"
+	}
+	return skeletonBone + " vk-skeleton--line h-4"
+}
+</script>
+
+<div class={classes()} aria-hidden="true" {Attrs...}>
+  for i := range Lines {
+    <div class={line(i)}></div>
+  }
+</div>
