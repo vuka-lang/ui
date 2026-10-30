@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -280,11 +281,17 @@ var ErrFormInvalid = errors.New("ui: the form has errors")
 // 200 with the form, Save not called.
 var ErrFormIntent = errors.New("ui: the form was sent for an intent, not submitted")
 
+// ErrFormChecked is what a form's submit answers when it was sent for its
+// checks only (its _vk_check field: a form on a page that isn't live,
+// checked over HTTP as the visitor leaves a field): the checks ran live,
+// as a change's do, and the submit handler didn't.
+var ErrFormChecked = errors.New("ui: the form was sent for its checks, not submitted")
+
 // QuietError reports whether a handler's error shows only in the page (a
-// form's ErrFormInvalid, ErrFormIntent), not as an error message of its
-// own.
+// form's ErrFormInvalid, ErrFormIntent, ErrFormChecked), not as an error
+// message of its own.
 func QuietError(err error) bool {
-	return errors.Is(err, ErrFormInvalid) || errors.Is(err, ErrFormIntent)
+	return errors.Is(err, ErrFormInvalid) || errors.Is(err, ErrFormIntent) || errors.Is(err, ErrFormChecked)
 }
 
 // RedirectOf is where err, a handler's error, sends the visitor: a value
@@ -371,6 +378,20 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 	if seq, err := strconv.ParseInt(ev.Form.Get(FormSeqField), 10, 64); err == nil && seq > st.seq {
 		st.seq = seq
 	}
+	if check := ev.Form.Get(FormCheckField); check != "" {
+		// a check over HTTP: what a change does on a live page, with no
+		// state kept between requests — the request says whether the form
+		// was submitted
+		st.usedFrom(ev.Form)
+		st.submitted = st.submitted || check == "submitted"
+		st.bind(c.form.Elem(), ev.Form, st.renderedFrom(ctx, ev.Form))
+		if c.validate == "" {
+			if err := st.check(ctx, c.form.Elem(), true); err != nil {
+				return err
+			}
+		}
+		return ErrFormChecked
+	}
 	if ev.Form.Get(FormIntentField) == "update" {
 		// the no-script Update button: the form takes its values, its
 		// choices follow them, nothing is saved
@@ -443,7 +464,9 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 				st.markVisible(e.Path)
 				continue
 			}
-			st.failed = append(st.failed, e)
+			if !slices.ContainsFunc(st.failed, func(x forms.Error) bool { return reflect.DeepEqual(x, e) }) {
+				st.failed = append(st.failed, e) // Fail added it already: once
+			}
 		}
 		return ErrFormInvalid
 	}

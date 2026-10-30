@@ -44,6 +44,12 @@ func (f Form) forView() Node {
 		if reg, ok := liveHost(ctx).(FormRegistrar); ok {
 			reg.Form(identity, ctl.submit)
 		}
+		// A page that isn't live (its first render, by ui.RenderPage, meets
+		// nothing live before the form) checks and submits the form over
+		// HTTP: the runtime posts it to the page, which answers with its
+		// errors (FormReport) or where to go. The form makes the page live
+		// no more than a link does.
+		_, overHTTP := liveHost(ctx).(*pageProbe)
 		attrs := []Attr{
 			{"class", withClass("vk-form", f.Class)},
 			{"method", "post"},
@@ -52,9 +58,13 @@ func (f Form) forView() Node {
 			{"novalidate", true},
 			{"data-vk-form", identity},
 			{"data-vk-submit", cmpOr(f.Submit, "prevent")},
-			{"onSubmit", On(ctl.submit)},
 		}
-		if configOf(ctx).BrowserChecks {
+		if overHTTP {
+			attrs = append(attrs, Attr{"data-vk-http", true})
+		} else {
+			attrs = append(attrs, Attr{"onSubmit", On(ctl.submit)})
+		}
+		if configOf(ctx).BrowserChecks || overHTTP {
 			attrs = append(attrs, Attr{"data-vk-words", formWords(ctx)})
 		}
 		if st.gen > 0 {
@@ -63,11 +73,15 @@ func (f Form) forView() Node {
 		if f.ConfirmLeave {
 			attrs = append(attrs, Attr{"data-vk-confirm-leave", tr(ctx, "form.leave")}, Attr{"data-vk-dirty", st.dirty(b.value())})
 		}
-		if left := time.Until(st.savedUntil); left > 0 {
+		if left := time.Until(st.savedUntil); left > 0 && !overHTTP {
 			// Saved is true: the browser asks again once it isn't
 			attrs = append(attrs, Attr{"data-vk-saved", left.Milliseconds() + 50}, Attr{"onVkSaved", On(ctl.savedOver)})
 		}
-		if f.Validate == "" || f.OnChange != nil {
+		if overHTTP {
+			if f.Validate == "" {
+				attrs = append(attrs, Attr{"data-vk-debounce", "250"}, Attr{"data-vk-checks", true})
+			}
+		} else if f.Validate == "" || f.OnChange != nil {
 			attrs = append(attrs,
 				Attr{"data-vk-debounce", "250"},
 				Attr{"onInput", On(ctl.change)},
@@ -101,7 +115,7 @@ func (f Form) forView() Node {
 			if st.summary || f.NoSummary {
 				return nil // the form renders its <ui.Summary> elsewhere, or none
 			}
-			return summaryOf(ctx, b, "")
+			return summaryOf(ctx, b, "", "")
 		}))
 		body := f.Children
 		if !Has(body) {
@@ -117,6 +131,9 @@ func (f Form) forView() Node {
 		kids = append(kids, El("input", []Attr{{"type", "hidden"}, {"name", FormFieldsField}, {"value", lazyValue{func(ctx context.Context) any {
 			st.rendered, st.summary, st.inRender = st.rendering, st.summaryNow, false
 			st.memo = nil
+			if r, ok := formHostOf(ctx).(FormReporter); ok {
+				r.FormReport(ctx, st.report(ctx))
+			}
 			return signFields(formKeyOf(ctx), identity, fieldList(st.rendering, st.ft))
 		}}}}))
 		return El("form", attrs, kids...)
@@ -136,7 +153,69 @@ func formWords(ctx context.Context) string {
 func (st *formState) beginRender() {
 	st.rendering = map[string]string{}
 	st.controls, st.hints, st.errorShown = map[string]int{}, map[string]bool{}, map[string]bool{}
-	st.summaryNow, st.inRender = false, true
+	st.summaryNow, st.inRender, st.shownSummary = false, true, nil
+}
+
+// A FormReporter is a FormHost told what each struct form's render showed
+// of its errors: package web answers a check or a submit sent over HTTP
+// with it (application/json), so the runtime puts the errors in place
+// without touching the fields.
+type FormReporter interface {
+	FormReport(ctx context.Context, r FormReport)
+}
+
+// FormReport is what a struct form's render showed of its errors.
+type FormReport struct {
+	// Form is the form's identity (its data-vk-form).
+	Form string `json:"form"`
+	// Errors are the fields showing an error, in the fields' order.
+	Errors []FormFieldError `json:"errors"`
+	// Summary is the error summary, when the form shows one.
+	Summary *FormSummary `json:"summary"`
+	// Idem is the idempotency key the next submit carries.
+	Idem string `json:"idem"`
+	// Words are the summary's title and an error's hidden prefix
+	// ("problem", "error"), in the visitor's language.
+	Words map[string]string `json:"words"`
+}
+
+// FormFieldError is a field's error as its render shows it.
+type FormFieldError struct {
+	Path string `json:"path"`
+	ID   string `json:"id"`  // the control's id (a radio group's first); the error's is ID + "-error"
+	Key  string `json:"key"` // the message's key (data-vk-error)
+	Text string `json:"text"`
+}
+
+// FormSummary is a form's error summary: its title, then each error,
+// linking to its field's control (Href "" for the form's own).
+type FormSummary struct {
+	Title string        `json:"title"`
+	Items []SummaryItem `json:"items"`
+}
+
+// SummaryItem is one line of an error summary.
+type SummaryItem struct {
+	Href string `json:"href"`
+	Text string `json:"text"`
+}
+
+// report is what the render under way showed of the form's errors.
+func (st *formState) report(ctx context.Context) FormReport {
+	r := FormReport{Form: st.identity(), Errors: []FormFieldError{}, Summary: st.shownSummary, Idem: st.idem,
+		Words: map[string]string{"problem": tr(ctx, "form.problem"), "error": tr(ctx, "form.error")}}
+	for _, f := range st.ft.fields {
+		e, ok := st.visible(f.path)
+		if !ok || !st.errorShown[f.path] {
+			continue
+		}
+		key := e.Key
+		if key == "" {
+			key = forms.DefaultKey(e)
+		}
+		r.Errors = append(r.Errors, FormFieldError{Path: f.path, ID: st.id(f.path), Key: key, Text: st.message(ctx, e)})
+	}
+	return r
 }
 
 func keyString(k any) string {
@@ -627,7 +706,7 @@ func (s Summary) View() Node {
 			return Try(nil, err)
 		}
 		b.st.summaryNow = true
-		return summaryOf(ctx, b, s.Title, s.Class)
+		return summaryOf(ctx, b, "slot", s.Title, s.Class)
 	})
 }
 
@@ -635,22 +714,31 @@ func (s Summary) View() Node {
 func (s Summary) Render(ctx context.Context, w io.Writer) error { return s.View().Render(ctx, w) }
 
 // summaryOf is the error summary of the form b holds, empty until a submit
-// fails.
-func summaryOf(ctx context.Context, b boundField, title string, class ...string) Node {
+// fails. Until then its place is kept by an element of its own, so the
+// summary appearing takes it, never a field's: <id>-summary-at at the
+// form's top, <id>-summary-slot where a <ui.Summary/> is (the first render
+// of a page has both: the form can't know yet that its children place
+// one).
+func summaryOf(ctx context.Context, b boundField, slot, title string, class ...string) Node {
 	st := b.st
 	errs := st.shownErrors()
 	if len(errs) == 0 || !st.submitted && len(st.failed) == 0 {
-		return nil
+		return El("div", []Attr{{"id", st.identity() + "-summary-" + cmpOr(slot, "at")}, {"hidden", true}})
 	}
 	var items []Node
+	sum := &FormSummary{Title: cmpOr(title, tr(ctx, "form.problem"))}
 	for _, e := range errs {
-		text := Text(st.message(ctx, e))
+		msg := st.message(ctx, e)
+		text := Text(msg)
 		if e.Path == "" || st.ft.byPath[e.Path] == nil {
 			items = append(items, El("li", nil, text))
+			sum.Items = append(sum.Items, SummaryItem{Text: msg})
 			continue
 		}
 		items = append(items, El("li", nil, El("a", []Attr{{"href", "#" + st.id(e.Path)}}, text)))
+		sum.Items = append(sum.Items, SummaryItem{Href: "#" + st.id(e.Path), Text: msg})
 	}
+	st.shownSummary = sum
 	cls := "vk-summary"
 	if len(class) > 0 {
 		cls = withClass(cls, class[0])

@@ -49,21 +49,22 @@ type formState struct {
 	hints      map[string]bool   // its fields with a hint
 	errorShown map[string]bool   // its fields showing their error
 
-	base       reflect.Value       // the form's values when it was first rendered or bound, or loaded: Changed's and Dirty's baseline
-	pending    reflect.Value       // a record Load was given before the form was attached, loaded when it is
-	gen        int                 // bumped by Load and Reset: the browser's fields take the server's values when it changes
-	savedUntil time.Time           // Saved's end: 2s after a successful submit
-	bound      map[string]string   // the rendered fields the last bind took, with their modifiers: what Apply writes
-	msgs       context.Context     // what the form's messages are resolved with (forms.Detach of its last render's or check's context)
-	memo       map[string][]Option // the fields' choices, called once per event
-	submitted  bool
-	submitting bool
-	summary    bool // the last render showed a <ui.Summary>, so the form doesn't add its own
-	inRender   bool // its <ui.Form> is rendering: its controls are counted
-	summaryNow bool
-	key        string // the form's key attribute, as text: identity and ids
-	idem       string // the idempotency key of the next submit
-	seq        int64  // the highest change sequence the form took
+	base         reflect.Value       // the form's values when it was first rendered or bound, or loaded: Changed's and Dirty's baseline
+	pending      reflect.Value       // a record Load was given before the form was attached, loaded when it is
+	gen          int                 // bumped by Load and Reset: the browser's fields take the server's values when it changes
+	savedUntil   time.Time           // Saved's end: 2s after a successful submit
+	bound        map[string]string   // the rendered fields the last bind took, with their modifiers: what Apply writes
+	msgs         context.Context     // what the form's messages are resolved with (forms.Detach of its last render's or check's context)
+	memo         map[string][]Option // the fields' choices, called once per event
+	submitted    bool
+	submitting   bool
+	summary      bool // the last render showed a <ui.Summary>, so the form doesn't add its own
+	inRender     bool // its <ui.Form> is rendering: its controls are counted
+	summaryNow   bool
+	shownSummary *FormSummary // the summary the render under way showed
+	key          string       // the form's key attribute, as text: identity and ids
+	idem         string       // the idempotency key of the next submit
+	seq          int64        // the highest change sequence the form took
 }
 
 // pinnedErrors are errors that stay until what they were about changes: the
