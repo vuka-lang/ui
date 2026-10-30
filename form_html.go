@@ -84,8 +84,12 @@ type Form struct {
 	// CSRF is an optional hidden token field. Vuka's CSRF is origin-based
 	// (net/http's CrossOriginProtection), so a form needs no token by default
 	// and this is usually nil.
-	CSRF     Node
-	Class    string
+	CSRF  Node
+	Class string
+	// Attrs are any other attributes of the <form> element: autocomplete,
+	// data-*, aria-*. Written on the tag, <ui.Form autocomplete="off">, an
+	// attribute that isn't a field lands here.
+	Attrs    []Attr
 	Children Node
 }
 
@@ -96,10 +100,10 @@ func (f Form) method() string {
 	return f.Method
 }
 
-//line form.vuka.html:91
+//line form.vuka.html:95
 func (f Form) View() Node {
 	var forView2 Node
-//line form.vuka.html:92
+//line form.vuka.html:96
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
@@ -108,7 +112,7 @@ func (f Form) View() Node {
 			alert = Alert{Variant: AlertError, Children: HTML(`{f.Error}`, f.Error)}
 		}
 		forView2 = HTML(`
-<form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...}>
+<form class={withClass("vk-form", f.Class)} method={f.method()} id={nonEmpty(f.ID)} action={nonEmpty(f.Action)} {on("onSubmit", f.OnSubmit)...} {on("onInput", f.OnChange)...} {f.Attrs...}>
   {alert}
   {f.CSRF}
   {f.Children}
@@ -119,14 +123,15 @@ func (f Form) View() Node {
 			nonEmpty(f.Action),
 			on("onSubmit", f.OnSubmit),
 			on("onInput", f.OnChange),
+			f.Attrs,
 			alert,
 			f.CSRF,
 			f.Children,
 		)
 	}
-//line form.vuka.html:91
+//line form.vuka.html:95
 	return forView2
 }
 
-//line form.vuka.html:103
+//line form.vuka.html:107
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }
