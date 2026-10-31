@@ -1840,7 +1840,11 @@ func encodePush(ctx context.Context, host LiveHost, x *push) ([]jsArg, error) {
 		what = "Options"
 	}
 	pm := pushOf(x.fn)
-	http := pm != nil && (host == nil || x.read)
+	// a registered method goes over HTTP but on a live page (a live host,
+	// not the probe deciding whether a page is live: a push it can send
+	// over HTTP makes no page live), unless it is a read
+	_, probing := host.(*pageProbe)
+	http := pm != nil && (host == nil || probing || x.read)
 	shape := pm
 	switch {
 	case x.options && pm == nil:
