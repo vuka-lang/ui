@@ -1870,7 +1870,7 @@ func encodePush(ctx context.Context, host LiveHost, x *push) ([]jsArg, error) {
 	}
 	var kvs []jsArg
 	if http {
-		kvs = append(kvs, jsArg{"m", pushRef(ctx, pm, x.cache)})
+		kvs = append(kvs, jsArg{"m", pushRef(ctx, pm, x.read, x.cache)})
 	} else {
 		kvs = append(kvs, jsArg{"h", host.Handler(ctx, x.fn)})
 	}

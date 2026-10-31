@@ -118,16 +118,25 @@ func TestPushStep(t *testing.T) {
 	var r1, r2 string
 	json.Unmarshal(c1["m"], &r1)
 	json.Unmarshal(c2["m"], &r2)
-	if strings.Count(r1, ".") != 2 || strings.Count(r2, ".") != 1 || string(c1["read"]) != "true" {
+	c3 := pushStep(t, ctx, ui.JS.Push(o.Details, int64(1)))
+	var r3 string
+	json.Unmarshal(c3["m"], &r3)
+	if !strings.Contains(r1, ".r60.") || !strings.Contains(r2, ".r.") || strings.Count(r3, ".") != 1 || string(c1["read"]) != "true" {
 		t.Errorf("a cached read's reference carries its time: %s, %s", r1, r2)
 	}
 	call, err := ui.ParsePushCall(ctx, r1, `[1]`, "")
-	if err != nil || call.Cache() != time.Minute {
+	if w, _ := ui.ParsePushCall(ctx, r3, `[1]`, ""); w == nil || w.Read() {
+		t.Errorf("a write's reference reads as a read")
+	}
+	if err != nil || call.Cache() != time.Minute || !call.Read() {
 		t.Errorf("the cache: %v, %v", call, err)
 	}
-	forged := strings.Replace(r1, ".60.", ".3600.", 1)
+	forged := strings.Replace(r1, ".r60.", ".r3600.", 1)
 	if _, err := ui.ParsePushCall(ctx, forged, `[1]`, ""); !errors.Is(err, ui.ErrPushRef) {
 		t.Errorf("a reference with its cache time changed is taken: %v", err)
+	}
+	if _, err := ui.ParsePushCall(ctx, strings.Replace(r3, ".", ".r.", 1), `[1]`, ""); !errors.Is(err, ui.ErrPushRef) {
+		t.Errorf("a write's reference made a read is taken: %v", err)
 	}
 
 	for _, tt := range []struct {

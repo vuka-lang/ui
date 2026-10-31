@@ -274,13 +274,16 @@ func pushScope(ctx context.Context) string {
 	return "/"
 }
 
-// pushRef is the method's reference as the page carries it: its id, how
-// long its reply may be cached (seconds, when it may), and their signature
-// for the page's scope.
-func pushRef(ctx context.Context, pm *pushMethod, cache time.Duration) string {
+// pushRef is the method's reference as the page carries it: its id;
+// for a read "r", with how long its reply may be cached in seconds when
+// it may ("r60"); and their signature for the page's scope.
+func pushRef(ctx context.Context, pm *pushMethod, read bool, cache time.Duration) string {
 	id := pm.id
-	if s := int64(cache / time.Second); s > 0 {
-		id += "." + strconv.FormatInt(s, 10)
+	if read {
+		id += ".r"
+		if s := int64(cache / time.Second); s > 0 {
+			id += strconv.FormatInt(s, 10)
+		}
 	}
 	return id + "." + pushMAC(formKeyOf(ctx), pushScope(ctx), id)
 }
@@ -307,6 +310,7 @@ type PushCall struct {
 	m     *pushMethod
 	args  []json.RawMessage
 	form  url.Values
+	read  bool
 	cache time.Duration
 }
 
@@ -330,12 +334,19 @@ func ParsePushCall(ctx context.Context, ref, args, form string) (*PushCall, erro
 		return nil, ErrPushRef
 	}
 	c := &PushCall{}
-	if base, secs, ok := strings.Cut(id, "."); ok {
-		n, err := strconv.ParseInt(secs, 10, 64)
-		if err != nil || n <= 0 {
+	if base, mode, ok := strings.Cut(id, "."); ok {
+		secs, isRead := strings.CutPrefix(mode, "r")
+		if !isRead {
 			return nil, ErrPushRef
 		}
-		id, c.cache = base, time.Duration(n)*time.Second
+		if secs != "" {
+			n, err := strconv.ParseInt(secs, 10, 64)
+			if err != nil || n <= 0 {
+				return nil, ErrPushRef
+			}
+			c.cache = time.Duration(n) * time.Second
+		}
+		id, c.read = base, true
 	}
 	pushMethods.RLock()
 	c.m = pushMethods.byID[id]
@@ -377,6 +388,11 @@ func (c *PushCall) Receiver() reflect.Type {
 
 // Method is the method's name, "Checkout.CitiesOf".
 func (c *PushCall) Method() string { return c.m.name }
+
+// Read reports whether the step rendered the call as a read (ui.Read): a
+// GET may make it. Any other is a write, which only a POST may make, so
+// the app's CSRF protection checks it.
+func (c *PushCall) Read() bool { return c.read }
 
 // Cache is how long the browser may keep the call's reply (ui.Cache);
 // 0 when it may not.
