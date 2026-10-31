@@ -38,17 +38,25 @@ func (c *Docs) ToggleDone()     {}
 func (c *Docs) SelectAll()      {}
 func (c *Docs) DeleteTodo()     {}
 
+func (c *Docs) RegionsOf(country string) []ui.Option {
+	return []ui.Option{{Value: country + "-r", Label: "Region of " + country}}
+}
+
+func (c *Docs) Older(before int) ui.Node        { return ui.Text("older") }
+func (c *Docs) Newer(after int) ui.Node         { return ui.Text("newer") }
+func (c *Docs) Details(id int) (ui.Node, error) { return ui.Text("details"), nil }
+
 func (c *Docs) CitiesOf(country string) []ui.Option {
 	return []ui.Option{{Value: country + "-1", Label: "City of " + country}}
 }
 
-//line docs.vuka.html:41
+//line docs.vuka.html:49
 func (c *Docs) Render() ui.Node {
-//line docs.vuka.html:63
+//line docs.vuka.html:71
 	value := ui.JS.Hide(ui.Closest("li"))
-//line docs.vuka.html:81
+//line docs.vuka.html:89
 	value2 := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
-//line docs.vuka.html:41
+//line docs.vuka.html:49
 	return ui.HTML(`
 <div>
   <div>
@@ -164,6 +172,18 @@ func (c *Docs) Render() ui.Node {
     <select name="country" onChange={ui.JS.On(ui.Ref("city")).Options(c.CitiesOf, ui.This.Value())}>…</select>
     <select ref="city"/>
     <p ref="cities-error" hidden>Couldn't load the cities</p>
+    <select name="country" onChange={ui.JS.Push(c.RegionsOf, ui.This.Value(), ui.Read()).Into("#region")}>…</select>
+    <select name="country" onChange={ui.JS.Push(c.RegionsOf, ui.This.Value(), ui.Cache(time.Hour)).Into("#region")}>…</select>
+    <button onClick={ui.JS.Push(c.Older, ui.Value(c.pet.Get().ID), ui.Read()).Into("#posts", ui.Append())}>Load more</button>
+    <button onClick={ui.JS.Push(c.Newer, ui.Value(c.pet.Get().ID), ui.Read()).Into("#posts", ui.Prepend())}>Newer</button>
+    <button onClick={ui.JS.Push(c.Details, ui.Value(c.pet.Get().ID), ui.Read()).Into("#details").OnError(ui.JS.SetText("#err", ui.LoadError))}>View</button>
+    <button onClick={ui.JS.Push(c.Details, ui.Value(c.pet.Get().ID), ui.Read()).Into("#details")}>View</button>
+    <button onClick={ui.JS.Push(c.Save).OnError(ui.JS.SetText("#err", ui.LoadError))}>Save</button>
+    <button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Push(c.Details, ui.Value(c.pet.Get().ID), ui.Read()).Into("#details")}>View</button>
+    <select id="region"/>
+    <div id="posts"/>
+    <div id="details"/>
+    <p id="err"/>
     <button onClick={ui.JS.Patch("/pets?page=2")}>Next</button>
     <button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Patch("/pets?page=2")}>Next</button>
     <button onClick={ui.JS.Navigate("/pets/" + strconv.Itoa(c.pet.Get().ID))}>Open</button>
@@ -320,6 +340,14 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.Options(ui.Sel("#city"), c.CitiesOf, ui.This.Value()),
 		ui.JS.Options(ui.Ref("city"), c.CitiesOf, ui.This.Value()).OnError(ui.JS.Show(ui.Ref("cities-error"))),
 		ui.JS.On(ui.Ref("city")).Options(c.CitiesOf, ui.This.Value()),
+		ui.JS.Push(c.RegionsOf, ui.This.Value(), ui.Read()).Into("#region"),
+		ui.JS.Push(c.RegionsOf, ui.This.Value(), ui.Cache(time.Hour)).Into("#region"),
+		ui.JS.Push(c.Older, ui.Value(c.pet.Get().ID), ui.Read()).Into("#posts", ui.Append()),
+		ui.JS.Push(c.Newer, ui.Value(c.pet.Get().ID), ui.Read()).Into("#posts", ui.Prepend()),
+		ui.JS.Push(c.Details, ui.Value(c.pet.Get().ID), ui.Read()).Into("#details").OnError(ui.JS.SetText("#err", ui.LoadError)),
+		ui.JS.Push(c.Details, ui.Value(c.pet.Get().ID), ui.Read()).Into("#details"),
+		ui.JS.Push(c.Save).OnError(ui.JS.SetText("#err", ui.LoadError)),
+		ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Push(c.Details, ui.Value(c.pet.Get().ID), ui.Read()).Into("#details"),
 		ui.JS.Patch("/pets?page=2"),
 		ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Patch("/pets?page=2"),
 		ui.JS.Navigate("/pets/"+strconv.Itoa(c.pet.Get().ID)),

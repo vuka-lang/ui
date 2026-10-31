@@ -72,12 +72,12 @@ func TestJSOptions(t *testing.T) {
 		t.Fatalf("%s: %v", b, err)
 	}
 	var a struct {
-		To      map[string]string `json:"to"`
+		To      map[string]string `json:"into"`
 		M       string            `json:"m"`
 		Args    []json.RawMessage `json:"args"`
 		OnError json.RawMessage   `json:"on_error"`
 	}
-	if err := json.Unmarshal(ops[0][1], &a); err != nil || string(ops[0][0]) != `"options"` {
+	if err := json.Unmarshal(ops[0][1], &a); err != nil || string(ops[0][0]) != `"push"` {
 		t.Fatalf("%s: %v", b, err)
 	}
 	if a.To["sel"] != "#city" || len(a.Args) != 1 || string(a.Args[0]) != `{"$read":{"value":true}}` || string(a.OnError) != `[["show",{"to":{"ref":"err"}}]]` {
@@ -103,7 +103,7 @@ func TestJSOptions(t *testing.T) {
 	cctx := ui.WithInjector(ctx, geoInjector{g})
 	out, err := call.Call(cctx, reflect.ValueOf(&shop{Region: "West"}))
 	j, _ := json.Marshal(out)
-	if err != nil || string(j) != `[{"value":"tz-1","label":"West tz"}]` || g.calls != 1 {
+	if err != nil || string(j) != `{"options":[{"value":"tz-1","label":"West tz"}]}` || g.calls != 1 {
 		t.Errorf("the call: %s, %v (%d calls)", j, err, g.calls)
 	}
 	call, _ = ui.ParseOptionsCall(ctx, a.M, `[""]`)
@@ -141,7 +141,7 @@ func TestJSOptions(t *testing.T) {
 	}
 	out, err = call.Call(ctx, reflect.ValueOf(&shop{}))
 	j, _ = json.Marshal(out)
-	if err != nil || string(j) != `[{"group":"Small","options":[{"value":"s","label":"S"}]},{"group":"Gift"}]` {
+	if err != nil || string(j) != `{"options":[{"group":"Small","options":[{"value":"s","label":"S"}]},{"group":"Gift"}]}` {
 		t.Errorf("groups: %s, %v", j, err)
 	}
 	call, _ = ui.ParseOptionsCall(ctx, a.M, `["three", true]`)
@@ -153,10 +153,13 @@ func TestJSOptions(t *testing.T) {
 	if _, err := ui.EncodeJS(ctx, ui.JS.Options(ui.Sel("#x"), s.Plain)); err == nil || !strings.Contains(err.Error(), "isn't a method vuka's compiler registered") {
 		t.Errorf("an unregistered method: %v", err)
 	}
-	if _, err := ui.EncodeJS(ctx, ui.JS.Options(ui.Sel("#x"), s.CitiesOf)); err == nil || !strings.Contains(err.Error(), "takes 1 arguments, not 0") {
-		t.Errorf("a missing argument: %v", err)
+	if b, err := ui.EncodeJS(ctx, ui.JS.Options(ui.Sel("#x"), s.CitiesOf)); err != nil || !strings.Contains(string(b), `"args":[{"$read":{"value":true}}]`) {
+		t.Errorf("no argument for the one value: the element's: %s, %v", b, err)
 	}
-	for _, bad := range []any{func() {}, func(shop) string { return "" }, func(*shop, int, context.Context) []ui.Option { return nil }} {
+	if _, err := ui.EncodeJS(ctx, ui.JS.Options(ui.Sel("#x"), s.CitiesOf, "a", "b")); err == nil || !strings.Contains(err.Error(), "takes 1 arguments, not 2") {
+		t.Errorf("an argument too many: %v", err)
+	}
+	for _, bad := range []any{func() {}, func(shop) chan int { return nil }, func(*shop, int, context.Context) []ui.Option { return nil }, func(*shop, chan int) {}, func(*shop, place, place) {}} {
 		func() {
 			defer func() {
 				if recover() == nil {

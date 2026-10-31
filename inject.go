@@ -172,10 +172,23 @@ func call(ctx context.Context, fn reflect.Value, recv []reflect.Value, kind call
 	if ft.IsVariadic() || ft.NumOut() > 1 || ft.NumOut() == 1 && ft.Out(0) != errType {
 		return fmt.Errorf("%s is %s: a hook or handler returns nothing or an error", methodName(fn), ft)
 	}
+	out, err := callOut(ctx, fn, recv, kind, c, bind)
+	if err != nil {
+		return err
+	}
+	if len(out) == 1 && !out[0].IsNil() {
+		return out[0].Interface().(error)
+	}
+	return nil
+}
+
+// callOut is call returning fn's results as they are.
+func callOut(ctx context.Context, fn reflect.Value, recv []reflect.Value, kind callKind, c Changed, bind func(reflect.Type) (reflect.Value, error)) ([]reflect.Value, error) {
+	ft := fn.Type()
 	slots, issues := plan(ft, len(recv), kind, InjectorOf(ctx))
 	if len(issues) > 0 {
 		is := issues[0]
-		return fmt.Errorf("%s's %s parameter, %s, %s", methodName(fn), ordinal(is.index+1), is.t, is.why)
+		return nil, fmt.Errorf("%s's %s parameter, %s, %s", methodName(fn), ordinal(is.index+1), is.t, is.why)
 	}
 	args := append(make([]reflect.Value, 0, ft.NumIn()), recv...)
 	for _, s := range slots {
@@ -192,18 +205,14 @@ func call(ctx context.Context, fn reflect.Value, recv []reflect.Value, kind call
 			v, err = bind(s.t)
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !v.IsValid() {
 			v = reflect.Zero(s.t)
 		}
 		args = append(args, v)
 	}
-	out := fn.Call(args)
-	if len(out) == 1 && !out[0].IsNil() {
-		return out[0].Interface().(error)
-	}
-	return nil
+	return fn.Call(args), nil
 }
 
 // CallHandler calls an event handler, fn, its parameters filled by type
@@ -215,6 +224,27 @@ func CallHandler(ctx context.Context, fn any, bind func(t reflect.Type) (reflect
 		return fmt.Errorf("a handler is %T, not a function", fn)
 	}
 	return call(ctx, v, nil, eventCall, Changed{}, bind)
+}
+
+// CallHandlerResult is CallHandler for a Push step's handler, which may
+// return a result (see Commands.Push): its reply, as the runtime applies
+// it to the step's target, or nil when fn returns none. The error is fn's.
+func CallHandlerResult(ctx context.Context, fn any, bind func(t reflect.Type) (reflect.Value, error)) (any, error) {
+	v := reflect.ValueOf(fn)
+	if v.Kind() != reflect.Func || v.IsNil() {
+		return nil, fmt.Errorf("a handler is %T, not a function", fn)
+	}
+	if ft := v.Type(); ft.NumOut() == 0 || ft.NumOut() == 1 && ft.Out(0) == errType {
+		return nil, call(ctx, v, nil, eventCall, Changed{}, bind)
+	}
+	if _, err := handlerShape(fn); err != nil {
+		return nil, err
+	}
+	out, err := callOut(ctx, v, nil, eventCall, Changed{}, bind)
+	if err != nil {
+		return nil, err
+	}
+	return HandlerResult(ctx, fn, out)
 }
 
 // A ParamError is a parameter of a page's hook or event handler nothing

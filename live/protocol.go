@@ -74,15 +74,16 @@ type ClientMessage struct {
 
 // ServerMessage is a message to the browser.
 type ServerMessage struct {
-	Type    string       `json:"type"`
-	Ref     int          `json:"ref,omitempty"`
-	V       int          `json:"v,omitempty"` // render: 2 for a v2 render
-	HTML    string       `json:"html,omitempty"`
-	Updates []Update     `json:"updates,omitempty"`
-	Trees   []TreeUpdate `json:"trees,omitempty"`
-	JS      []JSPush     `json:"js,omitempty"`
-	Error   string       `json:"error,omitempty"`
-	URL     string       `json:"url,omitempty"` // redirect: the URL to load; a navigation's patch: the page's new URL
+	Type    string          `json:"type"`
+	Ref     int             `json:"ref,omitempty"`
+	V       int             `json:"v,omitempty"` // render: 2 for a v2 render
+	HTML    string          `json:"html,omitempty"`
+	Updates []Update        `json:"updates,omitempty"`
+	Trees   []TreeUpdate    `json:"trees,omitempty"`
+	JS      []JSPush        `json:"js,omitempty"`
+	Error   string          `json:"error,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"` // an event's: its Push step's result (Patch.Result)
+	URL     string          `json:"url,omitempty"`    // redirect: the URL to load; a navigation's patch: the page's new URL
 }
 
 // Handle answers a client message.
@@ -134,7 +135,7 @@ func Marshal(m ServerMessage) []byte {
 
 // PatchMessage is the message carrying p, the reply to Ref (0 for a broadcast).
 func PatchMessage(ref int, p Patch) ServerMessage {
-	return ServerMessage{Type: PatchMsg, Ref: ref, Updates: p.Updates, Trees: p.Trees, JS: p.JS, Error: p.Error}
+	return ServerMessage{Type: PatchMsg, Ref: ref, Updates: p.Updates, Trees: p.Trees, JS: p.JS, Error: p.Error, Result: p.Result}
 }
 
 // navigate answers a navigate message: the page the session's router gives

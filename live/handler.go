@@ -36,17 +36,29 @@ var (
 // the request, the signed-in user, a service. A struct breaking its
 // validate: tags is a ui.Invalid, the handler not called. The handler may
 // return an error.
-func callHandler(ctx context.Context, fn any, ev ui.Event) (err error) {
+func callHandler(ctx context.Context, fn any, ev ui.Event) error {
+	_, err := callPush(ctx, fn, ev)
+	return err
+}
+
+// callPush is callHandler for a handler that may return a result (a Push
+// step's): the reply carrying it, or nil for none. An event carrying
+// arguments (a Push step's) binds them to the handler's parameters in
+// order, as ui.CallPush does.
+func callPush(ctx context.Context, fn any, ev ui.Event) (res any, err error) {
 	v := reflect.ValueOf(fn)
 	if v.Kind() != reflect.Func || v.IsNil() {
-		return fmt.Errorf("live: handler %s is %T, not a function", ev.Target, fn)
+		return nil, fmt.Errorf("live: handler %s is %T, not a function", ev.Target, fn)
 	}
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("live: handler %s panicked: %v", ev.Target, r)
 		}
 	}()
-	return ui.CallHandler(ctx, fn, func(t reflect.Type) (reflect.Value, error) { return payload(t, ev) })
+	if ev.Args != nil {
+		return ui.CallPush(ctx, fn, ev.Args, ev.Form)
+	}
+	return ui.CallHandlerResult(ctx, fn, func(t reflect.Type) (reflect.Value, error) { return payload(t, ev) })
 }
 
 func result(out []reflect.Value) error {
