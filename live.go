@@ -209,6 +209,10 @@ type Event struct {
 	Key    string          `json:"key,omitempty"`
 	Form   url.Values      `json:"form,omitempty"`
 	Data   json.RawMessage `json:"data,omitempty"` // an island emit's payload (arbitrary JSON)
+	// Args are a Push step's arguments, in order, when it passes any
+	// (JSON values; a read's text); Form then carries the enclosing
+	// form's fields when the handler's struct takes them.
+	Args []json.RawMessage `json:"args,omitempty"`
 }
 
 // LiveHost renders stateful components and registers event handlers for a
@@ -271,6 +275,16 @@ var (
 	ctxType = reflect.TypeFor[context.Context]()
 	errType = reflect.TypeFor[error]()
 )
+
+// CheckPush reports a value a Push step can't take: a func whose
+// parameters are a context.Context (first), the step's arguments (one
+// struct at most) and what the app injects (pointers and interfaces),
+// returning nothing, an error, or a result and maybe an error (see
+// Commands.Push).
+func CheckPush(fn any) error {
+	_, err := handlerShape(fn)
+	return err
+}
 
 // CheckHandler reports a value an on… attribute can't take: a handler is a
 // func returning nothing or an error, its parameters filled by type (see

@@ -89,7 +89,7 @@ func TestTemplateDocExamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"else_if"`, `"exec"`, `"call"`, `"throttle"`, `"debounce"`, `"set_value"`, `"busy"`, `"attr"`, `"and"`, `"some"`, `"options"`, `"$read"`} {
+	for _, want := range []string{`"else_if"`, `"exec"`, `"call"`, `"throttle"`, `"debounce"`, `"set_value"`, `"busy"`, `"attr"`, `"and"`, `"some"`, `"into"`, `"read"`, `"$read"`, `"error"`} {
 		if !strings.Contains(got, html.EscapeString(want)) {
 			t.Errorf("no %s rendered", want)
 		}

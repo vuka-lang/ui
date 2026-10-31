@@ -63,6 +63,10 @@ type Patch struct {
 	Trees   []TreeUpdate `json:"trees,omitempty"`
 	JS      []JSPush     `json:"js,omitempty"`
 	Error   string       `json:"error,omitempty"`
+	// Result is what the handler returned besides an error, as a Push
+	// step's reply carries it for the browser to put Into its target
+	// ({"html": …}, {"value": …}, …); none when it returned nothing.
+	Result json.RawMessage `json:"result,omitempty"`
 	// Err is the handler's error as it returned it, for a transport to
 	// read (a plain form post answering 422, or a redirect); never sent.
 	Err error `json:"-"`
@@ -223,13 +227,20 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 // Error; both are its Err.
 func (s *Session) run(fn any, ev ui.Event) (Patch, error) {
 	ctx, edit := s.beginURL(s.ctx)
-	herr := callHandler(ctx, fn, ev)
+	res, herr := callPush(ctx, fn, ev)
 	s.root.js = append(s.root.js, s.endURL(edit)...)
 	if to, ok := ui.RedirectOf(herr); ok && ui.LoadableURL(to) {
 		s.root.js = append(s.root.js, ui.JS.Navigate(to))
 	}
 	p, err := s.patch()
 	p.Err = herr
+	if res != nil && herr == nil {
+		j, jerr := json.Marshal(res)
+		if jerr != nil {
+			return p, jerr
+		}
+		p.Result = j
+	}
 	if _, redirect := ui.RedirectOf(herr); herr != nil && !redirect && !ui.QuietError(herr) {
 		p.Error = s.errorText(herr)
 	}

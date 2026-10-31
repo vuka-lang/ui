@@ -56,14 +56,18 @@ type jsArg struct {
 	val any
 }
 
-// push is a Push step's handler and options, resolved when the chain
-// renders; an Options step's too (options set).
+// push is a Push step's handler, arguments and options, resolved when the
+// chain renders; an Options step is one (options set).
 type push struct {
 	fn      any
-	options bool
-	args    callArgs // an Options step's arguments
+	options bool     // an Options step: the handler must be one vuka registered
+	args    callArgs // the arguments, values and element reads
 	value   any
 	has     bool
+	read    bool
+	cache   time.Duration
+	into    *Target
+	mode    string // "append", "prepend", or "" to replace the target's content
 	onOK    *Commands
 	onErr   *Commands
 	timeout time.Duration
@@ -591,17 +595,67 @@ func Detail(v any) DispatchOption { return DispatchOption{"detail", v} }
 //	<button onClick={ui.JS.Dispatch(ui.Ref("chart"), "refresh", ui.NoBubble())}>Refresh</button>
 func NoBubble() DispatchOption { return DispatchOption{"bubbles", false} }
 
-// PushOption changes a Push: Value, Timeout, KeepOnError.
+// PushOption changes a Push: Value, Read, Cache, Timeout, KeepOnError.
+// A Push tells its options from its arguments by their type, so they may
+// go anywhere among them.
 type PushOption func(*push)
 
-// Value sends v to the handler in place of the element's value. The
-// handler's parameter parses it as it would the element's value: a string
-// as is, anything else as its JSON.
+// Value sends v to the handler in place of the element's value: its first
+// argument. The handler's parameter parses it as it would the element's
+// value: a string as is, anything else as its JSON.
 //
 // Example, for func (c *Pets) Pick(id int):
 //
 //	<button onClick={ui.JS.Push(c.Pick, ui.Value(pet.ID))}>Pick</button>
 func Value(v any) PushOption { return func(p *push) { p.value, p.has = v, true } }
+
+// Read makes a Push a read: an HTTP GET to the page's URL, on a fresh copy
+// of the page, rather than a POST (a page that isn't live) or an event on
+// the page's socket (a live one). A read takes nothing but its arguments
+// and changes nothing, so it can run beside the page's events and, with
+// Cache, come from the browser's cache.
+//
+// Example:
+//
+//	<select name="country" onChange={ui.JS.Push(c.RegionsOf, ui.This.Value(), ui.Read()).Into("#region")}>…</select>
+func Read() PushOption { return func(p *push) { p.read = true } }
+
+// Cache lets the browser keep a read's reply for d and answer the same
+// call, the same arguments, from it. It makes the Push a read (Read);
+// without it a reply is never kept.
+//
+// Example:
+//
+//	<select name="country" onChange={ui.JS.Push(c.RegionsOf, ui.This.Value(), ui.Cache(time.Hour)).Into("#region")}>…</select>
+func Cache(d time.Duration) PushOption { return func(p *push) { p.read, p.cache = true, d } }
+
+// IntoOption changes how Into puts a result's markup in its target:
+// Append, Prepend.
+type IntoOption func(*push)
+
+// Append adds a Node result after the target's content instead of
+// replacing it.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Push(c.Older, ui.Value(pet.ID), ui.Read()).Into("#posts", ui.Append())}>Load more</button>
+func Append() IntoOption { return func(p *push) { p.mode = "append" } }
+
+// Prepend adds a Node result before the target's content instead of
+// replacing it.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Push(c.Newer, ui.Value(pet.ID), ui.Read()).Into("#posts", ui.Prepend())}>Newer</button>
+func Prepend() IntoOption { return func(p *push) { p.mode = "prepend" } }
+
+// LoadError is a read of the message of the push that failed, for the
+// steps of its OnError: SetText and SetValue take it.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Push(c.Details, ui.Value(pet.ID), ui.Read()).Into("#details").OnError(ui.JS.SetText("#err", ui.LoadError))}>View</button>
+var LoadError = ValueCondition{Condition{key: "error", val: true}}
 
 // Timeout is how long a Push waits for the server's reply before it counts
 // as failed and its OnError runs; 10s unless set. A reply that comes later
@@ -802,24 +856,78 @@ func (c Commands) Exec(target Target, attr string) Commands {
 	return c.add("exec", to(target), jsArg{"attr", attr})
 }
 
-// Push calls handler on the server, as onClick={handler} would: a method
-// value, a closure or a func prop, getting the element's value unless
-// ui.Value gives another. Without a live session it does nothing.
+// Push calls handler on the server: a method of the page or of a
+// component on it, or on a live page any handler (a closure, a func prop).
+// Where it runs follows from the page:
+//
+//   - on a live page, on its instance over the page's socket, as
+//     onClick={handler} would: it reads and changes the fields, and the
+//     page renders again;
+//   - on a page that isn't live, or with Read on any page, on a fresh copy
+//     of the page over HTTP to the page's own URL (a POST carrying the
+//     CSRF token, a GET with Read): its path and query fields bound, its
+//     dependencies injected, the page's guards and the app's middleware
+//     run but not its Load. Only methods vuka's compiler registered for a
+//     step (RegisterPush) can be called so.
+//
+// args fill the handler's parameters in order — those that aren't a
+// context.Context (first) or pointers and interfaces (injected): Go values
+// from the render, or element reads made when the event fires
+// (ui.This.Value(), ui.Sel("#qty").Value(), ui.This.Checked()). A read's
+// text converts to the parameter's type; one that won't fails the push.
+// With no argument for a handler taking one value, it gets the element's
+// value; one struct parameter given no argument gets the enclosing form's
+// fields, by their form names. Options (Read, Cache, Value, Timeout,
+// KeepOnError) may go anywhere among args.
+//
+// What the handler returns besides an error goes Into a target — the
+// element itself unless Into names another: []Option or []OptionGroup
+// replace a select's options; a Node its content (Append, Prepend add
+// instead); a string, number, bool or time.Time a field's value, or
+// another element's text; a struct fills the controls of its fields' names
+// inside the target; Commands run. On a live page, what a push put in a
+// place stays until the server renders that place differently.
 //
 // The steps before it, since the chain's start or the previous Push, are
 // its predictions: they show at once and are taken back if the push fails.
-// OnError, OnSuccess and Timeout after it apply to it.
+// OnError, OnSuccess and Timeout after it apply to it. A later push into
+// a target wins over an earlier one still on its way.
 //
 // Example:
 //
 //	<input name="q" onInput={ui.JS.Debounce(150*time.Millisecond).Push(c.Search)} />
-//	<button onClick={ui.JS.RemoveClass(ui.Ref("menu"), "hidden").Push(c.MenuOpened)}>Open</button>
-func (c Commands) Push(handler any, opts ...PushOption) Commands {
+//	<select name="country" onChange={ui.JS.Push(c.RegionsOf, ui.This.Value(), ui.Read()).Into("#region")}>…</select>
+//	<button onClick={ui.JS.Push(c.Details, ui.Value(pet.ID), ui.Read()).Into("#details")}>View</button>
+func (c Commands) Push(handler any, args ...any) Commands {
 	p := &push{fn: handler}
-	for _, o := range opts {
-		o(p)
+	for _, a := range args {
+		switch o := a.(type) {
+		case PushOption:
+			o(p)
+		case IntoOption:
+			panic("ui: JS Push takes ui.Append and ui.Prepend in Into, not among its arguments")
+		default:
+			p.args = append(p.args, a)
+		}
 	}
 	return c.add("push", jsArg{"h", p})
+}
+
+// Into puts the result of the last Push before it into target instead of
+// the element the event is on; opts (Append, Prepend) add a Node result to
+// target's content instead of replacing it. Panics with no Push before it.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Push(c.Older, ui.Value(pet.ID), ui.Read()).Into("#posts", ui.Append())}>Load more</button>
+func (c Commands) Into(target Target, opts ...IntoOption) Commands {
+	return c.withPush("Into", func(p *push) {
+		t := target
+		p.into = &t
+		for _, o := range opts {
+			o(p)
+		}
+	})
 }
 
 // OnError runs chain when the last Push before it fails: its handler
@@ -864,7 +972,7 @@ func (c Commands) Timeout(d time.Duration) Commands {
 // copy of it.
 func (c Commands) withPush(step string, f func(*push)) Commands {
 	for i := len(c.ops) - 1; i >= 0; i-- {
-		if c.ops[i].name != "push" && c.ops[i].name != "options" {
+		if c.ops[i].name != "push" {
 			continue
 		}
 		args := slices.Clone(c.ops[i].args)
@@ -879,45 +987,40 @@ func (c Commands) withPush(step string, f func(*push)) Commands {
 		ops[i] = jsOp{name: c.ops[i].name, args: args}
 		return Commands{ops}
 	}
-	panic("ui: JS " + step + " without a Push or Options before it")
+	panic("ui: JS " + step + " without a Push before it")
 }
 
 // Options loads the options of target, a select, from handler: a method
 // of the page or of a component on it, called with args — values, or
-// element reads such as ui.This.Value(), made when the step runs. The
-// call goes to the page's own URL over HTTP, so it needs no connection:
-// it works on a page that isn't live as on one that is.
+// element reads such as ui.This.Value(), made when the step runs. It is
+// Push(handler, args…, Read()).Into(target): a read over HTTP to the
+// page's own URL, so it needs no connection and leaves a live page's
+// state alone.
 //
 //	func (p *Checkout) CitiesOf(ctx context.Context, country string, geo *Geo) ([]ui.Option, error)
 //
 // The method returns []Option, or []OptionGroup for <optgroup>s, and maybe
-// an error; it takes a context.Context first if it needs one, then the
-// arguments (the parameters that aren't pointers or interfaces), then its
-// dependencies (pointers and interfaces, injected). Vuka's compiler checks
-// the arguments against them, and only methods an Options command names
-// can be called. The call runs the page's guards and the app's
-// middleware, not the page's Load: the method is called on a fresh page
-// (its path and query fields bound) or component, not on what the page
-// rendered, so it takes what it needs as arguments and dependencies.
-//
-// The reply replaces target's options — a leading option whose value is
-// "" (a placeholder) stays — and keeps the value if it is still offered,
-// else clears it; then target fires change, so a select loading another's
-// options from its own chains on. A failure (the method's error, a reply
-// that doesn't come in time) runs OnError after it, else is logged and
-// leaves the options as they were; OnSuccess and Timeout apply to it as to
-// a Push.
+// an error. The reply replaces target's options — a leading option whose
+// value is "" (a placeholder) stays — and keeps the value if it is still
+// offered, else clears it; then target fires change, so a select loading
+// another's options from its own chains on. A failure (the method's error,
+// a reply that doesn't come in time) runs OnError after it, else is logged
+// and leaves the options as they were.
 //
 // Example:
 //
 //	<select name="country" onChange={ui.JS.Options(ui.Sel("#city"), c.CitiesOf, ui.This.Value())}>…</select>
 //	<select name="country" onChange={ui.JS.Options(ui.Ref("city"), c.CitiesOf, ui.This.Value()).OnError(ui.JS.Show(ui.Ref("cities-error")))}>…</select>
 func (c Commands) Options(target Target, handler any, args ...any) Commands {
-	p := &push{fn: handler, options: true}
-	if len(args) > 0 {
-		p.args = callArgs(slices.Clone(args))
+	p := &push{fn: handler, options: true, read: true, into: &target}
+	for _, a := range args {
+		if o, ok := a.(PushOption); ok {
+			o(p)
+			continue
+		}
+		p.args = append(p.args, a)
 	}
-	return c.add("options", to(target), jsArg{"m", p})
+	return c.add("push", jsArg{"h", p})
 }
 
 // Call runs a JavaScript function of the page: one registered with
@@ -1216,14 +1319,32 @@ func setValueArg(v any) any {
 	panic(fmt.Sprintf("ui: JS SetValue takes a string, a bool or a read (ui.Sel(\"#x\").Value()), not %T", v))
 }
 
-// SetText replaces target's content with text. Before a Push it predicts
-// what the server will render, such as a new count.
+// SetText replaces target's content with text: a string, or a read made
+// when the step runs (ui.Sel("#q").Value(), ui.LoadError in an OnError).
+// Before a Push it predicts what the server will render, such as a new
+// count.
 //
 // Example:
 //
 //	<button onClick={ui.JS.SetText(ui.Ref("likes"), strconv.Itoa(c.likes+1)).Push(c.Like)}>♥ <span ref="likes">{c.likes}</span></button>
-func (c Commands) SetText(target Target, text string) Commands {
-	return c.add("set_text", to(target), jsArg{"text", text})
+//	<button onClick={ui.JS.Push(c.Save).OnError(ui.JS.SetText("#err", ui.LoadError))}>Save</button>
+func (c Commands) SetText(target Target, text any) Commands {
+	return c.add("set_text", to(target), jsArg{"text", textArg(text)})
+}
+
+// textArg is a SetText's text as the step carries it: a string or an
+// element read. Panics on anything else.
+func textArg(v any) any {
+	switch x := v.(type) {
+	case string:
+		return x
+	case Conditional:
+		return map[string]Condition{"$read": x.cond()}
+	}
+	if t := reflect.TypeOf(v); t != nil && t.Kind() == reflect.String {
+		return v
+	}
+	panic(fmt.Sprintf("ui: JS SetText takes a string or a read (ui.LoadError, ui.Sel(\"#x\").Value()), not %T", v))
 }
 
 // Patch moves a live page to href on the same route, with other path
@@ -1438,8 +1559,18 @@ func (o CommandsOn) Exec(attr string) CommandsOn { return o.with(o.c.Exec(o.to, 
 // Example:
 //
 //	<button onClick={ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").Push(c.MenuOpened)}>Open</button>
-func (o CommandsOn) Push(handler any, opts ...PushOption) CommandsOn {
-	return o.with(o.c.Push(handler, opts...))
+func (o CommandsOn) Push(handler any, args ...any) CommandsOn {
+	return o.with(o.c.Push(handler, args...))
+}
+
+// Into puts the result of the last Push before it into target (see
+// Commands.Into).
+//
+// Example:
+//
+//	<button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Push(c.Details, ui.Value(pet.ID), ui.Read()).Into("#details")}>View</button>
+func (o CommandsOn) Into(target Target, opts ...IntoOption) CommandsOn {
+	return o.with(o.c.Into(target, opts...))
 }
 
 // Debounce waits until the events have stopped for d, then runs the steps
@@ -1576,7 +1707,7 @@ func (o CommandsOn) Options(handler any, args ...any) CommandsOn {
 // Example:
 //
 //	<button onClick={ui.JS.On(ui.Ref("status")).SetText("Saving…").Push(c.Save)}>Save</button>
-func (o CommandsOn) SetText(text string) CommandsOn { return o.with(o.c.SetText(o.to, text)) }
+func (o CommandsOn) SetText(text any) CommandsOn { return o.with(o.c.SetText(o.to, text)) }
 
 // OnError runs chain when the last Push before it fails, after its
 // predictions are taken back (see Commands.OnError).
@@ -1626,8 +1757,10 @@ func (o CommandsOn) Call(name string, args ...any) CommandsOn {
 }
 
 // EncodeJS is a chain's JSON, the value of its data-vk-js-<event> attribute:
-// each Push's handler registered with ctx's live host, which gives its id,
-// or left without one when ctx has none.
+// each Push's handler registered with ctx's live host, which gives its id;
+// or, for a Read, or without a live host, the reference of the method
+// vuka registered (RegisterPush), signed for ctx's page; or left without
+// either when it is neither.
 func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 	host := liveHost(ctx)
 	var b bytes.Buffer
@@ -1656,31 +1789,12 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 					kvs = append(kvs, jsArg{"p", p})
 				}
 			case *push:
-				if x.options {
-					om, err := optionsOf(x.fn)
-					if err != nil {
-						return nil, err
-					}
-					kvs[0].val = optionsRef(ctx, om)
-					if len(x.args) > 0 {
-						if len(x.args) != len(om.args) {
-							return nil, fmt.Errorf("ui: JS Options: %s takes %d arguments, not %d", om.name, len(om.args), len(x.args))
-						}
-						kvs = append(kvs, jsArg{"args", x.args})
-					} else if len(om.args) > 0 {
-						return nil, fmt.Errorf("ui: JS Options: %s takes %d arguments, not 0", om.name, len(om.args))
-					}
-				} else if err := CheckHandler(x.fn); err != nil {
-					return nil, fmt.Errorf("ui: JS Push %w", err)
+				var err error
+				if kvs, err = encodePush(ctx, host, x); err != nil {
+					return nil, err
 				}
-				if !x.options {
-					if host == nil {
-						continue
-					}
-					kvs[0].val = host.Handler(ctx, x.fn)
-				}
-				if x.has {
-					kvs = append(kvs, jsArg{"value", x.value})
+				if kvs == nil {
+					continue
 				}
 				for _, h := range [...]struct {
 					key string
@@ -1713,6 +1827,93 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 	}
 	b.WriteByte(']')
 	return b.Bytes(), nil
+}
+
+// encodePush is a Push step's handler and arguments as the step carries
+// them: "h", the live handler's id, or "m", the reference of a method
+// called over HTTP; "args", "form" (the enclosing form's fields fill a
+// struct), "read", "into", "mode", "csrf". Nil when the step can't be
+// sent: no live host and no registered method.
+func encodePush(ctx context.Context, host LiveHost, x *push) ([]jsArg, error) {
+	what := "Push"
+	if x.options {
+		what = "Options"
+	}
+	pm := pushOf(x.fn)
+	http := pm != nil && (host == nil || x.read)
+	shape := pm
+	switch {
+	case x.options && pm == nil:
+		v := reflect.ValueOf(x.fn)
+		if v.Kind() != reflect.Func || v.IsNil() {
+			return nil, fmt.Errorf("ui: JS Options takes a method of the page or of a component (p.CitiesOf), not %T", x.fn)
+		}
+		return nil, fmt.Errorf("ui: JS Options: %s isn't a method vuka's compiler registered: pass a method of the page or of a component, p.CitiesOf, in its markup", funcName(v))
+	case pm == nil:
+		if err := CheckPush(x.fn); err != nil {
+			return nil, fmt.Errorf("ui: JS Push %w", err)
+		}
+		if host == nil {
+			return nil, nil
+		}
+		shape, _ = handlerShape(x.fn)
+	}
+	if x.options && pm.result != resOptions && pm.result != resGroups {
+		return nil, fmt.Errorf("ui: JS Options: %s returns no options: a method loading options returns []ui.Option or []ui.OptionGroup", pm.name)
+	}
+	if x.into != nil && shape.result == resNone {
+		return nil, fmt.Errorf("ui: JS %s: %s returns no result to put Into a target", what, shape.name)
+	}
+	args := x.args
+	if x.has {
+		args = append(callArgs{x.value}, args...)
+	}
+	var kvs []jsArg
+	if http {
+		kvs = append(kvs, jsArg{"m", pushRef(ctx, pm, x.cache)})
+	} else {
+		kvs = append(kvs, jsArg{"h", host.Handler(ctx, x.fn)})
+	}
+	switch {
+	case !http && len(x.args) == 0 && len(shape.args) <= 1:
+		// an event as onClick={handler} sends: the element's value, or
+		// Value's, bound to the handler's one value
+		if x.has {
+			kvs = append(kvs, jsArg{"value", x.value})
+		}
+		if shape.form >= 0 && len(shape.args) == 1 {
+			kvs = append(kvs, jsArg{"form", true})
+		}
+	case len(args) == 0 && len(shape.args) == 1 && shape.form < 0:
+		kvs = append(kvs, jsArg{"args", callArgs{This.Value()}})
+	default:
+		if err := shape.checkCount(len(args)); err != nil {
+			return nil, fmt.Errorf("ui: JS %s: %w", what, err)
+		}
+		if len(args) > 0 {
+			kvs = append(kvs, jsArg{"args", args})
+		}
+		if shape.fromForm(len(args)) {
+			kvs = append(kvs, jsArg{"form", true})
+		}
+	}
+	if http && x.read {
+		kvs = append(kvs, jsArg{"read", true})
+	}
+	if x.into != nil && *x.into != This {
+		kvs = append(kvs, jsArg{"into", *x.into})
+	}
+	if x.mode != "" {
+		kvs = append(kvs, jsArg{"mode", x.mode})
+	}
+	if http && !x.read {
+		if h := formHostOf(ctx); h != nil {
+			if tok := h.FormToken(ctx); tok != "" {
+				kvs = append(kvs, jsArg{"csrf", tok})
+			}
+		}
+	}
+	return kvs, nil
 }
 
 func writeKV(b *bytes.Buffer, k string, v any) error {
