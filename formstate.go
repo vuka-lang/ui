@@ -61,10 +61,11 @@ type formState struct {
 	summary      bool // the last render showed a <ui.Summary>, so the form doesn't add its own
 	inRender     bool // its <ui.Form> is rendering: its controls are counted
 	summaryNow   bool
-	shownSummary *FormSummary // the summary the render under way showed
-	key          string       // the form's key attribute, as text: identity and ids
-	idem         string       // the idempotency key of the next submit
-	seq          int64        // the highest change sequence the form took
+	shownSummary *FormSummary        // the summary the render under way showed
+	shownChoices map[string][]Option // the choices the render under way showed of the fields with depends:, by path
+	key          string              // the form's key attribute, as text: identity and ids
+	idem         string              // the idempotency key of the next submit
+	seq          int64               // the highest change sequence the form took
 }
 
 // pinnedErrors are errors that stay until what they were about changes: the

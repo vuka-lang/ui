@@ -282,16 +282,22 @@ func (st *formState) checkChoice(ctx context.Context, form reflect.Value, f *for
 // choicesOf are a field's choices, its <Field>Choices called once per
 // event (bind) or render.
 func (st *formState) choicesOf(ctx context.Context, form reflect.Value, f *formField) ([]Option, error) {
-	if opts, ok := st.memo[f.path]; ok {
-		return opts, nil
+	opts, ok := st.memo[f.path]
+	if !ok {
+		var err error
+		if opts, err = choices(ctx, f.choices, st.ft.receiver(form)); err != nil {
+			return nil, fmt.Errorf("ui: %s.%s: %w", st.ft.t.Name(), f.choices.Name, err)
+		}
+		if st.memo == nil {
+			st.memo = map[string][]Option{}
+		}
+		st.memo[f.path] = opts
 	}
-	opts, err := choices(ctx, f.choices, st.ft.receiver(form))
-	if err != nil {
-		return nil, fmt.Errorf("ui: %s.%s: %w", st.ft.t.Name(), f.choices.Name, err)
+	if st.inRender && len(f.depends) > 0 {
+		if st.shownChoices == nil {
+			st.shownChoices = map[string][]Option{}
+		}
+		st.shownChoices[f.path] = opts
 	}
-	if st.memo == nil {
-		st.memo = map[string][]Option{}
-	}
-	st.memo[f.path] = opts
 	return opts, nil
 }

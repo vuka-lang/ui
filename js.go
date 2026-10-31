@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
@@ -55,9 +56,12 @@ type jsArg struct {
 	val any
 }
 
-// push is a Push step's handler and options, resolved when the chain renders.
+// push is a Push step's handler and options, resolved when the chain
+// renders; an Options step's too (options set).
 type push struct {
 	fn      any
+	options bool
+	args    callArgs // an Options step's arguments
 	value   any
 	has     bool
 	onOK    *Commands
@@ -856,19 +860,64 @@ func (c Commands) Timeout(d time.Duration) Commands {
 	return c.withPush("Timeout", func(p *push) { p.timeout = d })
 }
 
-// withPush is the chain with its last Push changed by f, a copy of it.
+// withPush is the chain with its last Push (or Options) changed by f, a
+// copy of it.
 func (c Commands) withPush(step string, f func(*push)) Commands {
 	for i := len(c.ops) - 1; i >= 0; i-- {
-		if c.ops[i].name != "push" {
+		if c.ops[i].name != "push" && c.ops[i].name != "options" {
 			continue
 		}
-		p := *c.ops[i].args[0].val.(*push)
-		f(&p)
+		args := slices.Clone(c.ops[i].args)
+		for j, a := range args {
+			if x, ok := a.val.(*push); ok {
+				p := *x
+				f(&p)
+				args[j] = jsArg{a.key, &p}
+			}
+		}
 		ops := slices.Clone(c.ops)
-		ops[i] = jsOp{name: "push", args: []jsArg{{"h", &p}}}
+		ops[i] = jsOp{name: c.ops[i].name, args: args}
 		return Commands{ops}
 	}
-	panic("ui: JS " + step + " without a Push before it")
+	panic("ui: JS " + step + " without a Push or Options before it")
+}
+
+// Options loads the options of target, a select, from handler: a method
+// of the page or of a component on it, called with args — values, or
+// element reads such as ui.This.Value(), made when the step runs. The
+// call goes to the page's own URL over HTTP, so it needs no connection:
+// it works on a page that isn't live as on one that is.
+//
+//	func (p *Checkout) CitiesOf(ctx context.Context, country string, geo *Geo) ([]ui.Option, error)
+//
+// The method returns []Option, or []OptionGroup for <optgroup>s, and maybe
+// an error; it takes a context.Context first if it needs one, then the
+// arguments (the parameters that aren't pointers or interfaces), then its
+// dependencies (pointers and interfaces, injected). Vuka's compiler checks
+// the arguments against them, and only methods an Options command names
+// can be called. The call runs the page's guards and the app's
+// middleware, not the page's Load: the method is called on a fresh page
+// (its path and query fields bound) or component, not on what the page
+// rendered, so it takes what it needs as arguments and dependencies.
+//
+// The reply replaces target's options — a leading option whose value is
+// "" (a placeholder) stays — and keeps the value if it is still offered,
+// else clears it; then target fires change, so a select loading another's
+// options from its own chains on. A failure (the method's error, a reply
+// that doesn't come in time) runs OnError after it, else is logged and
+// leaves the options as they were; OnSuccess and Timeout apply to it as to
+// a Push.
+//
+// Example:
+//
+//	<select name="country" onChange={ui.JS.Options(ui.Sel("#city"), c.CitiesOf, ui.This.Value())}>…</select>
+//	<select name="country" onChange={ui.JS.Options(ui.Ref("city"), c.CitiesOf, ui.This.Value()).OnError(ui.JS.Show(ui.Ref("cities-error")))}>…</select>
+func (c Commands) Options(target Target, handler any, args ...any) Commands {
+	p := &push{fn: handler, options: true}
+	if len(args) > 0 {
+		p.args = callArgs(slices.Clone(args))
+	}
+	return c.add("options", to(target), jsArg{"m", p})
 }
 
 // Call runs a JavaScript function of the page: one registered with
@@ -1137,14 +1186,34 @@ func (c Commands) CopyText(text string) Commands { return c.add("copy_text", jsA
 //	<button onClick={ui.JS.ScrollTo(ui.Ref("comments"))}>Comments</button>
 func (c Commands) ScrollTo(target Target) Commands { return c.add("scroll_to", to(target)) }
 
-// SetValue sets a form field's value ("true" checks a checkbox) and fires
-// input and change on it, so its own on… attributes run.
+// SetValue sets a form field's value and fires input and change on it, so
+// its own on… attributes run. The value is a string, a bool (a checkbox's
+// checked state; "true" checks one too), or a read of another element,
+// made when the step runs: ui.Sel("#bill-city").Value(), ui.This.Checked().
+// A select takes the option of that value, a radio or checkbox is checked
+// when the value is true (or its own value).
 //
 // Example:
 //
 //	<button onClick={ui.JS.SetValue(ui.Ref("q"), "").Focus(ui.Ref("q"))}>Clear</button>
-func (c Commands) SetValue(target Target, v string) Commands {
-	return c.add("set_value", to(target), jsArg{"value", v})
+//	<input type="checkbox" onChange={ui.JS.If(ui.This.Checked()).SetValue(ui.Sel("#ship-city"), ui.Sel("#bill-city").Value()).End()} />
+func (c Commands) SetValue(target Target, v any) Commands {
+	return c.add("set_value", to(target), jsArg{"value", setValueArg(v)})
+}
+
+// setValueArg is a SetValue's value as the step carries it: a string, a
+// bool, or an element read ({"$read": …}). Panics on anything else.
+func setValueArg(v any) any {
+	switch x := v.(type) {
+	case string, bool:
+		return x
+	case Conditional:
+		return map[string]Condition{"$read": x.cond()}
+	}
+	if t := reflect.TypeOf(v); t != nil && (t.Kind() == reflect.String || t.Kind() == reflect.Bool) {
+		return v
+	}
+	panic(fmt.Sprintf("ui: JS SetValue takes a string, a bool or a read (ui.Sel(\"#x\").Value()), not %T", v))
 }
 
 // SetText replaces target's content with text. Before a Push it predicts
@@ -1484,13 +1553,23 @@ func (o CommandsOn) CopyText(text string) CommandsOn { return o.with(o.c.CopyTex
 //	<button onClick={ui.JS.On(ui.Ref("comments")).Show().ScrollTo()}>Comments</button>
 func (o CommandsOn) ScrollTo() CommandsOn { return o.with(o.c.ScrollTo(o.to)) }
 
-// SetValue sets the target field's value ("true" checks a checkbox) and
-// fires input and change on it.
+// SetValue sets the target field's value (a string, a bool or a read, as
+// Commands.SetValue takes) and fires input and change on it.
 //
 // Example:
 //
 //	<button onClick={ui.JS.On(ui.Ref("q")).SetValue("").Focus()}>Clear</button>
-func (o CommandsOn) SetValue(v string) CommandsOn { return o.with(o.c.SetValue(o.to, v)) }
+func (o CommandsOn) SetValue(v any) CommandsOn { return o.with(o.c.SetValue(o.to, v)) }
+
+// Options loads the target select's options from handler, a method of the
+// page or of a component on it (see Commands.Options).
+//
+// Example:
+//
+//	<select name="country" onChange={ui.JS.On(ui.Ref("city")).Options(c.CitiesOf, ui.This.Value())}>…</select>
+func (o CommandsOn) Options(handler any, args ...any) CommandsOn {
+	return o.with(o.c.Options(o.to, handler, args...))
+}
 
 // SetText replaces the target's content with text.
 //
@@ -1577,13 +1656,29 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 					kvs = append(kvs, jsArg{"p", p})
 				}
 			case *push:
-				if err := CheckHandler(x.fn); err != nil {
+				if x.options {
+					om, err := optionsOf(x.fn)
+					if err != nil {
+						return nil, err
+					}
+					kvs[0].val = optionsRef(ctx, om)
+					if len(x.args) > 0 {
+						if len(x.args) != len(om.args) {
+							return nil, fmt.Errorf("ui: JS Options: %s takes %d arguments, not %d", om.name, len(om.args), len(x.args))
+						}
+						kvs = append(kvs, jsArg{"args", x.args})
+					} else if len(om.args) > 0 {
+						return nil, fmt.Errorf("ui: JS Options: %s takes %d arguments, not 0", om.name, len(om.args))
+					}
+				} else if err := CheckHandler(x.fn); err != nil {
 					return nil, fmt.Errorf("ui: JS Push %w", err)
 				}
-				if host == nil {
-					continue
+				if !x.options {
+					if host == nil {
+						continue
+					}
+					kvs[0].val = host.Handler(ctx, x.fn)
 				}
-				kvs[0].val = host.Handler(ctx, x.fn)
 				if x.has {
 					kvs = append(kvs, jsArg{"value", x.value})
 				}
