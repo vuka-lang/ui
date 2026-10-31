@@ -1832,7 +1832,7 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 // encodePush is a Push step's handler and arguments as the step carries
 // them: "h", the live handler's id, or "m", the reference of a method
 // called over HTTP; "args", "form" (the enclosing form's fields fill a
-// struct), "read", "into", "mode", "csrf". Nil when the step can't be
+// struct), "read", "result" (it returns one), "into", "mode", "csrf". Nil when the step can't be
 // sent: no live host and no registered method.
 func encodePush(ctx context.Context, host LiveHost, x *push) ([]jsArg, error) {
 	what := "Push"
@@ -1899,6 +1899,9 @@ func encodePush(ctx context.Context, host LiveHost, x *push) ([]jsArg, error) {
 	}
 	if http && x.read {
 		kvs = append(kvs, jsArg{"read", true})
+	}
+	if shape.result != resNone {
+		kvs = append(kvs, jsArg{"result", true})
 	}
 	if x.into != nil && *x.into != This {
 		kvs = append(kvs, jsArg{"into", *x.into})
