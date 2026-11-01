@@ -113,12 +113,22 @@ func markerTree(s string) *ui.Tree {
 // sameProps reports whether a tag sets the props an instance has: every
 // exported field equal, compared by value. Pointers, slices, maps, funcs,
 // channels and interfaces (children included) count as the same only when
-// both are nil, since what they point to may have changed in place.
+// both are nil, since what they point to may have changed in place. A func
+// prop both tags set to the same method of the same receiver (ui.MethodProps)
+// is the same too.
 func sameProps(to, from ui.Stateful) bool {
 	dst, src := reflect.ValueOf(to).Elem(), reflect.ValueOf(from).Elem()
 	live := reflect.TypeFor[ui.Live]()
+	mto, mfrom := ui.MethodPropsOf(to), ui.MethodPropsOf(from)
 	for i := 0; i < dst.NumField(); i++ {
-		if f := dst.Type().Field(i); f.IsExported() && f.Type != live && !ui.IsFormField(f.Type) && !sameValue(dst.Field(i), src.Field(i)) {
+		f := dst.Type().Field(i)
+		if !f.IsExported() || f.Type == live || ui.IsFormField(f.Type) {
+			continue
+		}
+		if f.Type.Kind() == reflect.Func && len(mfrom) > 0 && sameMethod(mto, mfrom, f.Name) {
+			continue
+		}
+		if !sameValue(dst.Field(i), src.Field(i)) {
 			return false
 		}
 	}

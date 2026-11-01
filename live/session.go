@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/vuka-lang/ui/v2"
 )
@@ -39,7 +40,8 @@ type Session struct {
 	pass     int
 	ids      ids // the pass's names for library components' random ids (ids.go)
 	closed   bool
-	trees    bool // a v2 connection: instances render to trees
+	inPass   atomic.Bool // in renderAll
+	trees    bool        // a v2 connection: instances render to trees
 	c        conn
 	verify   bool
 	whole    bool     // each instance one dynamic of its HTML: wholeTrees's
@@ -280,7 +282,7 @@ func (e *NoFormError) Error() string { return fmt.Sprintf("live: the page has no
 func (s *Session) Handler(target string) any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.handler(target)
+	return s.boundMethod(s.handler(target))
 }
 
 // Component is the component an event's target belongs to ("c1:0",
@@ -680,6 +682,8 @@ type instance struct {
 	contextual bool              // context-dependent output must not use state-only render reuse
 	vars       map[string]uint64 // the template variables its last render read, at their versions
 	idn        int               // the random ids its render named so far (ids.go)
+	methods    []*methodProp     // its func props set to method values (methodprops.go)
+	called     atomic.Bool       // its last render called one of them
 }
 
 func (in *instance) ID() string { return in.id }
@@ -850,6 +854,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		}
 		in = &instance{s: s, id: "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true}
 		ui.AttachLive(in.comp, in)
+		in.trackMethods(n.Props)
 		s.fillURL(in, n)
 		if err := mount(s.ctx, in.comp); err != nil {
 			return nil, err
@@ -880,8 +885,9 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			s.uerr = errors.Join(s.uerr, err)
 		}
 	default:
-		same = sameProps(in.comp, n.Props)
+		same = sameProps(in.comp, n.Props) && !in.called.Load()
 		copyProps(in.comp, n.Props)
+		in.trackMethods(n.Props)
 		if upd {
 			_, err := callUpdate(s.ctx, in.comp, msg)
 			s.uerr = errors.Join(s.uerr, err)
@@ -929,6 +935,8 @@ func (s *Session) renderAll() error {
 		return errors.New("live: the session is closed")
 	}
 	s.pass++
+	s.inPass.Store(true)
+	defer s.inPass.Store(false)
 	if err := s.renderInst(s.root); err != nil {
 		return err
 	}
@@ -1013,6 +1021,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 	defer ui.Catch(&err) // a (T, error) call in its markup failing
 	in.seen, in.rendered, in.idn = s.pass, true, 0
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
+	in.called.Store(false)
 	clear(in.forms)
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
 	in.contextual = false
