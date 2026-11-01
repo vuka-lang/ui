@@ -42,6 +42,8 @@ type Session struct {
 	redo     bool // rendering it again: nothing is kept, and no third time
 	ids      ids  // the pass's names for library components' random ids (ids.go)
 	closed   bool
+	trimmed  bool        // Trim released the shadows; renderAll rebuilds them
+	undiffed bool        // a render's trees aren't all diffed yet: the shadows aren't their trees'
 	inPass   atomic.Bool // in renderAll
 	trees    bool        // a v2 connection: instances render to trees
 	c        conn
@@ -193,8 +195,9 @@ func (s *Session) Adopt(ctx context.Context, render func(ctx context.Context) ui
 
 // refresh makes every instance render again, its output sent whole.
 func (s *Session) refresh() {
+	s.trimmed = false
 	for _, in := range s.byID {
-		in.fresh, in.shadow = true, nil
+		in.fresh, in.shadow, in.trimmed = true, nil, false
 	}
 }
 
@@ -702,6 +705,7 @@ type instance struct {
 
 	tree       *ui.Tree          // its last render, on a v2 connection
 	shadow     *sframe           // what the client holds of it; nil: nothing yet
+	trimmed    bool              // its shadow was released: tree is what the client holds (Trim)
 	rendered   bool              // rendered this pass (not skipped)
 	contextual bool              // context-dependent output must not use state-only render reuse
 	vars       map[string]uint64 // the template variables its last render read, at their versions
@@ -977,6 +981,8 @@ func (s *Session) renderAll() error {
 		return errors.New("live: the session is closed")
 	}
 	adopting := s.adopting
+	s.untrim()
+	s.undiffed = s.trees
 	s.pass++
 	s.inPass.Store(true)
 	defer s.inPass.Store(false)
