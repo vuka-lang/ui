@@ -1,0 +1,62 @@
+<script lang="go">
+package demo
+
+import (
+	"context"
+
+	"github.com/vuka-lang/ui/v2"
+)
+
+// KeyedTable is a table of rows with handlers, keyed by their ids: rows come
+// and go at the top, and each records its hits in Hits.
+type KeyedTable struct {
+	ui.Live
+	N    int
+	Hits *[]int
+	rows []int
+	next int
+}
+
+@ui.Mount
+func (t *KeyedTable) mount(ctx context.Context) error {
+	for t.next < t.N {
+		t.rows = append(t.rows, t.next)
+		t.next++
+	}
+	return nil
+}
+
+func (t *KeyedTable) Insert() {
+	t.rows = append([]int{t.next}, t.rows...)
+	t.next++
+}
+
+func (t *KeyedTable) Pop() { t.rows = t.rows[1:] }
+
+func (t *KeyedTable) Hit(id int) { *t.Hits = append(*t.Hits, id) }
+
+func (t *KeyedTable) Remove(id int) {
+	for i, r := range t.rows {
+		if r == id {
+			t.rows = append(t.rows[:i:i], t.rows[i+1:]...)
+			return
+		}
+	}
+}
+</script>
+
+<div>
+  <button className="insert" onClick={t.Insert}>insert</button>
+  <button className="pop" onClick={t.Pop}>pop</button>
+  <table>
+    for _, id := range t.rows {
+      <tr key={id}>
+        <td>row {id}</td>
+        <td>
+          <button className="hit" onClick={func() { t.Hit(id) }}>hit {id}</button>
+          <button className="del" onClick={func() { t.Remove(id) }}>del {id}</button>
+        </td>
+      </tr>
+    }
+  </table>
+</div>

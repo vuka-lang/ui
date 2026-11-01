@@ -38,21 +38,11 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		}
 		if k, ok := elementKey(n); ok {
 			if h := liveHost(ctx); h != nil {
-				ctx = h.Keyed(ctx, k)
+				keyed := h.Keyed(ctx, k)
+				return inScope(keyed, r, func() error { return walkElement(keyed, n, r, void) })
 			}
 		}
-		if _, html := r.(*HTMLRenderer); !html {
-			n = withSets(n)
-		}
-		if err := r.Open(n); err != nil || void {
-			return err
-		}
-		for _, c := range n.Children {
-			if err := Walk(ctx, c, r); err != nil {
-				return err
-			}
-		}
-		return r.Close(n)
+		return walkElement(ctx, n, r, void)
 	case *ComponentNode:
 		if n == nil {
 			return nil
@@ -133,7 +123,11 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		}
 		return Walk(ctx, ResolveContext(ctx, n), r)
 	case keyedNode:
-		return Walk(n.in(ctx), n.n, r)
+		ctx := n.in(ctx)
+		if n.with != nil {
+			return Walk(ctx, n.n, r)
+		}
+		return inScope(ctx, r, func() error { return Walk(ctx, n.n, r) })
 	case Boundary:
 		var rec recording
 		for _, c := range n.Children {
@@ -152,10 +146,57 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 	return r.Opaque(ctx, n)
 }
 
+// walkElement sends an element and what it holds to r.
+func walkElement(ctx context.Context, n *Element, r Renderer, void bool) error {
+	if _, html := r.(*HTMLRenderer); !html {
+		n = withSets(n)
+	}
+	if err := r.Open(n); err != nil || void {
+		return err
+	}
+	for _, c := range n.Children {
+		if err := Walk(ctx, c, r); err != nil {
+			return err
+		}
+	}
+	return r.Close(n)
+}
+
+// A scopedRenderer writes attributes in a context of its own: a key's scope
+// is entered here, so that the handlers of the keyed element's attributes
+// and of those inside it are named by the key.
+type scopedRenderer interface {
+	swapScope(ctx context.Context) (prev context.Context)
+}
+
+func (h *HTMLRenderer) swapScope(ctx context.Context) context.Context {
+	prev := h.ctx
+	h.ctx = ctx
+	return prev
+}
+
+// inScope runs walk with r's attributes in ctx, a key's scope in a live
+// session. A page's probe names no handlers, and its context stays.
+func inScope(ctx context.Context, r Renderer, walk func() error) error {
+	s, ok := r.(scopedRenderer)
+	if !ok {
+		return walk()
+	}
+	switch liveHost(ctx).(type) {
+	case nil, *pageProbe:
+		return walk()
+	}
+	prev := s.swapScope(ctx)
+	err := walk()
+	s.swapScope(prev)
+	return err
+}
+
 type event struct {
 	kind uint8
 	e    *Element
 	s    string
+	ctx  context.Context // evScope's
 }
 
 const (
@@ -164,27 +205,43 @@ const (
 	evText
 	evRaw
 	evOpaque
+	evScope
 )
 
 // recording is a Renderer keeping what it receives, for a Boundary.
-type recording []event
+type recording struct {
+	events []event
+	scope  context.Context // the scope last entered; nil: the one it started in
+}
 
-func (r *recording) Open(e *Element) error  { *r = append(*r, event{evOpen, e, ""}); return nil }
-func (r *recording) Close(e *Element) error { *r = append(*r, event{evClose, e, ""}); return nil }
-func (r *recording) Text(s string) error    { *r = append(*r, event{evText, nil, s}); return nil }
-func (r *recording) Raw(s string) error     { *r = append(*r, event{evRaw, nil, s}); return nil }
+func (r *recording) add(ev event) error { r.events = append(r.events, ev); return nil }
+
+func (r *recording) Open(e *Element) error  { return r.add(event{kind: evOpen, e: e}) }
+func (r *recording) Close(e *Element) error { return r.add(event{kind: evClose, e: e}) }
+func (r *recording) Text(s string) error    { return r.add(event{kind: evText, s: s}) }
+func (r *recording) Raw(s string) error     { return r.add(event{kind: evRaw, s: s}) }
 
 func (r *recording) Opaque(ctx context.Context, n Node) error {
 	var b strings.Builder
 	if err := n.Render(ctx, &b); err != nil {
 		return err
 	}
-	*r = append(*r, event{evOpaque, nil, b.String()})
-	return nil
+	return r.add(event{kind: evOpaque, s: b.String()})
 }
 
-func (r recording) replay(ctx context.Context, to Renderer) error {
-	for _, ev := range r {
+// swapScope keeps the scope the elements after it were walked in, for the
+// replay, which writes their attributes.
+func (r *recording) swapScope(ctx context.Context) context.Context {
+	prev := r.scope
+	r.scope = ctx
+	r.add(event{kind: evScope, ctx: ctx})
+	return prev
+}
+
+func (r *recording) replay(ctx context.Context, to Renderer) error {
+	var base context.Context // to's scope before the first the recording entered
+	entered := false
+	for _, ev := range r.events {
 		var err error
 		switch ev.kind {
 		case evOpen:
@@ -197,6 +254,16 @@ func (r recording) replay(ctx context.Context, to Renderer) error {
 			err = to.Raw(ev.s)
 		case evOpaque:
 			err = to.Opaque(ctx, RawHTML(ev.s))
+		case evScope:
+			if s, ok := to.(scopedRenderer); ok {
+				scope := ev.ctx
+				if scope == nil {
+					scope = base
+				}
+				if prev := s.swapScope(scope); !entered {
+					base, entered = prev, true
+				}
+			}
 		}
 		if err != nil {
 			return err

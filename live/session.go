@@ -38,7 +38,9 @@ type Session struct {
 	byID     map[string]*instance
 	next     int
 	pass     int
-	ids      ids // the pass's names for library components' random ids (ids.go)
+	again    bool // the pass must be rendered again (keyDups)
+	redo     bool // rendering it again: nothing is kept, and no third time
+	ids      ids  // the pass's names for library components' random ids (ids.go)
 	closed   bool
 	inPass   atomic.Bool // in renderAll
 	trees    bool        // a v2 connection: instances render to trees
@@ -276,7 +278,7 @@ type NoFormError struct{ ID string }
 
 func (e *NoFormError) Error() string { return fmt.Sprintf("live: the page has no form %q", e.ID) }
 
-// Handler is the function an event's target names ("c1:0"): a method
+// Handler is the function an event's target names ("c1:0", "c1:row-42:0"): a method
 // value such as c.Inc, for a transport to say which handler an event ran
 // (a development toolbar's "Counter.Inc"); nil when it names none.
 func (s *Session) Handler(target string) any {
@@ -301,9 +303,11 @@ func (s *Session) Component(target string) ui.Stateful {
 }
 
 // handler is the function target names: an instance's handler by number
-// ("c1:0"), one a command it pushed names ("c1:0p", see pushHandler), or
-// a method of its component by name ("c1:Inc", what the component's
-// scripts push) when AllowPush allows it.
+// ("c1:0") or under a key ("c1:row-42:0", see scope.Handler), one a command
+// it pushed names ("c1:0p", see pushHandler), or a method of its component
+// by name ("c1:Inc", what the component's scripts push) when AllowPush
+// allows it. A name is no number or method when it has a colon, so a
+// target with one only ever looks in the keyed handlers.
 func (s *Session) handler(target string) any {
 	id, n, ok := strings.Cut(target, ":")
 	in := s.byID[id]
@@ -311,7 +315,9 @@ func (s *Session) handler(target string) any {
 		return nil
 	}
 	var fn any
-	if p, ok := strings.CutSuffix(n, "p"); ok && isNumber(p) {
+	if strings.IndexByte(n, ':') >= 0 {
+		fn = in.keyed[n]
+	} else if p, ok := strings.CutSuffix(n, "p"); ok && isNumber(p) {
 		fn = in.pushes[n]
 	} else if h, err := strconv.Atoi(n); err != nil {
 		fn = pushable(in.comp, n)
@@ -355,9 +361,15 @@ func (s *Session) noHandler(target string) error {
 	id, n, _ := strings.Cut(target, ":")
 	in := s.byID[id]
 	e := &NoHandlerError{Target: target}
+	keyed := strings.IndexByte(n, ':') >= 0
+	const gone = "its last render has none under that key (the item is gone, or its handlers changed)"
 	switch {
 	case in == nil:
 		e.reason = fmt.Sprintf("no component %s is mounted (it was unmounted, or the page navigated)", id)
+		return e
+	case in.comp == nil && keyed:
+		e.Component = "page"
+		e.reason = "the page: " + gone
 		return e
 	case in.comp == nil && n != "":
 		e.Component = "page"
@@ -365,7 +377,9 @@ func (s *Session) noHandler(target string) error {
 		return e
 	}
 	e.Component = typeName(in.typ)
-	if p, ok := strings.CutSuffix(n, "p"); ok && isNumber(p) {
+	if keyed {
+		e.reason = fmt.Sprintf("%s (%s): %s", e.Component, id, gone)
+	} else if p, ok := strings.CutSuffix(n, "p"); ok && isNumber(p) {
 		e.reason = fmt.Sprintf("%s (%s) keeps the handlers of its last %d pushed commands, and this one is older", e.Component, id, maxPushes)
 	} else if isNumber(n) {
 		e.reason = fmt.Sprintf("%s (%s): its last render has %d", e.Component, id, len(in.handlers))
@@ -622,6 +636,15 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 		s.byID = map[string]*instance{RootID: s.root}
 		s.root.children, s.root.kids = map[string]*instance{}, nil
 	}
+	if !patch || len(rt.Updates) == 0 {
+		// another page: its keys are its own, whatever the last one's were
+		for _, in := range s.byID {
+			if len(in.keyed) > 0 {
+				in.pageKeys++
+				in.set = true // it renders: its render's ids are the new page's
+			}
+		}
+	}
 	s.updates, s.uerr = maps.Clone(rt.Updates), nil
 	defer func() { s.updates, s.uerr = nil, nil }()
 	p, err := s.patch()
@@ -632,7 +655,7 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 			unmount(in)
 		}
 		s.byID = map[string]*instance{RootID: s.root}
-		s.root.children, s.root.kids, s.root.handlers = map[string]*instance{}, nil, nil
+		s.root.children, s.root.kids, s.root.handlers, s.root.keyed = map[string]*instance{}, nil, nil, nil
 		return Patch{}, err
 	}
 	return p, nil
@@ -658,6 +681,7 @@ type instance struct {
 	kids     []*instance          // in render order, this pass
 	occ      map[string]int
 	handlers []any
+	keyed    map[string]any // its render's handlers under a key, by what follows "c1:" in their ids (keyedHandler)
 	pushes   map[string]any // the handlers of the commands it pushed, by id (pushHandler)
 	forms    map[string]any // the submit handlers of the forms its last render has, by identity
 	pushIDs  []string       // their ids, oldest first, at most maxPushes
@@ -684,6 +708,9 @@ type instance struct {
 	idn        int               // the random ids its render named so far (ids.go)
 	methods    []*methodProp     // its func props set to method values (methodprops.go)
 	called     atomic.Bool       // its last render called one of them
+
+	dups     keyDups // the keys its render met more than once (keyedHandler)
+	pageKeys int     // the pages it stayed mounted across (keyPath)
 }
 
 func (in *instance) ID() string { return in.id }
@@ -721,7 +748,9 @@ func (s *Session) pushed() ([]JSPush, error) {
 type scope struct {
 	in   *instance
 	keys string
-	push bool // encoding commands the instance pushed, not its render
+	push bool   // encoding commands the instance pushed, not its render
+	path string // the keys as they name a handler; "" outside any key (keyPath)
+	n    *int   // the handlers named under path, by this key's element
 }
 
 func (sc *scope) ContextRead() { sc.in.contextual = true }
@@ -747,9 +776,18 @@ func (sc *scope) Form(id string, submit any) {
 	sc.in.forms[id] = submit
 }
 
+// Handler registers a handler of the instance's render and returns its id.
+// Inside a key it is named by the key ("c1:row-42:0": the keys around it and
+// its number under them, see keyedHandler), so that inserting an item leaves
+// the ids of the others, and an id sent as a patch arrives names the same
+// item or nothing. Elsewhere it is its number among the render's handlers
+// outside any key ("c1:7").
 func (sc *scope) Handler(_ context.Context, fn any) string {
 	if sc.push {
 		return sc.in.pushHandler(fn)
+	}
+	if sc.path != "" {
+		return sc.in.keyedHandler(sc, fn)
 	}
 	sc.in.handlers = append(sc.in.handlers, fn)
 	return sc.in.id + ":" + strconv.Itoa(len(sc.in.handlers)-1)
@@ -789,7 +827,11 @@ func (sc *scope) StateKey(_ context.Context, site string) string {
 }
 
 func (sc *scope) Keyed(ctx context.Context, key any) context.Context {
-	return ui.WithLiveHost(ctx, &scope{sc.in, sc.keys + keyText(key) + "/", sc.push})
+	in := &scope{in: sc.in, keys: sc.keys + keyText(key) + "/", push: sc.push, path: sc.path, n: sc.n}
+	if key != nil { // no key the morph would see: its handlers stay where they are
+		in.path, in.n = keyPath(sc.in, sc.path, key), new(int)
+	}
+	return ui.WithLiveHost(ctx, in)
 }
 
 func keyText(k any) string { return ui.KeyText(k) }
@@ -934,11 +976,24 @@ func (s *Session) renderAll() error {
 	if s.closed {
 		return errors.New("live: the session is closed")
 	}
+	adopting := s.adopting
 	s.pass++
 	s.inPass.Store(true)
 	defer s.inPass.Store(false)
+	s.again = false
 	if err := s.renderInst(s.root); err != nil {
 		return err
+	}
+	if s.again {
+		// A key's duplicates changed: what they rendered named handlers an
+		// event under way may still name for another item (keyDups).
+		s.again, s.redo, s.adopting = false, true, adopting
+		s.pass++
+		err := s.renderInst(s.root)
+		s.redo = false
+		if err != nil {
+			return err
+		}
 	}
 	for id, in := range s.byID {
 		if in.seen != s.pass {
@@ -961,7 +1016,7 @@ func (s *Session) renderAll() error {
 func (s *Session) visit(in *instance, same bool) error {
 	set := in.set
 	in.set = false
-	if same && !in.fresh && !set && !in.contextual && !s.varsMoved(in) {
+	if same && !in.fresh && !set && !in.contextual && !s.redo && !s.varsMoved(in) {
 		if tracked, changed := ui.TrackedState(in.comp); tracked && !changed {
 			if s.verify {
 				return s.verifySkip(in)
@@ -1022,6 +1077,9 @@ func (s *Session) renderInst(in *instance) (err error) {
 	in.seen, in.rendered, in.idn = s.pass, true, 0
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
 	in.called.Store(false)
+	clear(in.keyed)
+	in.dups.begin()
+	defer in.dups.end(s)
 	clear(in.forms)
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
 	in.contextual = false
@@ -1058,7 +1116,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 		in.tree = splitMarkers(ui.OpaqueTree(own))
 		return nil
 	}
-	in.changed = in.fresh || own != in.own
+	in.changed = in.changed || in.fresh || own != in.own // changed stays until settle: renderAll may render twice
 	in.own = own
 	return nil
 }

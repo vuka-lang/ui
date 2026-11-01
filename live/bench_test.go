@@ -54,7 +54,7 @@ func versions(b *testing.B, page func(context.Context) ui.Node, target func(i in
 // A 1000-row table rendered by one component, one cell changing per event.
 func BenchmarkCellTable(b *testing.B) {
 	page := func(context.Context) ui.Node { return ui.Component("b#1", nil, &demo.CellTable{N: 1000}) }
-	versions(b, page, func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) })
+	versions(b, page, func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) + ":0" })
 }
 
 // A 1000-row table of row components, one row changing per event: rows with
@@ -64,7 +64,10 @@ func BenchmarkRowTable(b *testing.B) {
 		name := map[bool]string{false: "assign", true: "plain"}[plain]
 		page := func(context.Context) ui.Node { return ui.Component("b#1", nil, &demo.Table{N: 1000, Plain: plain}) }
 		b.Run(name, func(b *testing.B) {
-			versions(b, page, func(i int) string { return "c" + strconv.Itoa(2+i*37%1000) + ":0" })
+			versions(b, page, func(i int) string {
+				row := i * 37 % 1000
+				return "c" + strconv.Itoa(2+row) + ":" + strconv.Itoa(row) + ":0" // each row's root has its key
+			})
 		})
 	}
 }
@@ -72,6 +75,31 @@ func BenchmarkRowTable(b *testing.B) {
 // A page of 100 counters, one clicked per event.
 func BenchmarkCounters(b *testing.B) {
 	versions(b, demo.Counters(100), func(i int) string { return "c" + strconv.Itoa(1+i*7%100) + ":0" })
+}
+
+// A 1000-row table of keyed rows with handlers, one row inserted at the top
+// and removed again per iteration: the bytes of each reply, which a row's
+// insertion keeps from growing with the rows after it. (Before handler ids
+// went by key, an insert sent every later row's two ids: 79 KB on v2.)
+func BenchmarkKeyedInsert(b *testing.B) {
+	for _, v := range []int{1, 2} {
+		b.Run("v"+strconv.Itoa(v), func(b *testing.B) {
+			defer func(v bool) { live.Verify = v }(live.Verify)
+			live.Verify = false
+			var hits []int
+			s := joined(b, func(context.Context) ui.Node {
+				return ui.Component("b#1", nil, &demo.KeyedTable{N: 1000, Hits: &hits})
+			}, v)
+			inserted, popped := 0, 0
+			b.ResetTimer()
+			for b.Loop() {
+				inserted += event(b, s, "c1:0")
+				popped += event(b, s, "c1:1")
+			}
+			b.ReportMetric(float64(inserted)/float64(b.N), "B/insert")
+			b.ReportMetric(float64(popped)/float64(b.N), "B/remove")
+		})
+	}
 }
 
 // BenchmarkLoad is a scaled-down load test: n sessions of the demo page

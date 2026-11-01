@@ -158,7 +158,7 @@ func BenchmarkFallback(b *testing.B) {
 		target func(i int) string
 	}{
 		{"celltable", func(context.Context) ui.Node { return ui.Component("b#1", nil, &demo.CellTable{N: 1000}) },
-			func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) }},
+			func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) + ":0" }},
 		{"counters", demo.Counters(100), func(i int) string { return "c" + strconv.Itoa(1+i*7%100) + ":0" }},
 	}
 	for _, p := range pages {
