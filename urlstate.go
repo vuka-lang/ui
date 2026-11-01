@@ -581,5 +581,5 @@ func URLKey(key string, c any) Node {
 	case Stateful:
 		return &ComponentNode{Props: x, URLKey: key}
 	}
-	panic(fmt.Sprintf("ui: URLKey is given %T, not a stateful component", c))
+	panic(fmt.Sprintf("ui: URLKey is given %T, not a live component", c))
 }
