@@ -245,7 +245,7 @@ func TestTemplateMatchesJSX(t *testing.T) {
 
 func BenchmarkTemplateCellTable(b *testing.B) {
 	page := func(context.Context) ui.Node { return ui.Component("b#1", nil, &tCellTable{N: 1000}) }
-	versions(b, page, func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) })
+	versions(b, page, func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) + ":0" })
 }
 
 func BenchmarkTemplateCounters(b *testing.B) {

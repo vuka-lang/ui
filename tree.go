@@ -247,9 +247,15 @@ func (b *treeBuilder) elem(ctx context.Context, fb *frameBuild, sh *shape, el *E
 	}
 	if h := liveHost(ctx); h != nil {
 		if k, ok := elementKey(el); ok {
-			ctx = h.Keyed(ctx, k)
+			keyed := h.Keyed(ctx, k)
+			return inScope(keyed, &b.h, func() error { return b.elemBody(keyed, fb, sh, el, extra, flags, void) })
 		}
 	}
+	return b.elemBody(ctx, fb, sh, el, extra, flags, void)
+}
+
+// elemBody writes an element and what it holds into the frame.
+func (b *treeBuilder) elemBody(ctx context.Context, fb *frameBuild, sh *shape, el *Element, extra int, flags string, void bool) error {
 	b.toStatic(fb)
 	if err := b.h.openTag(el); err != nil {
 		return err
@@ -385,7 +391,16 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 		}
 		return b.value(ctx, ResolveContext(ctx, n))
 	case keyedNode:
-		return b.value(n.in(ctx), n.n)
+		ctx := n.in(ctx)
+		if n.with != nil {
+			return b.value(ctx, n.n)
+		}
+		var v any
+		err := inScope(ctx, &b.h, func() (err error) {
+			v, err = b.value(ctx, n.n)
+			return err
+		})
+		return v, err
 	}
 	if v, ok := n.(viewer); ok {
 		return b.value(ctx, v.View())

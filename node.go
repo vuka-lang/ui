@@ -188,7 +188,8 @@ type ctxNode func(context.Context) Node
 // element's key attribute scopes those inside the element, and adds no
 // markup: on a live page, a component in n keeps its instance across renders
 // while key is the same, and mounts afresh when key changes, though its tag
-// is in the same place.
+// is in the same place. The handlers in n are named by it too, as those inside
+// a keyed element are.
 func Keyed(key any, n Node) Node { return keyedNode{key: key, n: n} }
 
 type keyedNode struct {
@@ -211,10 +212,21 @@ func (n keyedNode) in(ctx context.Context) context.Context {
 		return n.with(ctx)
 	}
 	if h := liveHost(ctx); h != nil {
-		return h.Keyed(ctx, n.key)
+		if n.key == nil {
+			return h.Keyed(ctx, nil)
+		}
+		return h.Keyed(ctx, unshownKey{n.key})
 	}
 	return ctx
 }
+
+// unshownKey is a ui.Keyed key as a live host gets it: it adds no markup, so
+// unlike an element's it was never in the page, and a handler id naming it
+// must hide it (a host's Keyed reads it as a key of no type it writes out).
+// It prints as the key.
+type unshownKey struct{ key any }
+
+func (k unshownKey) String() string { return fmt.Sprint(k.key) }
 
 // Nodes is the children a loop, if or match block produces.
 func Nodes(build func(add func(Node))) Node { return Builder(build) }
