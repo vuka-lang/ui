@@ -10,6 +10,7 @@ import (
 // treeUpdates is what a v2 client needs after a render: each instance's
 // whole tree when it holds none, else the change, in render order.
 func (s *Session) treeUpdates() []TreeUpdate {
+	defer func() { s.undiffed = false }()
 	var ups []TreeUpdate
 	for _, in := range s.order() {
 		if in.tree == nil || !in.rendered && in.shadow != nil {
@@ -47,6 +48,38 @@ func (s *Session) treeUpdates() []TreeUpdate {
 		ups = append(ups, u)
 	}
 	return ups
+}
+
+// Trim releases what the session can rebuild, for a page sitting idle: each
+// instance's shadow, which its next render makes again from its last tree. It
+// changes no reply. It does nothing to a session whose last render failed, whose
+// trees aren't what the client holds.
+func (s *Session) Trim() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.trees || s.closed || s.undiffed {
+		return
+	}
+	for _, in := range s.byID {
+		if in.shadow != nil {
+			in.shadow, in.trimmed = nil, true
+			s.trimmed = true
+		}
+	}
+}
+
+// untrim rebuilds the shadows Trim released, before a render replaces the trees
+// they are made from.
+func (s *Session) untrim() {
+	if !s.trimmed {
+		return
+	}
+	s.trimmed = false
+	for _, in := range s.byID {
+		if in.trimmed {
+			in.shadow, in.trimmed = shadow(in.tree), false
+		}
+	}
 }
 
 // markupOnly is whether t has no statics: an instance rendered without
