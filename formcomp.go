@@ -59,6 +59,9 @@ func (f Form) forView() Node {
 			{"data-vk-form", identity},
 			{"data-vk-submit", cmpOr(f.Submit, "prevent")},
 		}
+		if st.ft.files {
+			attrs = append(attrs, Attr{"enctype", "multipart/form-data"})
+		}
 		attrs = append(attrs, f.Attrs...)
 		if overHTTP {
 			attrs = append(attrs, Attr{"data-vk-http", true})
@@ -492,6 +495,8 @@ func (b boundField) control(ctx context.Context, opts Field, input string, inval
 		own += " autocomplete"
 	}
 	switch input {
+	case "file":
+		return b.fileControl(ctx, opts, invalid)
 	case "textarea":
 		rows := opts.Rows
 		if rows == 0 {

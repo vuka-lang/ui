@@ -356,7 +356,7 @@ func (c *formCtl) change(ctx context.Context, ev Event) error {
 		st.seq = seq
 	}
 	st.usedFrom(ev.Form)
-	st.bind(c.form.Elem(), ev.Form, st.renderedFrom(ctx, ev.Form))
+	st.bind(ctx, c.form.Elem(), ev.Form, st.renderedFrom(ctx, ev.Form))
 	if c.validate == "" {
 		if err := st.check(ctx, c.form.Elem(), true); err != nil {
 			return err
@@ -384,7 +384,7 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 		// was submitted
 		st.usedFrom(ev.Form)
 		st.submitted = st.submitted || check == "submitted"
-		st.bind(c.form.Elem(), ev.Form, st.renderedFrom(ctx, ev.Form))
+		st.bind(ctx, c.form.Elem(), ev.Form, st.renderedFrom(ctx, ev.Form))
 		if c.validate == "" {
 			if err := st.check(ctx, c.form.Elem(), true); err != nil {
 				return err
@@ -396,7 +396,7 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 		// the no-script Update button: the form takes its values, its
 		// choices follow them, nothing is saved
 		st.usedFrom(ev.Form)
-		st.bind(c.form.Elem(), ev.Form, st.renderedFrom(ctx, ev.Form))
+		st.bind(ctx, c.form.Elem(), ev.Form, st.renderedFrom(ctx, ev.Form))
 		if c.validate == "" {
 			if err := st.check(ctx, c.form.Elem(), true); err != nil {
 				return err
@@ -424,7 +424,7 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 	}
 	form := c.form.Elem()
 	st.usedFrom(ev.Form)
-	st.bind(form, ev.Form, st.renderedFrom(ctx, ev.Form))
+	st.bind(ctx, form, ev.Form, st.renderedFrom(ctx, ev.Form))
 	st.submitted, st.failed = true, nil
 	if c.validate != "off" {
 		if err := st.check(ctx, form, false); err != nil {

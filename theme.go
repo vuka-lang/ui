@@ -209,6 +209,18 @@ const Styles = `:root{
 .vk-summary__list{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:.25rem}
 .vk-summary__list a{color:var(--ui-danger);font-weight:600}
 .vk-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.vk-file{display:flex;flex-direction:column;gap:.4rem;align-items:flex-start}
+.vk-file__input{font:inherit;font-size:.9rem}
+.vk-file__input:focus-visible{outline:2px solid var(--ui-ring);outline-offset:2px}
+.vk-file__input--invalid{outline:2px solid var(--ui-danger);outline-offset:2px}
+.vk-file__input--held{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.vk-file__held{margin:0;font-size:.9rem}
+.vk-file__name{font-weight:600}
+.vk-file__ok{color:var(--ui-success)}
+.vk-file__change{color:var(--ui-primary);text-decoration:underline;cursor:pointer}
+.vk-file__input--held:focus-visible+.vk-file__progress,.vk-file:has(.vk-file__input--held:focus-visible) .vk-file__change{outline:2px solid var(--ui-ring);outline-offset:2px}
+.vk-file__progress{width:100%;max-width:20rem;accent-color:var(--ui-primary)}
+.vk-file__progress[hidden]{display:none}
 
 /* Table additions */
 .vk-table--flush{border:0}

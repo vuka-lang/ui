@@ -35,7 +35,7 @@ const (
 // modifiers ("raw", "number", "lazy", comma-separated). A value that doesn't
 // parse leaves the field empty and is kept as typed, its error the field's
 // until it changes.
-func (st *formState) bind(form reflect.Value, vals url.Values, rendered map[string]string) {
+func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Values, rendered map[string]string) {
 	st.raw, st.parsed, st.memo = nil, nil, nil
 	st.bound = rendered
 	for _, f := range st.ft.fields {
@@ -48,6 +48,12 @@ func (st *formState) bind(form reflect.Value, vals url.Values, rendered map[stri
 		}
 		mods, shown := rendered[f.path]
 		vs, sent := lookupValues(vals, f.path)
+		if f.input == "file" {
+			if sent || shown {
+				st.bindFile(ctx, fv, f, vs, vals)
+			}
+			continue
+		}
 		if !sent {
 			if shown {
 				fv.SetZero()
@@ -256,6 +262,9 @@ func valueText(v reflect.Value) string {
 			return ""
 		}
 		v = v.Elem()
+	}
+	if v.Type() == fileType {
+		return v.Interface().(File).ref
 	}
 	if v.Type() == timeType {
 		t := v.Interface().(time.Time)

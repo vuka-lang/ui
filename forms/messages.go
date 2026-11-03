@@ -263,6 +263,7 @@ var defaults = map[string]string{
 	"validate.required.choice": "Select {label}",
 	"validate.required.check":  "Select “{Label}” to continue",
 	"validate.required.list":   "Select at least one {label}",
+	"validate.required.file":   "Select {label}",
 	"validate.email":           "Enter an email address in the correct format, like name@example.com",
 	"validate.number":          "Enter a number",
 	"validate.whole":           "Enter a whole number",
@@ -280,6 +281,10 @@ var defaults = map[string]string{
 	"validate.oneof":           "{Label} must be one of: {values}",
 	"validate.oneof.choice":    "Select {label}",
 	"validate.digits":          "{Label} must only include numbers",
+	"validate.file.max":        "{Label} must be smaller than {size}",
+	"validate.file.accept":     "{Label} must be {types}",
+	"validate.file.gone":       "Select {label} again: the file sent before is no longer kept",
+	"validate.file.failed":     "{Label} could not be sent: select it again",
 
 	"form.problem":       "There is a problem",
 	"form.error":         "Error:",
@@ -289,6 +294,7 @@ var defaults = map[string]string{
 	"form.update":        "Update",
 	"form.show-password": "Show password",
 	"form.leave":         "You have changes that are not saved. Leave this page?",
+	"form.file.change":   "Change",
 }
 
 // DefaultMessages is a copy of the default wording, by key: what an app's
