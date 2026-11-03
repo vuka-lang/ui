@@ -44,9 +44,9 @@ func (p *avatarPage) Render() ui.Node { return ui.Form{For: ui.For(&p.Form), OnS
 type fileHost struct{ store ui.FileStore }
 
 func (fileHost) FormToken(context.Context) string { return "" }
-func (fileHost) FormKey() []byte                   { return []byte("a test key, the same everywhere") }
-func (fileHost) FormStore() ui.FormStore           { return ui.NewFormStore() }
-func (h fileHost) FileStore() ui.FileStore         { return h.store }
+func (fileHost) FormKey() []byte                  { return []byte("a test key, the same everywhere") }
+func (fileHost) FormStore() ui.FormStore          { return ui.NewFormStore() }
+func (h fileHost) FileStore() ui.FileStore        { return h.store }
 
 var (
 	png       = append([]byte("\x89PNG\r\n\x1a\n"), bytes.Repeat([]byte{0}, 200)...)
