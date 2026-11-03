@@ -145,6 +145,8 @@ func (f *formField) kind(r rule) string {
 	switch r.name {
 	case "required":
 		switch {
+		case f.input == "file":
+			return "file"
 		case f.input == "email":
 			return "email"
 		case base.Kind() == reflect.Bool:

@@ -26,6 +26,7 @@ type formType struct {
 	clean   *reflect.Method            // Clean(ctx, deps…) error
 	cleans  map[string]*reflect.Method // Clean<Field>, by path
 	recv    []int                      // the index of the value the methods are of: nil for the form, Value's for a ModelForm
+	files   bool                       // a File field: the form posts as multipart
 	err     error
 }
 
@@ -48,6 +49,8 @@ type formField struct {
 	raw                      bool // whitespace kept: trim:"-", or a password or code
 	rules                    []rule
 	msgs                     map[string]string // the msg: tag, rule → key
+	fileMax                  int64             // a File's largest size (max:)
+	accept                   string            // what a File takes (accept:)
 	choices                  *reflect.Method   // <Field>Choices
 	depends                  []string          // the paths of the fields its choices follow (depends:)
 	tag                      reflect.StructTag
@@ -211,7 +214,17 @@ func (ft *formType) addFields(t reflect.Type, index []int, offset uintptr, path,
 			}
 			continue
 		}
-		f.control(sf)
+		if derefType(sf.Type) == fileType {
+			if sf.Type != fileType && ft.err == nil {
+				ft.err = fmt.Errorf("ui: %s.%s: a file field is a ui.File, not %s", t.Name(), sf.Name, sf.Type)
+			}
+			if err := f.fileSpec(sf); err != nil && ft.err == nil {
+				ft.err = within(t.Name()+"."+sf.Name, err)
+			}
+			ft.files = true
+		} else {
+			f.control(sf)
+		}
 		ft.fields = append(ft.fields, f)
 		ft.byPath[f.path] = f
 	}
@@ -273,7 +286,7 @@ func derefType(t reflect.Type) reflect.Type {
 // isLeaf reports whether a struct type is one value, not a group of fields:
 // a time.Time, a TextUnmarshaler.
 func isLeaf(t reflect.Type) bool {
-	return t == timeType || reflect.PointerTo(t).Implements(textUnmarshaler)
+	return t == timeType || t == fileType || reflect.PointerTo(t).Implements(textUnmarshaler)
 }
 
 // control decides a field's input, autocomplete and inputmode from its
