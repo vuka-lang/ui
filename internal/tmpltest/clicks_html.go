@@ -12,20 +12,19 @@ import (
 
 //line clicks.vuka.html:6
 type Clicks struct {
-//line clicks.vuka.html:6
 	ui.Live
 	Start int
 	n     uigen.Assign[int]
 }
 
-//line clicks.vuka.html:12
+//line clicks.vuka.html:13
 func (c *Clicks) mount(ctx context.Context) error { c.n.Set(c.Start); return nil }
 
 func (c *Clicks) Inc() { c.n.Set(c.n.Get() + 1) }
 
-//line clicks.vuka.html:17
+//line clicks.vuka.html:18
 func (c *Clicks) Render() ui.Node {
-//line clicks.vuka.html:17
+//line clicks.vuka.html:18
 	return ui.HTML(`<button onClick={c.Inc}>{c.n.Get()}</button>`, c.Inc, c.n.Get())
 }
 
