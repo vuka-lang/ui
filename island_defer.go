@@ -7,19 +7,21 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"github.com/vuka-lang/vuka/v2/diag"
 )
 
-// Deferred fields. A field of a page backed by its island that its
-// LiveSchema defers (l.Field(&p.Stats, ui.Defer("stats"))) isn't in the
-// page's first render: its group's loader (l.Loads("stats", p.loadStats))
-// runs after it — on a live page once it joins, on a stateless one when its
-// component asks — and the field reaches the component as an update. The
-// fields of one group load together, by one loader, and groups load
-// concurrently. A loader runs on a copy of the page and sets its group's
-// fields; only those are taken from it. A loader is declared with
-// @ui.Loads("stats") on its method, never found by its name.
+// Deferred fields. A field of a live page or component that its LiveSchema
+// defers (l.Field(&p.Stats, ui.Defer("stats"))) isn't in its first render:
+// its group's loader (l.Loads("stats", p.loadStats)) runs after it — on a
+// live page once it joins, on a stateless page backed by its island when
+// its component asks — and the field arrives as an update: its island's
+// component gets it, a template renders again with it (Live.Loading,
+// Live.LoadErr). The fields of one group load together, by one loader,
+// and groups load concurrently. A loader runs on a copy of the page and
+// sets its group's fields; only those are taken from it. A loader is
+// declared with @ui.Loads("stats") on its method, never found by its name.
 
 type deferGroup struct {
 	name   string
@@ -33,8 +35,8 @@ type deferResult struct {
 
 var deferGroupsOf sync.Map // pointer type → deferResult
 
-// deferGroups are the deferred groups of t (an island's struct, or a
-// pointer to one), in the order of their first fields.
+// deferGroups are the deferred groups of t (a live page's or component's
+// struct, or a pointer to one), in the order of their first fields.
 func deferGroups(t reflect.Type) ([]deferGroup, error) {
 	if t.Kind() != reflect.Pointer {
 		t = reflect.PointerTo(t)
@@ -51,7 +53,13 @@ func deferGroups(t reflect.Type) ([]deferGroup, error) {
 }
 
 func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
-	fields, err := IslandFields(t)
+	var fields []IslandField
+	var err error
+	if IsIsland(t) {
+		fields, err = IslandFields(t)
+	} else {
+		fields, err = deferredFields(t.Elem())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -84,17 +92,89 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 	return groups, nil
 }
 
+// deferredFields are the fields of t, a component rendered by its own
+// markup, that it defers: exported or not, since its markup reads them on
+// the server.
+func deferredFields(t reflect.Type) ([]IslandField, error) {
+	if t.Kind() != reflect.Struct {
+		return nil, nil
+	}
+	if err := schemaErr(t); err != nil {
+		return nil, err
+	}
+	schema := liveSchemaOf(t)
+	var out []IslandField
+	for i := range t.NumField() {
+		f := t.Field(i)
+		var so FieldOptions
+		if schema != nil {
+			so = schema.fields[i]
+		}
+		d, hasDefer := f.Tag.Lookup("defer")
+		if so.Defer != "" {
+			d, hasDefer = so.Defer, true
+		}
+		if !hasDefer || d == "-" {
+			continue
+		}
+		bind, hasBind := f.Tag.Lookup("bind")
+		url, _, _ := strings.Cut(f.Tag.Get("url"), ",")
+		g, err := deferredGroup(t, f, d, so.Defer == "", hasBind && bind != "-" || so.Bind, so.URLBound || url != "" && url != "-")
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, IslandField{Handle: f.Name, Wire: f.Name, Index: i, Type: f.Type, Defer: g})
+	}
+	return out, nil
+}
+
+// IsDeferred reports whether t's (a pointer to a live component's struct)
+// field i is deferred: the component's own, never set by its tag.
+func IsDeferred(t reflect.Type, i int) bool {
+	groups, _ := deferGroups(t)
+	for _, g := range groups {
+		for _, f := range g.fields {
+			if f.Index == i {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Loads is the state of a page's deferred groups: loading, loaded, or
-// failed with the error its component reads (live.stats.error).
+// failed with the error its component reads (live.stats.error, or
+// LoadErr in its markup).
 type Loads struct {
 	mu      sync.Mutex
+	owner   string          // the page's type, for E0325
+	groups  map[string]bool // its deferred groups, once it mounted
 	started map[string]bool
 	done    map[string]bool
 	errs    map[string]*IslandError
+	causes  map[string]error // the loaders' errors, as they returned them
 }
 
 func newLoads() *Loads {
-	return &Loads{started: map[string]bool{}, done: map[string]bool{}, errs: map[string]*IslandError{}}
+	return &Loads{started: map[string]bool{}, done: map[string]bool{}, errs: map[string]*IslandError{}, causes: map[string]error{}}
+}
+
+// mountLoads gives c, mounting, the state of its deferred groups: none
+// loaded. A group without a loader fails the mount (E0324).
+func mountLoads(c Stateful) error {
+	t := reflect.TypeOf(c)
+	groups, err := deferGroups(t)
+	if err != nil || len(groups) == 0 {
+		return err
+	}
+	l := liveLoads(c)
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.owner, l.groups = t.Elem().Name(), map[string]bool{}
+	for _, g := range groups {
+		l.groups[g.name] = true
+	}
+	return nil
 }
 
 // LoadsFrom is the state of the deferred groups of t (an island's struct)
@@ -215,14 +295,15 @@ func (d *DeferredLoad) Apply(text func(error) string) {
 		if text != nil {
 			e.Message = text(d.err)
 		}
-		d.l.errs[d.g.name] = e
+		d.l.errs[d.g.name], d.l.causes[d.g.name] = e, d.err
 		return
 	}
 	for _, f := range d.g.fields {
-		d.page.Elem().Field(f.Index).Set(d.copy.Elem().Field(f.Index))
+		settable(d.page.Elem().Field(f.Index)).Set(settable(d.copy.Elem().Field(f.Index)))
 	}
 	d.l.done[d.g.name] = true
 	delete(d.l.errs, d.g.name)
+	delete(d.l.causes, d.g.name)
 }
 
 // Err is what Run returned.
@@ -267,18 +348,75 @@ func (l *Loads) Load(ctx context.Context, x reflect.Value, text func(error) stri
 	}
 }
 
-// StartDeferred starts the deferred groups of c, a live page backed by its
-// island, not started yet (none when c is no such page): package live runs
-// each once the page joins, and applies it where its events run.
+// StartDeferred starts the deferred groups of c, a live page or component,
+// not started yet: package live runs each once the page joins, and applies
+// it where its events run.
 func StartDeferred(c Stateful) []*DeferredLoad {
 	x := reflect.ValueOf(c)
-	if !IsIsland(x.Type()) {
-		return nil
-	}
 	if groups, err := deferGroups(x.Type()); err != nil || len(groups) == 0 {
 		return nil
 	}
 	return liveLoads(c).Start(x)
+}
+
+// loadNow loads the deferred groups of c, a component rendered without a
+// live session, before its only render: it has no connection to send them
+// over later. A page backed by its island leaves them to its component.
+func loadNow(ctx context.Context, c Stateful) {
+	x := reflect.ValueOf(c)
+	if IsIsland(x.Type()) {
+		return
+	}
+	if groups, err := deferGroups(x.Type()); err == nil && len(groups) > 0 {
+		liveLoads(c).Load(ctx, x, nil)
+	}
+}
+
+// state is the group's, as Loading and LoadErr read it: done, or failed
+// with err. A group the page doesn't defer fails the render (E0325).
+func (l *Loads) state(group string) (done bool, err error) {
+	g := group
+	if g != "" {
+		g = groupName(g)
+	}
+	if l != nil {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+	}
+	if l == nil || !l.groups[g] {
+		owner := "the component"
+		if l != nil && l.owner != "" {
+			owner = l.owner
+		}
+		panic(mustFailure{diag.New("E0325", "%s defers no group %q", owner, group).
+			WithHelp(`defer a field to it, @ui.Defer(%q), or name a group the component defers`, group)})
+	}
+	if e := l.errs[g]; e != nil {
+		return false, &DeferError{Group: group, Message: e.Message, Status: e.Status, Err: l.causes[g]}
+	}
+	return l.done[g], nil
+}
+
+// DeferError is a deferred group's loader's error, as Live.LoadErr gives
+// it: Message is what the visitor may read — a web.Error's message, else
+// "error"; under vuka run the cause's text — and Err the loader's error.
+type DeferError struct {
+	Group   string
+	Message string
+	Status  int // a web.Error's status; 0 for another error
+	Err     error
+}
+
+func (e *DeferError) Error() string { return e.Message }
+func (e *DeferError) Unwrap() error { return e.Err }
+
+// settable is f, a field of an addressable struct, readable and settable
+// though it is unexported.
+func settable(f reflect.Value) reflect.Value {
+	if f.CanSet() {
+		return f
+	}
+	return reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
 }
 
 func liveLoads(c Stateful) *Loads {

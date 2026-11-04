@@ -383,3 +383,11 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.On(ui.Ref("login")).Busy(ui.Timeout(30*time.Second)),
 	)
 }
+
+func init() {
+	ui.RegisterPush((*Docs).CitiesOf)
+	ui.RegisterPush((*Docs).RegionsOf)
+	ui.RegisterPush((*Docs).Older)
+	ui.RegisterPush((*Docs).Newer)
+	ui.RegisterPush((*Docs).Details)
+}

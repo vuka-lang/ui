@@ -52,6 +52,8 @@ type Session struct {
 	js       []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
 	router   Router
 
+	loading map[*ui.DeferredLoad]*instance // the deferred loads Deferred started, by the instance they load
+
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
 	uerr    error               // what their Update methods returned
 
@@ -499,33 +501,88 @@ func (s *Session) Info(topic string, msg any) (Patch, error) {
 	return p, err
 }
 
-// Deferred starts the deferred loads of the pages backed by their islands
-// the session holds (ui.StartDeferred), each once: the transport runs each
-// (Run, with a context ending when the page does) once the page has joined,
+// Deferred starts the deferred loads of the pages and components the
+// session holds (ui.StartDeferred) not started yet, each once: the
+// transport runs each (Run, with a context ending when the page does) once
+// the page has joined, and after each event for the components it mounted,
 // and hands it to Loaded.
 func (s *Session) Deferred() []*ui.DeferredLoad {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for d, in := range s.loading {
+		if s.byID[in.id] != in {
+			delete(s.loading, d) // its instance is gone: Loaded drops it
+		}
+	}
 	var out []*ui.DeferredLoad
 	for _, in := range s.order() {
-		if in.comp != nil {
-			out = append(out, ui.StartDeferred(in.comp)...)
+		if in.comp == nil {
+			continue
+		}
+		for _, d := range ui.StartDeferred(in.comp) {
+			if s.loading == nil {
+				s.loading = map[*ui.DeferredLoad]*instance{}
+			}
+			s.loading[d] = in
+			out = append(out, d)
 		}
 	}
 	return out
 }
 
-// Loaded gives its page what the deferred load d loaded (or its error,
+// Loaded gives its instance what the deferred load d loaded (or its error,
 // as the session's error text says, for the component to read), renders
-// the page again, and returns what changed.
+// the page again, and returns what changed: nothing when the instance is
+// gone, its page navigated away from or its tag no longer rendered.
 func (s *Session) Loaded(d *ui.DeferredLoad) (Patch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return Patch{}, errors.New("live: the session is closed")
 	}
-	d.Apply(s.errorTextFn())
+	if !s.apply(d) {
+		return Patch{}, nil
+	}
 	return s.patch()
+}
+
+// apply gives d's instance what d loaded, marking it to render again; false
+// when the session no longer holds it.
+func (s *Session) apply(d *ui.DeferredLoad) bool {
+	in, ok := s.loading[d]
+	delete(s.loading, d)
+	if !ok || s.byID[in.id] != in {
+		return false
+	}
+	d.Apply(s.errorTextFn())
+	in.set = true
+	return true
+}
+
+// LoadDeferred runs the deferred loads not started yet, concurrently, with
+// ctx, applies them and renders the page again: a page rendered for a
+// client that has no connection to receive them over later (a form posted
+// without script) shows them loaded, or failed.
+func (s *Session) LoadDeferred(ctx context.Context) error {
+	ds := s.Deferred()
+	if len(ds) == 0 {
+		return nil
+	}
+	var wg sync.WaitGroup
+	for _, d := range ds {
+		wg.Go(func() { d.Run(ctx) })
+	}
+	wg.Wait()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return errors.New("live: the session is closed")
+	}
+	for _, d := range ds {
+		s.apply(d)
+	}
+	_, err := s.patch()
+	return err
 }
 
 func (s *Session) errorTextFn() func(error) string {
@@ -955,12 +1012,13 @@ func marker(id string) string { return "\x00vk:" + id + "\x00" }
 
 // copyProps sets the exported fields of to from from: a parent's render sets
 // every prop again, but a form (ui.IsFormField), which is the instance's
-// own: what the visitor typed in it, its errors.
+// own: what the visitor typed in it, its errors; and a deferred field
+// (ui.IsDeferred), which its loader sets.
 func copyProps(to, from ui.Stateful) {
 	dst, src := reflect.ValueOf(to).Elem(), reflect.ValueOf(from).Elem()
 	live := reflect.TypeFor[ui.Live]()
 	for i := 0; i < dst.NumField(); i++ {
-		if f := dst.Type().Field(i); f.IsExported() && f.Type != live && !ui.IsFormField(f.Type) {
+		if f := dst.Type().Field(i); f.IsExported() && f.Type != live && !ui.IsFormField(f.Type) && !ui.IsDeferred(reflect.TypeOf(to), i) {
 			dst.Field(i).Set(src.Field(i))
 		}
 	}

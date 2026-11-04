@@ -123,25 +123,10 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 			d, hasDefer = so.Defer, true
 		}
 		if hasDefer && d != "-" {
-			if d == "" {
-				d = f.Name
-			}
-			if !isIdent(d) {
-				what := fmt.Sprintf("ui.Defer(%q)", d)
-				if so.Defer == "" {
-					what = fmt.Sprintf("defer:%q", d)
-				}
-				return nil, diag.New("E0323", "%s.%s: %s: a group is a name", t.Name(), f.Name, what).
-					WithHelp("name the group: ui.Defer(\"stats\"), loaded by l.Loads(\"stats\", …)")
-			}
 			url, _, _ := strings.Cut(f.Tag.Get("url"), ",")
-			switch {
-			case hasBind || so.Bind:
-				return nil, diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop Bind or Defer")
-			case so.URL != "" || url != "" && url != "-":
-				return nil, diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop URL or Defer")
+			if h.Defer, err = deferredGroup(t, f, d, so.Defer == "", hasBind || so.Bind, so.URL != "" || url != "" && url != "-"); err != nil {
+				return nil, err
 			}
-			h.Defer = groupName(d)
 		}
 		if (hasBind || so.Bind) && reservedHandles[h.Handle] {
 			return nil, diag.New("E0322", "%s.%s: live.%s is live's own", t.Name(), f.Name, h.Handle).
@@ -184,6 +169,30 @@ func bindTag(t reflect.Type, f reflect.StructField, bind string, h *IslandField)
 		}
 	}
 	return nil
+}
+
+// deferredGroup is the group the field f of t defers to, d as its ui.Defer
+// (or, tag, its defer: tag) names it, "" naming the field; bound or urled,
+// the field is the component's or the address's, not the server's to load.
+func deferredGroup(t reflect.Type, f reflect.StructField, d string, tag, bound, urled bool) (string, error) {
+	if d == "" {
+		d = f.Name
+	}
+	if !isIdent(d) {
+		what := fmt.Sprintf("ui.Defer(%q)", d)
+		if tag {
+			what = fmt.Sprintf("defer:%q", d)
+		}
+		return "", diag.New("E0323", "%s.%s: %s: a group is a name", t.Name(), f.Name, what).
+			WithHelp("name the group: ui.Defer(\"stats\"), loaded by l.Loads(\"stats\", …)")
+	}
+	switch {
+	case bound:
+		return "", diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop Bind or Defer")
+	case urled:
+		return "", diag.New("E0323", "%s.%s: a deferred field is the server's to load", t.Name(), f.Name).WithHelp("drop URL or Defer")
+	}
+	return groupName(d), nil
 }
 
 func isIdent(s string) bool {
