@@ -27,7 +27,7 @@ import (
 // the events of the elements it renders.
 type Live struct {
 	inst    LiveInstance
-	loads   *Loads       // a page backed by its island: its deferred fields
+	loads   *Loads       // its deferred groups' state
 	methods []MethodProp // which func props its tag set to method values
 }
 
@@ -83,6 +83,37 @@ func (l *Live) PushNavigate(href string) { l.PushJS(JS.Navigate(href)) }
 // detail {name, payload}.
 func (l *Live) PushEvent(name string, payload any) {
 	l.PushJS(JS.Dispatch(This, "vk:event", Detail(map[string]any{"name": name, "payload": payload}), NoBubble()))
+}
+
+// Loading reports whether the deferred group — the name @ui.Defer gives it,
+// ui.Defer("stats") — is still loading: from the first render until its
+// loader returns. Once it has, the group's fields are set (Loading is
+// false) or its loader failed (LoadErr). Its markup shows a placeholder
+// meanwhile:
+//
+//	if Loading("stats") {
+//		<ui.Skeleton lines={3} />
+//	} else if err := LoadErr("stats"); err != nil {
+//		<p role="alert">{err.Error()}</p>
+//	} else {
+//		<Tiles stats={stats} />
+//	}
+//
+// A component rendered without a live session loads its groups before it
+// renders, so it is never loading. A group it doesn't defer fails the
+// render (E0325).
+func (l *Live) Loading(group string) bool {
+	done, err := l.loads.state(group)
+	return !done && err == nil
+}
+
+// LoadErr is the error the deferred group's loader returned, a
+// *DeferError: its Error is what the visitor may read — a web.Error's
+// message, else "error"; under vuka run the cause's text — and it unwraps
+// to the loader's error. Nil while the group loads and once it has loaded.
+func (l *Live) LoadErr(group string) error {
+	_, err := l.loads.state(group)
+	return err
 }
 
 func (l *Live) vukaLive() *Live { return l }
@@ -156,7 +187,11 @@ func (n *ComponentNode) static(ctx context.Context) (Stateful, error) {
 	}
 	c := CopyLive(n.Props)
 	fillStatic(ctx, c, n.Props, n.URLKey)
-	return c, MountLive(ctx, c)
+	if err := MountLive(ctx, c); err != nil {
+		return nil, err
+	}
+	loadNow(ctx, c)
+	return c, nil
 }
 
 // CheckStateful reports a stateful component that embeds *Live rather than
@@ -181,6 +216,9 @@ func CopyLive(c Stateful) Stateful {
 // hooks as MountPage does.
 func MountLive(ctx context.Context, c Stateful) error {
 	initStates(reflect.ValueOf(c))
+	if err := mountLoads(c); err != nil {
+		return err
+	}
 	return MountPage(ctx, c)
 }
 

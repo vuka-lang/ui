@@ -155,7 +155,7 @@ func sameProps(to, from ui.Stateful) bool {
 	mto, mfrom := ui.MethodPropsOf(to), ui.MethodPropsOf(from)
 	for i := 0; i < dst.NumField(); i++ {
 		f := dst.Type().Field(i)
-		if !f.IsExported() || f.Type == live || ui.IsFormField(f.Type) {
+		if !f.IsExported() || f.Type == live || ui.IsFormField(f.Type) || ui.IsDeferred(reflect.TypeOf(to), i) {
 			continue
 		}
 		if f.Type.Kind() == reflect.Func && len(mfrom) > 0 && sameMethod(mto, mfrom, f.Name) {
