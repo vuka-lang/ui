@@ -480,3 +480,114 @@ func TestStreamShownAgain(t *testing.T) {
 		}
 	}
 }
+
+type insertedAt struct {
+	I    int
+	Msgs []chatMsg
+}
+
+func (c *StreamChat) UpdateInsertedAt(m insertedAt) { c.messages.InsertAt(m.I, m.Msgs...) }
+
+// The reference client puts InsertAt's rows before its row i, at the end
+// past the rows; a row it holds is morphed in place; a limit trims the end.
+func TestStreamInsertAt(t *testing.T) {
+	for _, v := range []int{1, 2} {
+		t.Run(fmt.Sprint("v", v), func(t *testing.T) {
+			_, c := joinChat(t, v, &chatStore{msgs: msgs(1, 2, 3)}, 0)
+			info(t, c, insertedAt{1, msgs(7, 8)})
+			wantRows(t, c, "1", "7", "8", "2", "3")
+			info(t, c, insertedAt{99, msgs(9)})
+			wantRows(t, c, "1", "7", "8", "2", "3", "9")
+			info(t, c, insertedAt{-1, msgs(6)})
+			wantRows(t, c, "6", "1", "7", "8", "2", "3", "9")
+			info(t, c, insertedAt{0, []chatMsg{{2, "edited"}}}) // in place
+			wantRows(t, c, "6", "1", "7", "8", "2", "3", "9")
+			if r := c.Stream("c1", "messages")[4]; !strings.HasPrefix(r.Text, "edited") {
+				t.Fatalf("row 2 is %q, want edited", r.Text)
+			}
+		})
+	}
+	_, c := joinChat(t, 2, &chatStore{msgs: msgs(1, 2, 3)}, 4)
+	info(t, c, insertedAt{1, msgs(7, 8)})
+	wantRows(t, c, "1", "7", "8", "2") // trimmed from the end
+}
+
+// A two-way window: the container's viewport events load older rows at
+// the top and newer ones at the bottom, each handler taking the edge row's
+// key; the browser keeps at most Max rows.
+type StreamWindow struct {
+	ui.Live
+	Last, Max int // the store holds rows 1 to Last
+	rows      ui.Stream[chatMsg]
+}
+
+func (w *StreamWindow) LiveSchema(l *ui.LiveSchema) { l.Mount(w.mount) }
+
+func (w *StreamWindow) mount(context.Context) error {
+	w.rows.Limit(w.Max)
+	w.rows.Reset(msgs(10, 11, 12)...)
+	return nil
+}
+
+func (w *StreamWindow) Older(first int) {
+	var ids []int
+	for id := max(first-3, 1); id < first; id++ {
+		ids = append(ids, id)
+	}
+	w.rows.Prepend(msgs(ids...)...)
+}
+
+func (w *StreamWindow) Newer(last int) {
+	var ids []int
+	for id := last + 1; id <= min(last+3, w.Last); id++ {
+		ids = append(ids, id)
+	}
+	w.rows.Insert(msgs(ids...)...)
+}
+
+func (w *StreamWindow) Render() ui.Node {
+	return w.rows.List("ol", []ui.Attr{{Name: "onViewportTop", Value: ui.On(w.Older)}, {Name: "onViewportBottom", Value: ui.On(w.Newer)}}, func(m chatMsg) ui.Node {
+		return ui.El("li", []ui.Attr{{Name: "key", Value: m.ID}}, ui.Text(m.Text))
+	})
+}
+
+func TestStreamViewport(t *testing.T) {
+	s := live.NewSession(context.Background(), func(context.Context) ui.Node {
+		return ui.Component("window", nil, &StreamWindow{Last: 16, Max: 6})
+	})
+	c, err := livetest.Join(s, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := func(ids ...string) {
+		t.Helper()
+		if got := keysOf(c.Stream("c1", "rows")); !slices.Equal(got, ids) {
+			t.Fatalf("rows %v, want %v\n%s", got, ids, c.HTML())
+		}
+	}
+	scroll := func(edge string) {
+		t.Helper()
+		if err := c.Viewport("ol", edge); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := c.HTML()
+	if !strings.Contains(h, `data-vk-on-viewporttop="`) || !strings.Contains(h, `data-vk-on-viewportbottom="`) {
+		t.Fatalf("the container has no viewport handlers: %s", h)
+	}
+	scroll("bottom")
+	want("10", "11", "12", "13", "14", "15")
+	scroll("bottom") // the limit trims the top
+	want("11", "12", "13", "14", "15", "16")
+	scroll("bottom") // the end: nothing more
+	want("11", "12", "13", "14", "15", "16")
+	scroll("top") // the limit trims the bottom
+	want("8", "9", "10", "11", "12", "13")
+	scroll("top")
+	scroll("top")
+	want("2", "3", "4", "5", "6", "7")
+	scroll("top") // the start: what is left
+	want("1", "2", "3", "4", "5", "6")
+	scroll("top")
+	want("1", "2", "3", "4", "5", "6")
+}
