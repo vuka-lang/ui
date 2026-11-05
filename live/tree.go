@@ -101,8 +101,9 @@ func (c *conn) rollback() {
 
 // enc writes the JSON of trees and changes.
 type enc struct {
-	c *conn
-	b []byte
+	c      *conn
+	b      []byte
+	stream bool // writing a stream's rows: sent once, never kept by reference
 }
 
 func (e *enc) raw(s string) { e.b = append(e.b, s...) }
@@ -208,6 +209,10 @@ func (e *enc) dyn(d any) {
 }
 
 func (e *enc) list(l *ui.TreeList) {
+	if l.Stream && !e.stream {
+		e.stream = true
+		defer func() { e.stream = false }()
+	}
 	e.raw(`{"c":[`)
 	for i, it := range l.Items {
 		if i > 0 {
@@ -220,7 +225,7 @@ func (e *enc) list(l *ui.TreeList) {
 
 // str writes markup: long markup by reference once the client keeps it.
 func (e *enc) str(s string) {
-	if len(s) < refMinLen {
+	if len(s) < refMinLen || e.stream || ui.IsStreamAttrs(s) {
 		e.quote(s)
 		return
 	}
@@ -329,6 +334,10 @@ type step struct {
 // listChange writes {"k":[…]} (or the whole list, when no item stays), the
 // change from a to b, if any.
 func (e *enc) listChange(a *slist, b *ui.TreeList) bool {
+	if b.Stream && !e.stream {
+		e.stream = true
+		defer func() { e.stream = false }()
+	}
 	plan := keyedPlan(a, b)
 	if plan == nil {
 		plan = positionalPlan(a, b)

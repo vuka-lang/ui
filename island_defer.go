@@ -299,7 +299,12 @@ func (d *DeferredLoad) Apply(text func(error) string) {
 		return
 	}
 	for _, f := range d.g.fields {
-		settable(d.page.Elem().Field(f.Index)).Set(settable(d.copy.Elem().Field(f.Index)))
+		to, from := settable(d.page.Elem().Field(f.Index)), settable(d.copy.Elem().Field(f.Index))
+		if s, ok := to.Addr().Interface().(streamer); ok {
+			s.deferMerge(from.Addr().Interface())
+			continue
+		}
+		to.Set(from)
 	}
 	d.l.done[d.g.name] = true
 	delete(d.l.errs, d.g.name)
@@ -328,6 +333,10 @@ func (l *Loads) Start(x reflect.Value) []*DeferredLoad {
 				cp.Elem().Field(i).Set(reflect.Zero(liveType))
 			}
 		}
+		// a stream's copy starts with nothing queued: Apply puts what its
+		// loader queues before what the page queues meanwhile
+		streamsOf(x, func(_ string, s streamer) { s.deferStart() })
+		streamsOf(cp, func(_ string, s streamer) { s.deferCopy() })
 		out = append(out, &DeferredLoad{Group: g.name, l: l, g: g, page: x, copy: cp})
 	}
 	return out

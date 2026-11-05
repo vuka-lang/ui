@@ -31,6 +31,7 @@ type assignValuer interface{ AssignValue() any }
 type stateFields struct {
 	tracked bool
 	fields  []int
+	streams []int // its ui.Stream fields (stream.go), Assigns too
 }
 
 var stateCache sync.Map // reflect.Type (the struct) → stateFields
@@ -53,6 +54,9 @@ func stateOf(t reflect.Type) stateFields {
 			// handle, which a render reads the same way every time.
 		case reflect.PointerTo(f.Type).Implements(assignerType):
 			sf.fields = append(sf.fields, i)
+			if reflect.PointerTo(f.Type).Implements(streamerType) {
+				sf.streams = append(sf.streams, i)
+			}
 		default:
 			sf.tracked = false
 		}

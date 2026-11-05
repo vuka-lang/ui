@@ -47,6 +47,9 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		if n == nil {
 			return nil
 		}
+		if inStreamRow(ctx) != nil {
+			return rowComponentErr(n)
+		}
 		if liveHost(ctx) != nil {
 			break
 		}
@@ -57,6 +60,11 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		return Walk(ctx, c.Render(), r)
 	case *islandMount:
 		return Walk(ctx, n.node(""), r)
+	case *StreamBlock:
+		if n == nil {
+			return nil
+		}
+		return walkStream(ctx, n, r)
 	case *list:
 		if n.items == nil {
 			for _, c := range n.nodes {

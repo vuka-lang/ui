@@ -654,6 +654,9 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 			}
 			p := ev
 			p.Target = a.H
+			if len(a.Args) > 0 {
+				p.Args = a.Args // values as the step carries them
+			}
 			if len(a.Value) > 0 {
 				var s string
 				if json.Unmarshal(a.Value, &s) != nil {

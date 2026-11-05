@@ -59,7 +59,8 @@ type Client struct {
 	history []string                        // its history entries (SetURL, moves)
 	entry   int                             // the current entry's
 	funcs   map[string]Func
-	busy    []*busyState // what Busy commands marked, not yet undone
+	busy    []*busyState            // what Busy commands marked, not yet undone
+	streams map[string]*streamState // each stream container's rows, by instance and name (stream.go)
 }
 
 type frame struct {
@@ -211,14 +212,19 @@ func (c *Client) applyMarkup(data []byte) error {
 	switch m.Type {
 	case live.Render:
 		if m.V < 2 {
-			c.html = m.HTML
-			return nil
+			h, err := c.streamed(m.HTML, true)
+			c.html = h
+			return err
 		}
 		c.statics, c.strs, c.trees = map[int][]string{}, map[int]string{}, map[string]any{}
 	case live.PatchMsg:
 		if c.trees == nil {
 			for _, u := range m.Updates {
-				if err := c.morph(u.ID, u.HTML); err != nil {
+				h, err := c.streamed(u.HTML, true)
+				if err != nil {
+					return err
+				}
+				if err := c.morph(u.ID, h); err != nil {
 					return err
 				}
 			}
@@ -250,12 +256,18 @@ func (c *Client) applyMarkup(data []byte) error {
 		}
 	}
 	page, err := c.instHTML(live.RootID)
+	if err == nil {
+		page, err = c.streamed(page, true)
+	}
 	if err != nil {
 		return err
 	}
 	if m.Type == live.PatchMsg {
 		for _, e := range m.Trees {
 			h, err := c.instHTML(e.ID)
+			if err == nil {
+				h, err = c.streamed(h, false)
+			}
 			if err != nil {
 				return err
 			}
