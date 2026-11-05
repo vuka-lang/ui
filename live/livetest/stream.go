@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/a-h/templ"
 	"github.com/vuka-lang/ui/v2"
 	"github.com/vuka-lang/ui/v2/live"
 )
@@ -240,72 +239,11 @@ func applyBatch(st *streamState, el *node, inner string) (*streamState, error) {
 // compact form ({"st":…}) as the server renders them: what a client
 // joining with live.ExtStream does.
 func streamAttrs(v any) (string, error) {
-	o, ok := v.(map[string]any)
-	n, _ := o["n"].(string)
-	batch, _ := o["b"].(string)
-	if !ok || n == "" || batch == "" {
-		return "", fmt.Errorf("bad stream attributes %v", v)
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
 	}
-	attr := func(name, val string) string { return " " + name + `="` + templ.EscapeString(val) + `"` }
-	out := attr("data-vk-stream", n) + attr("data-vk-batch", batch)
-	limit := 0
-	if l, ok := o["l"].(float64); ok {
-		limit = int(l)
-		out += attr("data-vk-limit", strconv.Itoa(limit))
-	}
-	switch o["tr"] {
-	case "s":
-		out += attr("data-vk-trim", "start")
-	case "e":
-		out += attr("data-vk-trim", "end")
-	}
-	list, _ := o["o"].([]any)
-	if len(list) == 0 {
-		return out, nil
-	}
-	ops := make([][]any, len(list))
-	rows, reset := 0, false
-	for i, x := range list {
-		op, _ := x.([]any)
-		if len(op) == 0 {
-			return "", fmt.Errorf("bad stream operation %v", x)
-		}
-		key, _ := op[len(op)-1].(string)
-		switch k := op[0].(type) {
-		case string:
-			switch k {
-			case "r":
-				ops[i], reset = []any{"reset"}, i == 0
-				continue
-			case "d":
-				ops[i] = []any{"delete", key}
-				continue
-			case "e":
-				ops[i] = []any{"insert", key, "end"}
-			case "s":
-				ops[i] = []any{"insert", key, "start"}
-			default:
-				return "", fmt.Errorf("bad stream operation %v", x)
-			}
-		case float64:
-			ops[i] = []any{"insert", key, int(k)}
-		default:
-			return "", fmt.Errorf("bad stream operation %v", x)
-		}
-		rows++
-	}
-	j, _ := json.Marshal(ops)
-	out += attr("data-vk-ops", string(j))
-	if reset {
-		if limit > 0 {
-			rows = min(rows, limit)
-		}
-		out += attr("data-vk-rows", strconv.Itoa(rows))
-		if rows == 0 {
-			out += " data-vk-empty"
-		}
-	}
-	return out, nil
+	return live.StreamAttrs(b)
 }
 
 // rowsIn is the rows in a container's content: its elements.

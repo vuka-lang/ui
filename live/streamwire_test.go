@@ -95,6 +95,7 @@ func TestStreamCompactWire(t *testing.T) {
 	if got := keysOf(compact.Stream("c1", "items")); len(got) != 1 {
 		t.Fatalf("rows %v", got)
 	}
+	t.Logf("compact %d bytes, attributes %d", compact.Bytes, attrs.Bytes)
 	if compact.Bytes >= attrs.Bytes {
 		t.Fatalf("the compact form took %d bytes, the attributes %d", compact.Bytes, attrs.Bytes)
 	}
