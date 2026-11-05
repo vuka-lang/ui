@@ -34,6 +34,17 @@ func (f Form) forView() Node {
 			return Try(nil, st.ft.err)
 		}
 		st.key = keyString(f.Key)
+		row := inStreamRow(ctx)
+		if row != nil {
+			// a stream row's: its submit a Push of the owner's method, its
+			// errors a report the browser puts in place (streamform.go)
+			if err := rowForm(f, b); err != nil {
+				return Try(nil, err)
+			}
+			if st.key == "" {
+				st.key = row.key
+			}
+		}
 		st.keepMessages(ctx)
 		st.beginRender()
 		if st.idem == "" {
@@ -41,7 +52,7 @@ func (f Form) forView() Node {
 		}
 		ctl := &formCtl{form: b.form, st: st, onSubmit: f.OnSubmit, onChange: f.OnChange, validate: f.Validate}
 		identity := st.identity()
-		if reg, ok := liveHost(ctx).(FormRegistrar); ok {
+		if reg, ok := liveHost(ctx).(FormRegistrar); ok && row == nil {
 			reg.Form(identity, ctl.submit)
 		}
 		// A page that isn't live (its first render, by ui.RenderPage, meets
@@ -63,9 +74,15 @@ func (f Form) forView() Node {
 			attrs = append(attrs, Attr{"enctype", "multipart/form-data"})
 		}
 		attrs = append(attrs, f.Attrs...)
-		if overHTTP {
+		switch {
+		case overHTTP:
 			attrs = append(attrs, Attr{"data-vk-http", true})
-		} else {
+		case row != nil:
+			attrs = append(attrs, Attr{"data-vk-row-form", true}, Attr{"onSubmit", f.OnSubmit})
+			if f.NoSummary {
+				attrs = append(attrs, Attr{"data-vk-no-summary", true})
+			}
+		default:
 			attrs = append(attrs, Attr{"onSubmit", On(ctl.submit)})
 		}
 		if configOf(ctx).BrowserChecks || overHTTP {
@@ -77,7 +94,7 @@ func (f Form) forView() Node {
 		if f.ConfirmLeave {
 			attrs = append(attrs, Attr{"data-vk-confirm-leave", tr(ctx, "form.leave")}, Attr{"data-vk-dirty", st.dirty(b.value())})
 		}
-		if left := time.Until(st.savedUntil); left > 0 && !overHTTP {
+		if left := time.Until(st.savedUntil); left > 0 && !overHTTP && row == nil {
 			// Saved is true: the browser asks again once it isn't
 			attrs = append(attrs, Attr{"data-vk-saved", left.Milliseconds() + 50}, Attr{"onVkSaved", On(ctl.savedOver)})
 		}
@@ -85,7 +102,7 @@ func (f Form) forView() Node {
 			if f.Validate == "" {
 				attrs = append(attrs, Attr{"data-vk-debounce", "250"}, Attr{"data-vk-checks", true})
 			}
-		} else if f.Validate == "" || f.OnChange != nil {
+		} else if row == nil && (f.Validate == "" || f.OnChange != nil) {
 			attrs = append(attrs,
 				Attr{"data-vk-debounce", "250"},
 				Attr{"onInput", On(ctl.change)},
@@ -101,11 +118,13 @@ func (f Form) forView() Node {
 		hidden := func(name string, v any) Node {
 			return El("input", []Attr{{"type", "hidden"}, {"name", name}, {"value", v}})
 		}
-		kids := []Node{
-			hidden(FormIDField, identity),
-			hidden(FormIdemField, st.idem),
-			hidden(FormUsedField, strings.Join(used, ",")),
+		kids := []Node{hidden(FormIDField, identity)}
+		if row != nil {
+			kids = append(kids, hidden(FormRowField, row.key))
+		} else {
+			kids = append(kids, hidden(FormIdemField, st.idem))
 		}
+		kids = append(kids, hidden(FormUsedField, strings.Join(used, ",")))
 		if h := formHostOf(ctx); h != nil {
 			if tok := h.FormToken(ctx); tok != "" {
 				kids = append(kids, hidden(FormCSRFField, tok))
@@ -752,17 +771,13 @@ func summaryOf(ctx context.Context, b boundField, slot, title string, class ...s
 		return El("div", []Attr{{"id", st.identity() + "-summary-" + cmpOr(slot, "at")}, {"hidden", true}})
 	}
 	var items []Node
-	sum := &FormSummary{Title: cmpOr(title, tr(ctx, "form.problem"))}
-	for _, e := range errs {
-		msg := st.message(ctx, e)
-		text := Text(msg)
-		if e.Path == "" || st.ft.byPath[e.Path] == nil {
-			items = append(items, El("li", nil, text))
-			sum.Items = append(sum.Items, SummaryItem{Text: msg})
+	sum := st.summaryOf(ctx, errs, title)
+	for _, it := range sum.Items {
+		if it.Href == "" {
+			items = append(items, El("li", nil, Text(it.Text)))
 			continue
 		}
-		items = append(items, El("li", nil, El("a", []Attr{{"href", "#" + st.id(e.Path)}}, text)))
-		sum.Items = append(sum.Items, SummaryItem{Href: "#" + st.id(e.Path), Text: msg})
+		items = append(items, El("li", nil, El("a", []Attr{{"href", it.Href}}, Text(it.Text))))
 	}
 	st.shownSummary = sum
 	cls := "vk-summary"
@@ -773,4 +788,19 @@ func summaryOf(ctx context.Context, b boundField, slot, title string, class ...s
 		El("div", []Attr{{"role", "alert"}},
 			El("h2", []Attr{{"class", "vk-summary__title"}}, Text(cmpOr(title, tr(ctx, "form.problem")))),
 			El("ul", []Attr{{"class", "vk-summary__list"}}, items...)))
+}
+
+// summaryOf is the summary of errs, the errors the form shows: each linking
+// to its field's control, the form's own to nothing.
+func (st *formState) summaryOf(ctx context.Context, errs []forms.Error, title string) *FormSummary {
+	sum := &FormSummary{Title: cmpOr(title, tr(ctx, "form.problem"))}
+	for _, e := range errs {
+		msg := st.message(ctx, e)
+		if e.Path == "" || st.ft.byPath[e.Path] == nil {
+			sum.Items = append(sum.Items, SummaryItem{Text: msg})
+			continue
+		}
+		sum.Items = append(sum.Items, SummaryItem{Href: "#" + st.id(e.Path), Text: msg})
+	}
+	return sum
 }

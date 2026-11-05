@@ -456,8 +456,18 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 		}
 		return herr
 	}
+	abandon()
+	if st.takeError(form, herr) {
+		return ErrFormInvalid
+	}
+	return herr
+}
+
+// takeError makes herr, a submit handler's error, the form's when it is a
+// form error (Fail, a forms.Error, a public error): a field's shows at the
+// field, any other in the summary. It reports whether it did.
+func (st *formState) takeError(form reflect.Value, herr error) bool {
 	if errs, ok := asFormErrors(herr, ""); ok {
-		abandon()
 		for _, e := range errs {
 			if f := st.ft.byPath[e.Path]; f != nil && e.Path != "" {
 				st.pin(e.Path, &pinnedErrors{errs: []forms.Error{e}, value: valueOf(form, f), set: true})
@@ -468,16 +478,14 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 				st.failed = append(st.failed, e) // Fail added it already: once
 			}
 		}
-		return ErrFormInvalid
+		return true
 	}
 	var pub interface{ PublicMessage() string }
 	if errors.As(herr, &pub) {
-		abandon()
 		st.failed = append(st.failed, forms.Error{Key: pub.PublicMessage()})
-		return ErrFormInvalid
+		return true
 	}
-	abandon()
-	return herr
+	return false
 }
 
 // savedOver answers the browser asking again once a successful submit's

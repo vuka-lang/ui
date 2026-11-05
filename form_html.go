@@ -70,7 +70,10 @@ type Form struct {
 	ID           string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy
-	// state until the reply.
+	// state until the reply. A struct form in a stream row submits with a
+	// Push of a method of the stream's owner taking the form,
+	// ui.JS.Push(Rename, t.ID): its errors come back as the form's report,
+	// put in place without rendering the row.
 	OnSubmit any
 	// OnChange runs as fields change (oninput), for live validation; leave it
 	// nil for none.
@@ -100,10 +103,10 @@ func (f Form) method() string {
 	return f.Method
 }
 
-//line form.vuka.html:95
+//line form.vuka.html:98
 func (f Form) View() Node {
 	var forView2 Node
-//line form.vuka.html:96
+//line form.vuka.html:99
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
@@ -129,9 +132,9 @@ func (f Form) View() Node {
 			f.Children,
 		)
 	}
-//line form.vuka.html:95
+//line form.vuka.html:98
 	return forView2
 }
 
-//line form.vuka.html:107
+//line form.vuka.html:110
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

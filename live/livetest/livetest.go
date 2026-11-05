@@ -29,7 +29,10 @@ import (
 
 // Client is one connected page.
 type Client struct {
-	V     int // the protocol version it joins with: 1 or 2
+	V int // the protocol version it joins with: 1 or 2
+	// Ext is the v2 extensions it joins with: live.Extensions, unless
+	// JoinExt named others.
+	Ext   []string
 	S     *live.Session
 	Bytes int // the JSON bytes of every server message received
 
@@ -72,10 +75,17 @@ type list struct{ c []*frame }
 
 type ref string
 
-// Join connects a client speaking version v to s.
+// Join connects a client speaking version v to s, with every v2
+// extension the session speaks (live.Extensions).
 func Join(s *live.Session, v int) (*Client, error) {
-	c := &Client{V: v, S: s}
-	m, err := c.Send(live.ClientMessage{Type: live.Join, V: v})
+	return JoinExt(s, v, live.Extensions...)
+}
+
+// JoinExt connects a client speaking version v with the v2 extensions ext
+// to s: none, for the forms a client predating them gets.
+func JoinExt(s *live.Session, v int, ext ...string) (*Client, error) {
+	c := &Client{V: v, S: s, Ext: ext}
+	m, err := c.Send(live.ClientMessage{Type: live.Join, V: v, Ext: ext})
 	if err != nil {
 		return nil, err
 	}
@@ -398,6 +408,8 @@ func (c *Client) dyn(v any) (any, error) {
 			return l, nil
 		case v["id"] != nil:
 			return ref(v["id"].(string)), nil
+		case v["st"] != nil:
+			return streamAttrs(v["st"])
 		}
 		return c.frame(v)
 	}

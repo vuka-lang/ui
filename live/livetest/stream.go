@@ -1,6 +1,7 @@
 package livetest
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/a-h/templ"
 	"github.com/vuka-lang/ui/v2"
 	"github.com/vuka-lang/ui/v2/live"
 )
@@ -46,7 +48,7 @@ func (c *Client) Stream(id, name string) []Row {
 // stays, the session mounts afresh.
 func (c *Client) Reconnect(s *live.Session) error {
 	c.S, c.trees, c.statics, c.strs = s, nil, nil, nil
-	m, err := c.Send(live.ClientMessage{Type: live.Join, V: c.V})
+	m, err := c.Send(live.ClientMessage{Type: live.Join, V: c.V, Ext: c.Ext})
 	if err != nil {
 		return err
 	}
@@ -157,6 +159,16 @@ func applyBatch(st *streamState, el *node, inner string) (*streamState, error) {
 	if l, ok := el.attr("data-vk-limit"); ok {
 		limit, _ = strconv.Atoi(l)
 	}
+	trim, _ := el.attr("data-vk-trim") // the end the limit trims, "start" or "end"; else the end away from the rows
+	cut := func(rows []Row, away string) []Row {
+		if limit == 0 || len(rows) <= limit {
+			return rows
+		}
+		if cmp.Or(trim, away) == "start" {
+			return slices.Delete(rows, 0, len(rows)-limit)
+		}
+		return rows[:limit]
+	}
 	kids := rowsIn(inner)
 	switch {
 	case st == nil && len(ops) == 0:
@@ -212,24 +224,88 @@ func applyBatch(st *streamState, el *node, inner string) (*streamState, error) {
 			}
 			if at, ok := op[2].(float64); ok || pos == "start" { // before row at (InsertAt), or the first
 				j := min(max(int(at), 0), len(rows))
-				rows = slices.Insert(rows, j, r)
-				if limit > 0 && len(rows) > limit {
-					rows = rows[:limit]
-				}
+				rows = cut(slices.Insert(rows, j, r), "end")
 			} else {
-				rows = append(rows, r)
-				if limit > 0 && len(rows) > limit {
-					rows = slices.Delete(rows, 0, len(rows)-limit)
-				}
+				rows = cut(append(rows, r), "start")
 			}
 		default:
 			return nil, fmt.Errorf("batch %s has an unknown operation %v", batch, op)
 		}
 	}
-	if limit > 0 && len(rows) > limit {
-		rows = slices.Delete(rows, 0, len(rows)-limit)
-	}
+	rows = cut(rows, "start")
 	return &streamState{gen: gen, n: n, rows: slices.Clip(rows)}, nil
+}
+
+// streamAttrs is a container's attributes, written back from their
+// compact form ({"st":…}) as the server renders them: what a client
+// joining with live.ExtStream does.
+func streamAttrs(v any) (string, error) {
+	o, ok := v.(map[string]any)
+	n, _ := o["n"].(string)
+	batch, _ := o["b"].(string)
+	if !ok || n == "" || batch == "" {
+		return "", fmt.Errorf("bad stream attributes %v", v)
+	}
+	attr := func(name, val string) string { return " " + name + `="` + templ.EscapeString(val) + `"` }
+	out := attr("data-vk-stream", n) + attr("data-vk-batch", batch)
+	limit := 0
+	if l, ok := o["l"].(float64); ok {
+		limit = int(l)
+		out += attr("data-vk-limit", strconv.Itoa(limit))
+	}
+	switch o["tr"] {
+	case "s":
+		out += attr("data-vk-trim", "start")
+	case "e":
+		out += attr("data-vk-trim", "end")
+	}
+	list, _ := o["o"].([]any)
+	if len(list) == 0 {
+		return out, nil
+	}
+	ops := make([][]any, len(list))
+	rows, reset := 0, false
+	for i, x := range list {
+		op, _ := x.([]any)
+		if len(op) == 0 {
+			return "", fmt.Errorf("bad stream operation %v", x)
+		}
+		key, _ := op[len(op)-1].(string)
+		switch k := op[0].(type) {
+		case string:
+			switch k {
+			case "r":
+				ops[i], reset = []any{"reset"}, i == 0
+				continue
+			case "d":
+				ops[i] = []any{"delete", key}
+				continue
+			case "e":
+				ops[i] = []any{"insert", key, "end"}
+			case "s":
+				ops[i] = []any{"insert", key, "start"}
+			default:
+				return "", fmt.Errorf("bad stream operation %v", x)
+			}
+		case float64:
+			ops[i] = []any{"insert", key, int(k)}
+		default:
+			return "", fmt.Errorf("bad stream operation %v", x)
+		}
+		rows++
+	}
+	j, _ := json.Marshal(ops)
+	out += attr("data-vk-ops", string(j))
+	if reset {
+		if limit > 0 {
+			rows = min(rows, limit)
+		}
+		out += attr("data-vk-rows", strconv.Itoa(rows))
+		if rows == 0 {
+			out += " data-vk-empty"
+		}
+	}
+	return out, nil
 }
 
 // rowsIn is the rows in a container's content: its elements.

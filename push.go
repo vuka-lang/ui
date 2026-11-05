@@ -433,6 +433,10 @@ func (pm *pushMethod) call(ctx context.Context, recv reflect.Value, args []json.
 		in[0], skip = recv, 1
 	}
 	byForm := pm.fromForm(len(args))
+	var rs *rowSubmit // a stream row's form: checked as its form, its errors the reply's report
+	if byForm && form.Get(FormRowField) != "" {
+		rs = &rowSubmit{}
+	}
 	next, arg := 0, 0
 	inj := InjectorOf(ctx)
 	for i := skip; i < ft.NumIn(); i++ {
@@ -442,7 +446,15 @@ func (pm *pushMethod) call(ctx context.Context, recv reflect.Value, args []json.
 			in[i] = reflect.ValueOf(&ctx).Elem()
 		case next < len(pm.argAt) && pm.argAt[next] == i-skip:
 			v := reflect.New(t).Elem()
-			if byForm && next == pm.form {
+			if byForm && next == pm.form && rs != nil && isForm(t) {
+				ok, err := rs.bind(ctx, v, form)
+				if err != nil {
+					return nil, err
+				}
+				if !ok {
+					return rs.report(ctx), nil
+				}
+			} else if byForm && next == pm.form {
 				if err := bindStruct(v, form); err != nil {
 					return nil, err
 				}
@@ -473,7 +485,11 @@ func (pm *pushMethod) call(ctx context.Context, recv reflect.Value, args []json.
 		}
 	}
 	out := pm.fn.Call(in)
-	return pm.reply(ctx, out)
+	res, err := pm.reply(ctx, out)
+	if rs != nil && rs.st != nil {
+		return rs.answer(ctx, res, err, pm.result == resNone)
+	}
+	return res, err
 }
 
 // reply is a call's results as its reply carries them (see PushCall.Call).

@@ -61,7 +61,10 @@ type Form struct {
 	ID           string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy
-	// state until the reply.
+	// state until the reply. A struct form in a stream row submits with a
+	// Push of a method of the stream's owner taking the form,
+	// ui.JS.Push(Rename, t.ID): its errors come back as the form's report,
+	// put in place without rendering the row.
 	OnSubmit any
 	// OnChange runs as fields change (oninput), for live validation; leave it
 	// nil for none.
