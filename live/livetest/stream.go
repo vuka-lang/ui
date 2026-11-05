@@ -1,6 +1,7 @@
 package livetest
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -46,7 +47,7 @@ func (c *Client) Stream(id, name string) []Row {
 // stays, the session mounts afresh.
 func (c *Client) Reconnect(s *live.Session) error {
 	c.S, c.trees, c.statics, c.strs = s, nil, nil, nil
-	m, err := c.Send(live.ClientMessage{Type: live.Join, V: c.V})
+	m, err := c.Send(live.ClientMessage{Type: live.Join, V: c.V, Ext: c.Ext})
 	if err != nil {
 		return err
 	}
@@ -157,6 +158,16 @@ func applyBatch(st *streamState, el *node, inner string) (*streamState, error) {
 	if l, ok := el.attr("data-vk-limit"); ok {
 		limit, _ = strconv.Atoi(l)
 	}
+	trim, _ := el.attr("data-vk-trim") // the end the limit trims, "start" or "end"; else the end away from the rows
+	cut := func(rows []Row, away string) []Row {
+		if limit == 0 || len(rows) <= limit {
+			return rows
+		}
+		if cmp.Or(trim, away) == "start" {
+			return slices.Delete(rows, 0, len(rows)-limit)
+		}
+		return rows[:limit]
+	}
 	kids := rowsIn(inner)
 	switch {
 	case st == nil && len(ops) == 0:
@@ -212,24 +223,27 @@ func applyBatch(st *streamState, el *node, inner string) (*streamState, error) {
 			}
 			if at, ok := op[2].(float64); ok || pos == "start" { // before row at (InsertAt), or the first
 				j := min(max(int(at), 0), len(rows))
-				rows = slices.Insert(rows, j, r)
-				if limit > 0 && len(rows) > limit {
-					rows = rows[:limit]
-				}
+				rows = cut(slices.Insert(rows, j, r), "end")
 			} else {
-				rows = append(rows, r)
-				if limit > 0 && len(rows) > limit {
-					rows = slices.Delete(rows, 0, len(rows)-limit)
-				}
+				rows = cut(append(rows, r), "start")
 			}
 		default:
 			return nil, fmt.Errorf("batch %s has an unknown operation %v", batch, op)
 		}
 	}
-	if limit > 0 && len(rows) > limit {
-		rows = slices.Delete(rows, 0, len(rows)-limit)
-	}
+	rows = cut(rows, "start")
 	return &streamState{gen: gen, n: n, rows: slices.Clip(rows)}, nil
+}
+
+// streamAttrs is a container's attributes, written back from their
+// compact form ({"st":…}) as the server renders them: what a client
+// joining with live.ExtStream does.
+func streamAttrs(v any) (string, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return live.StreamAttrs(b)
 }
 
 // rowsIn is the rows in a container's content: its elements.

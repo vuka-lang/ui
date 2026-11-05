@@ -101,9 +101,10 @@ func (c *conn) rollback() {
 
 // enc writes the JSON of trees and changes.
 type enc struct {
-	c      *conn
-	b      []byte
-	stream bool // writing a stream's rows: sent once, never kept by reference
+	c       *conn
+	b       []byte
+	stream  bool // writing a stream's rows: sent once, never kept by reference
+	compact bool // stream containers' attributes in their compact form (ExtStream)
 }
 
 func (e *enc) raw(s string) { e.b = append(e.b, s...) }
@@ -225,7 +226,13 @@ func (e *enc) list(l *ui.TreeList) {
 
 // str writes markup: long markup by reference once the client keeps it.
 func (e *enc) str(s string) {
-	if len(s) < refMinLen || e.stream || ui.IsStreamAttrs(s) {
+	if ui.IsStreamAttrs(s) {
+		if !e.compact || !e.streamAttrs(s) {
+			e.quote(s)
+		}
+		return
+	}
+	if len(s) < refMinLen || e.stream || hasStream(s) {
 		e.quote(s)
 		return
 	}
@@ -298,7 +305,7 @@ func (e *enc) dynChange(a, b any) bool {
 		if ok && old.h == sig(b) {
 			return false
 		}
-		if ok && old.long != "" && len(b) >= longMarkup {
+		if ok && old.long != "" && len(b) >= longMarkup && !ui.IsStreamAttrs(b) {
 			if e.tokenPatch(old.long, b) {
 				return true
 			}

@@ -44,6 +44,7 @@ type Session struct {
 	closed   bool
 	trimmed  bool        // Trim released the shadows; renderAll rebuilds them
 	undiffed bool        // a render's trees aren't all diffed yet: the shadows aren't their trees'
+	compact  bool        // the v2 client joined with ExtStream: stream attributes go compact
 	inPass   atomic.Bool // in renderAll
 	trees    bool        // a v2 connection: instances render to trees
 	c        conn

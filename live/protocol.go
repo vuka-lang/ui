@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"encoding/json"
+	"slices"
 
 	"github.com/vuka-lang/ui/v2"
 )
@@ -41,6 +42,11 @@ import (
 //	→ {"type":"event","ref":1,"target":"c1:0","event":"click"}
 //	← {"type":"patch","ref":1,"trees":[{"id":"c1","tree":{"u":{"2":"1"}}}]}
 //
+// A v2 join may name extensions the client speaks, {"ext":["stream"]}: with
+// "stream", a stream container's attributes go as one compact dynamic,
+// {"st":{…}} (streamwire.go), which the client writes back as the
+// attributes.
+//
 // A page moves to another URL over its connection (both versions):
 //
 //	→ {"type":"navigate","ref":5,"url":"/books?page=2","patch":true}
@@ -65,6 +71,9 @@ type ClientMessage struct {
 	Type string `json:"type"`
 	Ref  int    `json:"ref,omitempty"`
 	V    int    `json:"v,omitempty"` // join: the protocol version the client speaks (1 when 0)
+	// Ext is a v2 join's extensions the client speaks (Extensions): "stream",
+	// stream containers' attributes in their compact form.
+	Ext []string `json:"ext,omitempty"`
 	// navigate: the URL to move to (a path, with its query), and whether
 	// it is a patch: the same page with other parameters.
 	URL   string `json:"url,omitempty"`
@@ -91,6 +100,9 @@ func (s *Session) Handle(m ClientMessage) ServerMessage {
 	switch m.Type {
 	case Join:
 		if m.V >= 2 {
+			s.mu.Lock()
+			s.compact = slices.Contains(m.Ext, ExtStream)
+			s.mu.Unlock()
 			trees, err := s.RenderTrees()
 			if err != nil {
 				return ServerMessage{Type: Error, Ref: m.Ref, Error: s.ErrorText(err)}

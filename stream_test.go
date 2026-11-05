@@ -146,3 +146,54 @@ func TestStreamInsertAtLimit(t *testing.T) {
 		[]any{"insert", "3", 1.0}, []any{"insert", "2", 1.0}, []any{"insert", "1", 1.0},
 		[]any{"insert", "5", "start"}, []any{"insert", "4", "start"})
 }
+
+// A limit whose end is fixed (TrimStart, TrimEnd) keeps a Reset's rows at
+// the other end, and bounds the queue at each end by what the browser keeps
+// of it: inserts going in at the end it trims are dropped newest first.
+func TestStreamTrimEnd(t *testing.T) {
+	s := newTestStream(t)
+	s.Limit(3).TrimEnd()
+	s.Reset(items(1, 2, 3, 4, 5)...)
+	_, texts := sent(t, s)
+	if len(texts) != 3 || texts[0] != `<li>r1</li>` || texts[2] != `<li>r3</li>` {
+		t.Fatalf("a reset trimming the end keeps %v", texts)
+	}
+	s.Limit(3).TrimStart()
+	s.Reset(items(1, 2, 3, 4, 5)...)
+	_, texts = sent(t, s)
+	if len(texts) != 3 || texts[0] != `<li>r3</li>` || texts[2] != `<li>r5</li>` {
+		t.Fatalf("a reset trimming the start keeps %v", texts)
+	}
+
+	s.Limit(2).TrimEnd()
+	s.Insert(items(1, 2, 3)...)
+	s.Prepend(items(4, 5, 6)...)
+	ops, _ := sent(t, s)
+	wantOps(t, ops,
+		[]any{"insert", "1", "end"}, []any{"insert", "2", "end"},
+		[]any{"insert", "5", "start"}, []any{"insert", "4", "start"})
+	s.Limit(2).TrimStart()
+	s.Insert(items(1, 2, 3)...)
+	s.Prepend(items(4, 5, 6)...)
+	ops, _ = sent(t, s)
+	wantOps(t, ops,
+		[]any{"insert", "2", "end"}, []any{"insert", "3", "end"},
+		[]any{"insert", "6", "start"}, []any{"insert", "5", "start"})
+
+	b := s.Block(nil)
+	var trim any
+	for _, a := range b.Attrs() {
+		if a.Name == "data-vk-trim" {
+			trim = a.Value
+		}
+	}
+	if trim != "start" {
+		t.Fatalf("data-vk-trim is %v", trim)
+	}
+	s.Limit(2)
+	for _, a := range s.Block(nil).Attrs() {
+		if a.Name == "data-vk-trim" {
+			t.Fatal("Limit again leaves the end it trims fixed")
+		}
+	}
+}

@@ -39,7 +39,9 @@ import (
 // stream's owner with the row's values as arguments: it names the method,
 // not the row, so a row rendered an hour ago still works. A live
 // component in a row, a closure or a plain method value as a row's
-// handler fail the render.
+// handler fail the render. A <ui.Form for> in a row submits as a Push of
+// a method taking the form; failing its checks, it answers with the form's
+// report, which the browser puts in place on that row's form.
 //
 // The container's onViewportTop and onViewportBottom are ordinary
 // handlers the browser calls when its first or last row comes into view,
@@ -56,6 +58,7 @@ type Stream[T any] struct {
 	gen    string // the generation: random per stream per mount
 	n      int    // the batches of gen the browser was sent
 	limit  int
+	trim   byte // the end Limit trims: 0 the end away from where rows went in, else trimStart or trimEnd
 	ops    []streamOp[T]
 	dirty  bool
 	shown  bool // a render since the last flush rendered the block
@@ -77,6 +80,12 @@ type streamOp[T any] struct {
 	at    int  // an InsertAt's position
 	reset bool // one of a Reset's rows
 }
+
+// The end a limit trims, when TrimStart or TrimEnd fixed it.
+const (
+	trimStart = 's'
+	trimEnd   = 'e'
+)
 
 const (
 	opReset  = 'r'
@@ -154,62 +163,120 @@ func (s *Stream[T]) Delete(keys ...any) {
 
 // Reset queues replacing every row the browser holds with rows, in order:
 // those whose keys it holds are morphed in place, the others go. With a
-// limit, only the first limit rows are kept.
+// limit, only the first limit rows are kept — the last, when the limit
+// trims the start (TrimStart).
 func (s *Stream[T]) Reset(rows ...T) {
 	s.begin()
-	if s.limit > 0 && len(rows) > s.limit {
-		rows = rows[:s.limit]
-	}
 	s.ops = append(s.ops[:0:0], streamOp[T]{kind: opReset})
 	s.reset = true
 	for _, r := range rows {
 		s.ops = append(s.ops, streamOp[T]{kind: opEnd, row: r, reset: true})
 	}
+	s.keepReset()
 }
 
 // Limit is the most rows the browser keeps (0, the default: no limit). A
 // batch adding rows trims from the end away from where they went in:
 // Insert trims from the start, Prepend and InsertAt from the end. A row
 // replaced in place trims nothing. It takes effect at the next batch.
-func (s *Stream[T]) Limit(n int) {
+//
+// The limit it returns fixes the end it trims instead, wherever rows go
+// in: a newest-first feed keeps its newest rows at the top whether it
+// prepends what arrives or inserts older rows at the bottom.
+//
+//	f.events.Limit(50).TrimEnd()
+func (s *Stream[T]) Limit(n int) StreamLimit {
 	s.begin()
 	s.limit = max(n, 0)
+	s.trim = 0
+	s.limited()
+	return StreamLimit{s}
+}
+
+// limited applies the limit and its end to what is queued: a Reset's rows
+// past the limit, and inserts the browser would trim anyway.
+func (s *Stream[T]) limited() {
 	if s.limit == 0 {
 		return
 	}
-	kept := 0
-	for i := 0; i < len(s.ops); i++ {
-		if op := s.ops[i]; op.reset {
-			if kept++; kept > s.limit {
-				s.ops = append(s.ops[:i], s.ops[i+1:]...)
-				i--
-			}
-		}
-	}
+	s.keepReset()
 	s.bound(opEnd)
 	s.bound(opStart)
 }
 
+// keepReset drops a queued Reset's rows past the limit: from the end the
+// limit trims, the end by default.
+func (s *Stream[T]) keepReset() {
+	n := 0
+	for _, op := range s.ops {
+		if op.reset {
+			n++
+		}
+	}
+	if s.limit == 0 || n <= s.limit {
+		return
+	}
+	drop := n - s.limit // the first ones, trimming the start; else the last
+	kept := s.ops[:0]
+	seen := 0
+	for _, op := range s.ops {
+		if op.reset {
+			seen++
+			if s.trim == trimStart && seen <= drop || s.trim != trimStart && seen > s.limit {
+				continue
+			}
+		}
+		kept = append(kept, op)
+	}
+	s.ops = kept
+}
+
+func (s *Stream[T]) setTrim(end byte) {
+	s.trim = end
+	s.limited()
+}
+
+// StreamLimit is a stream's limit as Limit set it, to fix the end it
+// trims.
+type StreamLimit struct{ s interface{ setTrim(byte) } }
+
+// TrimStart has the limit trim the stream's start (its first rows),
+// wherever a batch's rows went in. A Reset with more rows than the limit
+// keeps the last.
+func (l StreamLimit) TrimStart() { l.s.setTrim(trimStart) }
+
+// TrimEnd has the limit trim the stream's end (its last rows), wherever a
+// batch's rows went in: rows inserted at the end of a full stream are
+// dropped, unless the browser holds their keys already.
+func (l StreamLimit) TrimEnd() { l.s.setTrim(trimEnd) }
+
 // bound keeps the queue of a stream with a limit from growing past it at
-// one end: older inserts there would be trimmed by the browser anyway.
-// InsertAt's rows aren't bounded: where they end up depends on the rows
-// the browser holds.
+// one end: older inserts there would be trimmed by the browser anyway —
+// or, when the limit trims that same end (TrimStart, TrimEnd), newer
+// ones, which go in past the rows already there. InsertAt's rows aren't
+// bounded: where they end up depends on the rows the browser holds.
 func (s *Stream[T]) bound(kind byte) {
 	if s.limit == 0 {
 		return
 	}
-	n, first := 0, -1
+	n, first, last := 0, -1, -1
 	for i, op := range s.ops {
 		if op.kind == kind {
 			if first < 0 {
 				first = i
 			}
+			last = i
 			n++
 		}
 	}
-	if n > s.limit {
-		s.ops = append(s.ops[:first], s.ops[first+1:]...)
+	if n <= s.limit {
+		return
 	}
+	drop := first
+	if kind == opEnd && s.trim == trimEnd || kind == opStart && s.trim == trimStart {
+		drop = last
+	}
+	s.ops = append(s.ops[:drop], s.ops[drop+1:]...)
 }
 
 // Rows is the rows queued since the last reply, in the order their
@@ -271,7 +338,7 @@ func streamFP(tag string, attrs int) uint64 {
 // writes it; Go writes List.
 func (s *Stream[T]) Block(rows []Node) *StreamBlock {
 	s.begin()
-	b := &StreamBlock{name: s.name, limit: s.limit, shown: &s.shown, rendered: &s.rendered}
+	b := &StreamBlock{name: s.name, limit: s.limit, trim: s.trim, shown: &s.shown, rendered: &s.rendered}
 	batch := s.n
 	if len(s.ops) > 0 {
 		batch++
@@ -331,6 +398,7 @@ type StreamBlock struct {
 	name  string
 	batch string
 	limit int
+	trim  byte
 	ops   []blockOp
 	err   error
 	shown *bool
@@ -358,6 +426,9 @@ func (b *StreamBlock) Attrs() []Attr {
 	attrs := []Attr{{"data-vk-stream", b.name}, {"data-vk-batch", b.batch}}
 	if b.limit > 0 {
 		attrs = append(attrs, Attr{"data-vk-limit", b.limit})
+		if b.trim != 0 {
+			attrs = append(attrs, Attr{"data-vk-trim", trimName(b.trim)})
+		}
 	}
 	if len(b.ops) == 0 {
 		return attrs
@@ -395,6 +466,13 @@ func (b *StreamBlock) Attrs() []Attr {
 	return attrs
 }
 
+func trimName(end byte) string {
+	if end == trimStart {
+		return "start"
+	}
+	return "end"
+}
+
 // StreamBatchAttr starts the attributes a batch adds to a container's: what
 // FlushedAttrs takes off.
 const StreamBatchAttr = " data-vk-ops="
@@ -415,6 +493,9 @@ func IsStreamAttrs(s string) bool { return strings.HasPrefix(s, ` data-vk-stream
 
 func (b *StreamBlock) info() StreamBatch {
 	in := StreamBatch{Name: b.name, Batch: b.batch, Limit: b.limit}
+	if b.limit > 0 && b.trim != 0 {
+		in.Trim = trimName(b.trim)
+	}
 	for _, op := range b.ops {
 		switch op.kind {
 		case opReset:
@@ -435,6 +516,7 @@ type StreamBatch struct {
 	Reset            bool
 	Inserts, Deletes int
 	Limit            int
+	Trim             string // the end the limit trims, when TrimStart or TrimEnd fixed it: "start", "end"
 }
 
 // rowKey is the key of a row: its element's key attribute, as text; and
@@ -653,8 +735,8 @@ func (s *Stream[T]) deferMerge(from any) {
 		}
 	}
 	s.ops = ops
-	if f.limit != s.limit {
-		s.limit = f.limit
+	if f.limit != s.limit || f.trim != s.trim {
+		s.limit, s.trim = f.limit, f.trim
 	}
 }
 

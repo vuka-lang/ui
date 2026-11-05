@@ -16,7 +16,7 @@ func (s *Session) treeUpdates() []TreeUpdate {
 		if in.tree == nil || !in.rendered && in.shadow != nil {
 			continue
 		}
-		e := enc{c: &s.c}
+		e := enc{c: &s.c, compact: s.compact}
 		s.c.begin()
 		u := TreeUpdate{ID: in.id}
 		switch {

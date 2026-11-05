@@ -55,7 +55,9 @@ func callPush(ctx context.Context, fn any, ev ui.Event) (res any, err error) {
 			err = fmt.Errorf("live: handler %s panicked: %v", ev.Target, r)
 		}
 	}()
-	if ev.Args != nil {
+	if ev.Args != nil || ev.Form.Get(ui.FormRowField) != "" {
+		// a Push step's arguments, or a stream row's form (ui.FormRowField),
+		// which a push submits as its owner's method checks it
 		return ui.CallPush(ctx, fn, ev.Args, ev.Form)
 	}
 	return ui.CallHandlerResult(ctx, fn, func(t reflect.Type) (reflect.Value, error) { return payload(t, ev) })

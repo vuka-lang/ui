@@ -35,6 +35,7 @@ type StreamChat struct {
 	ui.Live
 	Store    *chatStore
 	Max      int
+	Trim     string // the end Max trims: "start", "end", else the end away from the rows
 	Title    string
 	messages ui.Stream[chatMsg]
 }
@@ -42,7 +43,12 @@ type StreamChat struct {
 func (c *StreamChat) LiveSchema(l *ui.LiveSchema) { l.Mount(c.mount) }
 
 func (c *StreamChat) mount(ctx context.Context) error {
-	c.messages.Limit(c.Max)
+	switch l := c.messages.Limit(c.Max); c.Trim {
+	case "start":
+		l.TrimStart()
+	case "end":
+		l.TrimEnd()
+	}
 	c.messages.Reset(c.Store.msgs...)
 	c.Subscribe("chat")
 	return nil
@@ -165,6 +171,49 @@ func TestStreamLimit(t *testing.T) {
 	st.msgs = msgs(10, 11)
 	info(t, c, reload{})
 	wantRows(t, c, "10", "11")
+}
+
+// A limit whose end is fixed trims that end wherever rows go in: a
+// newest-first feed keeps its newest rows at the top whether new ones are
+// prepended or older ones inserted at the bottom, and a log keeps its last
+// rows whichever end a batch went in at.
+func TestStreamLimitTrim(t *testing.T) {
+	for _, v := range []int{1, 2} {
+		t.Run(fmt.Sprint("v", v), func(t *testing.T) {
+			st := &chatStore{msgs: msgs(5, 4, 3, 2, 1)}
+			s := live.NewSession(context.Background(), func(context.Context) ui.Node {
+				return ui.Component("chat", nil, &StreamChat{Store: st, Max: 3, Trim: "end", Title: "feed"})
+			})
+			c, err := livetest.Join(s, v)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantRows(t, c, "5", "4", "3") // a reset keeps the first rows
+			if a := attr(t, c.HTML(), "data-vk-trim"); a != "end" {
+				t.Fatalf("data-vk-trim is %q", a)
+			}
+			info(t, c, pinned{chatMsg{6, "m6"}}) // newer, at the top: the bottom trimmed
+			wantRows(t, c, "6", "5", "4")
+			info(t, c, said{chatMsg{2, "m2"}}) // older, at the bottom of a full feed: trimmed at once
+			wantRows(t, c, "6", "5", "4")
+			info(t, c, unsaidMsg(5))
+			info(t, c, said{chatMsg{2, "m2"}}) // room for one
+			wantRows(t, c, "6", "4", "2")
+
+			st.msgs = msgs(1, 2, 3, 4, 5)
+			s = live.NewSession(context.Background(), func(context.Context) ui.Node {
+				return ui.Component("chat", nil, &StreamChat{Store: st, Max: 3, Trim: "start", Title: "log"})
+			})
+			if c, err = livetest.Join(s, v); err != nil {
+				t.Fatal(err)
+			}
+			wantRows(t, c, "3", "4", "5") // a reset keeps the last rows
+			info(t, c, said{chatMsg{6, "m6"}})
+			wantRows(t, c, "4", "5", "6")
+			info(t, c, pinned{chatMsg{0, "m0"}}) // at the top of a full log: trimmed at once
+			wantRows(t, c, "4", "5", "6")
+		})
+	}
 }
 
 // The session holds no rows between replies: the stream's queue, and the
