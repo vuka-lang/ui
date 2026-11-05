@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -40,6 +41,11 @@ import (
 // component in a row, a closure or a plain method value as a row's
 // handler fail the render.
 //
+// The container's onViewportTop and onViewportBottom are ordinary
+// handlers the browser calls when its first or last row comes into view,
+// the event's value that row's key — the edge the browser holds, which
+// the server doesn't track: an infinite list, in either direction.
+//
 // A stream is tracked state, as an Assign is: a component whose state is
 // all tracked renders again when one of its streams has operations
 // queued, and is skipped otherwise. The server can't count, sort or
@@ -65,9 +71,10 @@ type Stream[T any] struct {
 }
 
 type streamOp[T any] struct {
-	kind  byte // opReset, opDelete, opEnd (Insert), opStart (Prepend)
+	kind  byte // opReset, opDelete, opEnd (Insert), opStart (Prepend), opAt (InsertAt)
 	key   string
 	row   T
+	at    int  // an InsertAt's position
 	reset bool // one of a Reset's rows
 }
 
@@ -76,6 +83,7 @@ const (
 	opDelete = 'd'
 	opEnd    = 'e'
 	opStart  = 's'
+	opAt     = 'a'
 )
 
 // StreamWarnAt is how many queued rows of a stream without a limit make the
@@ -121,6 +129,19 @@ func (s *Stream[T]) Prepend(rows ...T) {
 	}
 }
 
+// InsertAt queues rows before the browser's row i (from 0), in the order
+// given; past the last row, at the end, and a negative i is 0. A row whose
+// key the browser holds is morphed in place instead, and stays where it
+// is. A limit trims from the end, as for Prepend: InsertAt(0, rows...) is
+// Prepend(rows...).
+func (s *Stream[T]) InsertAt(i int, rows ...T) {
+	s.begin()
+	i = max(i, 0)
+	for j := len(rows) - 1; j >= 0; j-- {
+		s.ops = append(s.ops, streamOp[T]{kind: opAt, row: rows[j], at: i})
+	}
+}
+
 // Delete queues the removal of the rows with these keys; a key the browser
 // doesn't hold is ignored. A key is matched by its text, as fmt.Sprint
 // writes it.
@@ -148,8 +169,8 @@ func (s *Stream[T]) Reset(rows ...T) {
 
 // Limit is the most rows the browser keeps (0, the default: no limit). A
 // batch adding rows trims from the end away from where they went in:
-// Insert trims from the start, Prepend from the end. A row replaced in
-// place trims nothing. It takes effect at the next batch.
+// Insert trims from the start, Prepend and InsertAt from the end. A row
+// replaced in place trims nothing. It takes effect at the next batch.
 func (s *Stream[T]) Limit(n int) {
 	s.begin()
 	s.limit = max(n, 0)
@@ -171,6 +192,8 @@ func (s *Stream[T]) Limit(n int) {
 
 // bound keeps the queue of a stream with a limit from growing past it at
 // one end: older inserts there would be trimmed by the browser anyway.
+// InsertAt's rows aren't bounded: where they end up depends on the rows
+// the browser holds.
 func (s *Stream[T]) bound(kind byte) {
 	if s.limit == 0 {
 		return
@@ -190,13 +213,14 @@ func (s *Stream[T]) bound(kind byte) {
 }
 
 // Rows is the rows queued since the last reply, in the order their
-// operations apply (a Prepend's last row first): what the next render
+// operations apply (a Prepend's or an InsertAt's last row first, each
+// going before the one queued after it): what the next render
 // sends. A stream's loop ranges over it, and nothing else may read it — it
 // isn't what the browser shows.
 func (s *Stream[T]) Rows() []T {
 	var out []T
 	for _, op := range s.ops {
-		if op.kind == opEnd || op.kind == opStart {
+		if op.kind == opEnd || op.kind == opStart || op.kind == opAt {
 			out = append(out, op.row)
 		}
 	}
@@ -287,7 +311,7 @@ func (s *Stream[T]) Block(rows []Node) *StreamBlock {
 				continue
 			}
 			at[key] = len(b.ops)
-			b.ops = append(b.ops, blockOp{kind: op.kind, key: key, node: n, frame: f})
+			b.ops = append(b.ops, blockOp{kind: op.kind, key: key, at: op.at, node: n, frame: f})
 		}
 	}
 	kept := b.ops[:0]
@@ -317,6 +341,7 @@ type StreamBlock struct {
 type blockOp struct {
 	kind  byte
 	key   string
+	at    int    // an InsertAt's position
 	node  Node   // an insert's row
 	frame *Frame // its frame, when rowKey built it
 }
@@ -350,6 +375,9 @@ func (b *StreamBlock) Attrs() []Attr {
 			rows++
 		case opStart:
 			ops[i] = []any{"insert", op.key, "start"}
+			rows++
+		case opAt:
+			ops[i] = []any{"insert", op.key, op.at}
 			rows++
 		}
 	}
@@ -594,9 +622,10 @@ func (s *Stream[T]) streamCheck() bool {
 }
 
 // streamWarn reports, once, whether the stream queued more rows than
-// StreamWarnAt with no limit.
+// StreamWarnAt with no limit, or with InsertAt's rows, which a limit
+// doesn't bound.
 func (s *Stream[T]) streamWarn() bool {
-	if s.warned || s.limit > 0 || len(s.ops) <= StreamWarnAt {
+	if s.warned || len(s.ops) <= StreamWarnAt || s.limit > 0 && !slices.ContainsFunc(s.ops, func(op streamOp[T]) bool { return op.kind == opAt }) {
 		return false
 	}
 	s.warned = true
@@ -687,12 +716,12 @@ func HasStreams(c Stateful) bool {
 }
 
 // StreamWarnings names c's streams that queued more than StreamWarnAt rows
-// without a limit, each once.
+// that no limit bounds (none set, or InsertAt's rows), each once.
 func StreamWarnings(c Stateful) []string {
 	var out []string
 	streamsOf(reflect.ValueOf(c), func(name string, s streamer) {
 		if s.streamWarn() {
-			out = append(out, fmt.Sprintf("%s.%s has %d operations queued and no limit: is its container rendered? (a stream whose container isn't shown keeps what it queues)", reflect.TypeOf(c).Elem().Name(), name, s.streamQueued()))
+			out = append(out, fmt.Sprintf("%s.%s has %d operations queued that no limit bounds: is its container rendered? (a stream whose container isn't shown keeps what it queues)", reflect.TypeOf(c).Elem().Name(), name, s.streamQueued()))
 		}
 	})
 	return out

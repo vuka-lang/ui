@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vuka-lang/ui/v2"
 	"github.com/vuka-lang/ui/v2/live"
 )
 
@@ -81,7 +82,7 @@ func (c *Client) streamed(h string, apply bool) (string, error) {
 		}
 		inner := h[openEnd : end-len("</"+el.tag+">")]
 		name, _ := el.attr("data-vk-stream")
-		key := instanceAt(h, start) + "/" + name
+		key := instanceAt(h, start, openEnd) + "/" + name
 		st := c.streams[key]
 		if apply {
 			var err error
@@ -114,12 +115,14 @@ func (c *Client) streamed(h string, apply bool) (string, error) {
 	}
 }
 
-// instanceAt is the id of the instance whose markup holds h[at:]: the
-// nearest element around it with a data-vk-id, else the page's.
-func instanceAt(h string, at int) string {
+// instanceAt is the id of the instance whose markup holds the element
+// at h[at:], whose open tag ends at open: the nearest element with a
+// data-vk-id around it or the element itself (an instance's root), else
+// the page's.
+func instanceAt(h string, at, open int) string {
 	id, best := live.RootID, -1
 	for off := 0; ; {
-		j := strings.Index(h[off:at], `data-vk-id="`)
+		j := strings.Index(h[off:open], `data-vk-id="`)
 		if j < 0 {
 			return id
 		}
@@ -207,8 +210,9 @@ func applyBatch(st *streamState, el *node, inner string) (*streamState, error) {
 			if j >= 0 {
 				rows = slices.Delete(rows, j, j+1) // moved into the reset's order
 			}
-			if pos == "start" {
-				rows = slices.Insert(rows, 0, r)
+			if at, ok := op[2].(float64); ok || pos == "start" { // before row at (InsertAt), or the first
+				j := min(max(int(at), 0), len(rows))
+				rows = slices.Insert(rows, j, r)
 				if limit > 0 && len(rows) > limit {
 					rows = rows[:limit]
 				}
@@ -248,4 +252,37 @@ func rowsIn(inner string) []Row {
 		i = end
 	}
 	return out
+}
+
+// Viewport fires a stream container's viewport event as a browser does
+// when the container's edge row comes into view: edge is "top" or
+// "bottom", sel the container, and the event's value the key of the row
+// at that edge — the first, or the last. A container holding no rows
+// fires nothing, as in a browser.
+func (c *Client) Viewport(sel, edge string) error {
+	e := c.find(sel)
+	if e == nil {
+		return fmt.Errorf("livetest: no element %s", sel)
+	}
+	if _, ok := e.attr("data-vk-stream"); !ok {
+		return fmt.Errorf("livetest: %s isn't a stream's container", sel)
+	}
+	if edge != "top" && edge != "bottom" {
+		return fmt.Errorf("livetest: edge %q isn't top or bottom", edge)
+	}
+	var rows []*node
+	for _, k := range e.kids {
+		if _, ok := k.attr("data-vk-row"); ok && k.tag != "" {
+			rows = append(rows, k)
+		}
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	row := rows[0]
+	if edge == "bottom" {
+		row = rows[len(rows)-1]
+	}
+	key, _ := row.attr("data-vk-row")
+	return c.Fire(sel, ui.Event{Type: "viewport" + edge, Value: key})
 }
