@@ -300,6 +300,9 @@ func (h *HTMLRenderer) handlerAttr(name string, eh EventHandler) error {
 	if host == nil {
 		return nil
 	}
+	if _, probe := host.(*pageProbe); !probe && inStreamRow(h.ctx) != nil {
+		return rowHandlerErr(name)
+	}
 	id := host.Handler(h.ctx, eh.Fn)
 	if _, probe := host.(*pageProbe); probe {
 		return errPageLive

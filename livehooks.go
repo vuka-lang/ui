@@ -54,6 +54,9 @@ func MountPage(ctx context.Context, p any) error {
 	if err := CheckHooks(t); err != nil {
 		return err
 	}
+	if err := initStreams(reflect.ValueOf(p)); err != nil {
+		return err
+	}
 	if hasMount(t) {
 		if err := liveHooks(reflect.ValueOf(p)).mount(ctx); err != nil {
 			return err

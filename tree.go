@@ -31,6 +31,10 @@ type Tree struct {
 type TreeList struct {
 	Items []*Tree
 	Keys  []string
+	// Stream marks a stream's rows block (Stream.Block): the batch of one
+	// render, which the session empties once the reply carrying it is
+	// written, so the next render diffs against no rows.
+	Stream bool
 }
 
 // TreeRef is a stateful component instance in a render tree: its id.
@@ -350,6 +354,9 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 		}
 		return b.value(ctx, n.frame())
 	case *ComponentNode:
+		if n != nil && inStreamRow(ctx) != nil {
+			return nil, rowComponentErr(n)
+		}
 		if th, ok := liveHost(ctx).(TreeHost); ok && n != nil {
 			KeyStates(ctx, n.Props)
 			id, err := th.ComponentRef(ctx, n)
@@ -360,6 +367,11 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 		}
 	case *islandMount:
 		return b.value(ctx, n.node(""))
+	case *StreamBlock:
+		if n == nil {
+			return "", nil
+		}
+		return b.streamTree(ctx, n)
 	case *list:
 		var ns []Node
 		if n.items == nil && len(n.nodes) > 0 {

@@ -78,6 +78,9 @@ type Patch struct {
 	// Err is the handler's error as it returned it, for a transport to
 	// read (a plain form post answering 422, or a redirect); never sent.
 	Err error `json:"-"`
+	// Streams is the stream batches the patch carries, for a development
+	// toolbar; never sent.
+	Streams []StreamBatch `json:"-"`
 }
 
 // JSPush is JS commands a component pushed (ui.Live.PushJS), for the
@@ -136,7 +139,9 @@ func (s *Session) Render() (string, error) {
 	}
 	s.js = append(s.js, js...)
 	s.settle()
-	return s.root.html(), nil
+	html := s.root.html()
+	s.flushStreams()
+	return html, nil
 }
 
 // RenderTrees makes the session a v2 one and renders the whole page as every
@@ -159,6 +164,7 @@ func (s *Session) RenderTrees() ([]TreeUpdate, error) {
 	s.js = append(s.js, js...)
 	ups := s.treeUpdates()
 	s.settle()
+	s.flushStreams()
 	return ups, nil
 }
 
@@ -446,7 +452,7 @@ func pushable(c ui.Stateful, name string) any {
 	}
 	t := v.Type().Elem()
 	pushMu.RLock()
-	ok := slices.Contains(pushAllowed[t.PkgPath()+"."+t.Name()], name)
+	ok := slices.Contains(pushAllowed[t.PkgPath()+"."+t.Name()], name) || streamPushAllowed(v.Type(), name)
 	pushMu.RUnlock()
 	if !ok {
 		return nil
@@ -1159,6 +1165,13 @@ func (s *Session) renderInst(in *instance) (err error) {
 	}
 	if in.comp != nil {
 		defer ui.SettleState(in.comp)
+		if s.verify && ui.HasStreams(in.comp) {
+			defer func() {
+				if err == nil {
+					err = ui.CheckStreams(in.comp)
+				}
+			}()
+		}
 	}
 	if s.trees && !s.whole {
 		t, err := ui.BuildTree(ctx, node, s.verify)
@@ -1166,7 +1179,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 			return err
 		}
 		s.stableTreeIDs(in, t)
-		in.tree = splitMarkers(t)
+		in.tree, in.own = splitMarkers(t), "" // an adopted session's HTML render is the tree's now
 		return nil
 	}
 	var b strings.Builder
@@ -1247,9 +1260,11 @@ func (s *Session) patch() (Patch, error) {
 		return Patch{}, err
 	}
 	p := Patch{JS: js}
+	s.streamChecks()
 	if s.trees {
 		p.Trees = s.treeUpdates()
 		s.settle()
+		p.Streams = s.flushStreams()
 		return p, nil
 	}
 	var walk func(in *instance)
@@ -1264,6 +1279,7 @@ func (s *Session) patch() (Patch, error) {
 	}
 	walk(s.root)
 	s.settle()
+	p.Streams = s.flushStreams()
 	return p, nil
 }
 

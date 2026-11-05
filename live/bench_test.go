@@ -154,3 +154,44 @@ func BenchmarkLoad(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkStreamMemory is the heap a session holds between events for a
+// 1000-row table: rows of a keyed slice (KeyedTable, two handlers per row)
+// against the same rows as a stream (StreamTable, two pushes per row),
+// each session joined over v2, then one row inserted.
+func BenchmarkStreamMemory(b *testing.B) {
+	pages := map[string]func(context.Context) ui.Node{
+		"slice": func(context.Context) ui.Node {
+			return ui.Component("b#1", nil, &demo.KeyedTable{N: 1000, Hits: new([]int)})
+		},
+		"stream": func(context.Context) ui.Node {
+			return ui.Component("b#1", nil, &demo.StreamTable{N: 1000, Hits: new([]int)})
+		},
+		"empty": func(context.Context) ui.Node {
+			return ui.Component("b#1", nil, &demo.StreamTable{N: 0, Hits: new([]int)})
+		},
+	}
+	for _, name := range []string{"slice", "stream", "empty"} {
+		b.Run(name, func(b *testing.B) {
+			defer func(v bool) { live.Verify = v }(live.Verify)
+			live.Verify = false
+			const n = 50
+			var perSession float64
+			for b.Loop() {
+				runtime.GC()
+				var before, after runtime.MemStats
+				runtime.ReadMemStats(&before)
+				ss := make([]*live.Session, n)
+				for i := range ss {
+					ss[i] = joined(b, pages[name], 2)
+					event(b, ss[i], "c1:0") // insert a row
+				}
+				runtime.GC()
+				runtime.ReadMemStats(&after)
+				perSession = float64(after.HeapAlloc-before.HeapAlloc) / n
+				runtime.KeepAlive(ss)
+			}
+			b.ReportMetric(perSession, "B/session")
+		})
+	}
+}

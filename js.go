@@ -1875,6 +1875,13 @@ func encodePush(ctx context.Context, host LiveHost, x *push) ([]jsArg, error) {
 	var kvs []jsArg
 	if http {
 		kvs = append(kvs, jsArg{"m", pushRef(ctx, pm, x.read, x.cache)})
+	} else if sp, ok := host.(StreamPusher); ok && inStreamRow(ctx) != nil {
+		// a row the server forgets: the push names its owner's method
+		id, err := sp.StreamPush(ctx, x.fn)
+		if err != nil {
+			return nil, err
+		}
+		kvs = append(kvs, jsArg{"h", id})
 	} else {
 		kvs = append(kvs, jsArg{"h", host.Handler(ctx, x.fn)})
 	}

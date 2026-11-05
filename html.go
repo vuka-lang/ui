@@ -304,6 +304,11 @@ func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 	}
 	switch name {
 	case "key":
+		if r := inStreamRow(h.ctx); r != nil && !r.done && a.Value != nil {
+			r.done = true // the row's own key: what the browser matches it by
+			h.write(` data-vk-row="` + templ.EscapeString(r.key) + `"`)
+			return nil
+		}
 		if liveHost(h.ctx) != nil && a.Value != nil && !(e != nil && hasAttr(e, "data-vk-key")) {
 			h.write(` data-vk-key="` + templ.EscapeString(fmt.Sprint(a.Value)) + `"`)
 		}
