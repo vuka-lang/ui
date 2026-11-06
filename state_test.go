@@ -45,6 +45,7 @@ func TestStateCommands(t *testing.T) {
 		{uigen.Dec(ui.JS, n), `[["state_inc",{"s":"s3:1","i":2,"by":-1}]]`},
 		{ui.JS.Set(n, n.Get()), `[["state_set",{"s":"s3:1","i":2,"v":2}]]`},
 		{tab.Set("env").Set(open, false).Push(save), `[["state_set",{"s":"s2:1","i":"logs","v":"env"}],["state_set",{"s":"s1:1","i":false,"v":false}],["push",{}]]`},
+		{ui.JS.Optimistic().Set(open, true).Push(save), `[["optimistic",{}],["state_set",{"s":"s1:1","i":false,"v":true}],["push",{}]]`},
 		{f.Set(filters{Q: "x", Sort: "age"}), `[["state_set",{"s":"s4:1","i":{"q":"","Sort":"name","Page":0},"v":{"q":"x","Sort":"age","Page":0}}]]`},
 		{q.Set("dog"), `[["state_set",{"s":"s4:1","i":{"q":"","Sort":"name","Page":0},"p":["q"],"v":"dog"}]]`},
 		{ui.JS.Set(f, f.Get()), `[["state_set",{"s":"s4:1","i":{"q":"","Sort":"name","Page":0},"v":{"q":"","Sort":"name","Page":0}}]]`},

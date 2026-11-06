@@ -1113,6 +1113,17 @@ func (c Commands) Stop() Commands { return c.add("stop") }
 //	<button onClick={ui.JS.Once().Push(c.Follow)}>Follow</button>
 func (c Commands) Once() Commands { return c.add("once") }
 
+// Optimistic makes the chain's state writes after it predictions of its
+// pushes: each push that fails puts back the states the chain wrote
+// before it, in the reverse order of the writes, before its error shows.
+// Without it a failed push leaves the states as written.
+//
+// Example:
+//
+//	<button onClick.optimistic={liked = !liked; Like(post.ID)}>♥</button>
+//	<button onClick={ui.JS.Optimistic().Set(liked, true).Push(c.Like)}>♥</button>
+func (c Commands) Optimistic() Commands { return c.add("optimistic") }
+
 // Then is the chain with chain's steps after its own.
 //
 // Example:
