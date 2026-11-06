@@ -17,6 +17,7 @@ type Docs struct {
 	key   struct{ Token string }
 	todo  struct{ Title string }
 	likes int
+	liked ui.State[bool]
 }
 
 func (c *Docs) MenuOpened()     {}
@@ -93,6 +94,7 @@ func (c *Docs) CitiesOf(country string) []ui.Option {
     <a href="/orders" onClick={ui.JS.Prevent().Show(ui.Ref("menu"))}>Orders</a>
     <li onClick={ui.JS.Push(c.Pick, ui.Value(pet.ID))}><button onClick={ui.JS.Stop().Push(func() { c.Delete(pet.ID) })}>Delete</button></li>
     <button onClick={ui.JS.Once().Push(c.Follow)}>Follow</button>
+    <button onClick={ui.JS.Optimistic().Set(liked, true).Push(c.Like)}>♥</button>
     <button onClick={ui.JS.Prevent().Then(ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog")))}>Edit</button>
     <button onClick={ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved")))}>Save</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show()}>Done</button>
