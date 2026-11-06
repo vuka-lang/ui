@@ -269,3 +269,36 @@ type handlers struct{}
 func (handlers) Component(ctx context.Context, n *ui.ComponentNode, w io.Writer) error { return nil }
 func (handlers) Handler(context.Context, any) string                                   { return "h" }
 func (handlers) Keyed(ctx context.Context, _ any) context.Context                      { return ctx }
+
+// prefs keeps its theme and shares its sidebar.
+type prefs struct {
+	theme   ui.State[string]
+	sidebar ui.State[bool]
+}
+
+func init() {
+	uigen.Derive(func(p *prefs) {
+		uigen.With(p.theme, ui.Keep("theme"))
+		uigen.With(p.sidebar, ui.Keep("sidebar"))
+		uigen.With(p.sidebar, ui.Shared{})
+	})
+}
+
+// TestKeepShared: a kept state's references name its storage key, a
+// shared one's the channel name its writes go by, in bindings and
+// commands.
+func TestKeepShared(t *testing.T) {
+	p := &prefs{}
+	uigen.States(p)
+	set := ui.JS.Set(p.sidebar, true)
+	out, _ := page(t, ui.HTML(`<p title={p.theme} onClick={set}>{p.sidebar}</p>`, p.theme, set, p.sidebar))
+	out = strings.ReplaceAll(out, "&#34;", `"`)
+	for _, want := range []string{`"k":"theme"`, `"i":false,"k":"sidebar"`, `"sh":"k:sidebar"`, `"v":true`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no %s in\n%s", want, out)
+		}
+	}
+	if n := strings.Count(out, `"sh":`); n != 2 {
+		t.Errorf("%d references are shared, want 2:\n%s", n, out)
+	}
+}
