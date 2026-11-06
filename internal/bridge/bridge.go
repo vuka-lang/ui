@@ -3,6 +3,8 @@
 // passed as any so this package needn't import ui.
 package bridge
 
+import "reflect"
+
 var (
 	// Declare is the state of zero's type declared at site with init,
 	// the page's when page.
@@ -19,4 +21,10 @@ var (
 	// States gives each zero ui.State field of the struct p points to a
 	// state of its own.
 	States func(p any)
+	// From is a Derived of x's type, at site, computed from state x.
+	From func(site string, x any) any
+	// Read is Derived d as the state its expressions read.
+	Read func(d any) any
+	// Derive registers fn, which sets the Derived fields of a *t.
+	Derive func(t reflect.Type, fn func(p any))
 )

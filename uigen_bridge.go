@@ -19,7 +19,10 @@ type stateOps interface {
 	fieldOf(sv stateView, path string) any
 	op(name string, o any) any
 	write(name string, c Commands) Commands
+	memo(site string) any
 }
+
+func (s State[T]) memo(site string) any { return memoOf(site, s) }
 
 func (State[T]) declare(site string, page bool, init any) any {
 	v, _ := init.(T)
@@ -58,6 +61,8 @@ func (s State[T]) op(name string, o any) any {
 		return s.plus(o)
 	case "Minus":
 		return s.minus(o)
+	case "Mul":
+		return s.mul(o)
 	case "Neg":
 		return s.neg()
 	case "Len":
@@ -87,6 +92,9 @@ func init() {
 	bridge.Op = func(name string, s, o any) any { return s.(stateOps).op(name, o) }
 	bridge.Write = func(name string, c, s any) any { return s.(stateOps).write(name, c.(Commands)) }
 	bridge.States = func(p any) { initStates(reflect.ValueOf(p)) }
+	bridge.From = func(site string, x any) any { return x.(stateOps).memo(site) }
+	bridge.Read = func(d any) any { return d.(derivedOps).state() }
+	bridge.Derive = func(t reflect.Type, fn func(p any)) { derivers.Store(t, fn) }
 }
 
 // fieldStates is the indexes of a struct type's ui.State fields.
@@ -125,4 +133,27 @@ func initStates(p reflect.Value) {
 		site := "f" + strconv.FormatUint(h.Sum64()&0xffffffffff, 36)
 		s.Set(reflect.ValueOf(reflect.Zero(f.Type()).Interface().(stateOps).declare(site, false, nil)))
 	}
+	if fn, ok := derivers.Load(t); ok && zeroDerived(v) {
+		fn.(func(any))(p.Interface())
+	}
 }
+
+// derivers are the types whose Derived fields the compiler derives: each
+// sets them from the states, once they have theirs.
+var derivers sync.Map // reflect.Type → func(p any)
+
+// zeroDerived reports whether a Derived field of v has no state yet.
+func zeroDerived(v reflect.Value) bool {
+	ops := reflect.TypeFor[derivedOps]()
+	for i := 0; i < v.NumField(); i++ {
+		if f := v.Field(i); f.Type().Implements(ops) && f.IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
+// derivedOps is what package uigen reads of a Derived.
+type derivedOps interface{ state() any }
+
+func (d Derived[T]) state() any { return d.s }

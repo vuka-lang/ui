@@ -135,3 +135,78 @@ func TestTrackedWithStates(t *testing.T) {
 		t.Error("a set isn't a change")
 	}
 }
+
+// cart derives its total from its states, and a flag from the total, as
+// the compiler writes @ui.From.
+type cart struct {
+	ui.Live
+	count ui.State[int]
+	price ui.State[int]
+	total ui.Derived[int]
+	over  ui.Derived[bool]
+	n     uigen.Assign[int]
+}
+
+func init() {
+	uigen.Derive(func(c *cart) {
+		c.total = uigen.From(uigen.Mul(c.count, c.price))
+		c.over = uigen.From(uigen.Gt(uigen.Read(c.total), 100))
+	})
+}
+
+func (c *cart) Render() ui.Node {
+	return ui.HTML(`<p data-over={c.over}>{c.total}</p>`, c.over, c.total)
+}
+
+// TestDerived: a Derived field is set once the component's states are,
+// renders with their initial values, and is a state of its own in the
+// browser, keyed, with the expression it is computed from; it leaves the
+// component's server state tracked.
+func TestDerived(t *testing.T) {
+	c := &cart{}
+	if err := ui.MountLive(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	if c.total.Get() != 0 || c.over.Get() {
+		t.Errorf("initial values: %v %v", c.total.Get(), c.over.Get())
+	}
+	before := c.total
+	uigen.States(c)
+	if !reflect.DeepEqual(c.total, before) {
+		t.Error("States derived a Derived it had")
+	}
+	out, _ := page(t, c.Render())
+	out = strings.ReplaceAll(out, "&#34;", `"`)
+	for _, want := range []string{
+		`"s":"c0:s`, // the total's own key
+		`"x":["*",{"i":0,"s":"c0:f`,
+		`"x":["&gt;",{"i":0,"s":"c0:s`, // over reads the total by its key
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no %s in\n%s", want, out)
+		}
+	}
+	if tracked, _ := ui.TrackedState(c); !tracked {
+		t.Error("a Derived field leaves the component untracked")
+	}
+	defer func() {
+		if recover() == nil {
+			t.Error("setting a Derived didn't panic")
+		}
+	}()
+	ui.JS.Set(c.total, 3)
+}
+
+func TestDerivedValues(t *testing.T) {
+	n := uigen.State("n", 3)
+	p := uigen.State("p", 2.5)
+	if got := uigen.Mul(n, 4).Get(); got != 12 {
+		t.Errorf("3 * 4 = %v", got)
+	}
+	if got := uigen.Mul(p, n).Get(); got != 7.5 {
+		t.Errorf("2.5 * 3 = %v", got)
+	}
+	if got := uigen.From(uigen.Mul(n, n)).Get(); got != 9 {
+		t.Errorf("a Derived of 3 * 3 = %v", got)
+	}
+}

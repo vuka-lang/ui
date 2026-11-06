@@ -49,7 +49,8 @@ type stateCell struct {
 	page    bool
 	init    any
 	typ     reflect.Type
-	derived *Binding // a Derived's expression
+	derived *Binding // an expression's, or a Derived's
+	memo    bool     // a Derived: the browser keeps its value by key
 	mu      sync.Mutex
 	key     string
 }
@@ -76,6 +77,49 @@ func derived[T any](value T) State[T] { return newDerived(value, `{"$":0}`, valu
 // deps its expression, as BindExpr takes them.
 func newDerived[T any](value T, expr string, deps ...any) State[T] {
 	return State[T]{c: &stateCell{init: value, typ: reflect.TypeFor[T](), derived: &Binding{value, expr, deps}}, v: value}
+}
+
+// Derived is a value the browser computes from states and keeps: a
+// cart's total from its count and price. The browser computes it again
+// when a state it reads changes, and what reads it follows, as with a
+// state; it is never written.
+//
+// A .vuka.html file declares one as a field, with the expression it is
+// derived from:
+//
+//	type Cart struct {
+//		count ui.State[int]
+//		price ui.State[int]
+//		total ui.Derived[int] @ui.From(count * price)
+//		over  ui.Derived[bool] @ui.From(total > 100)
+//	}
+//	<p class:over={over}>{total}</p>
+//
+// The expression is one markup could bind (states, literals and the
+// operators the browser runs) and may read other Derived fields. The
+// server renders it with the states' initial values.
+//
+// Get is the value the server renders with.
+type Derived[T any] struct{ s State[T] }
+
+// Get is the value as the server renders it.
+func (d Derived[T]) Get() T { return d.s.v }
+
+func (d Derived[T]) stateOf() stateView { return d.s.stateOf() }
+
+// From marks a Derived field with the expression it is derived from; the
+// compiler reads it, and it records nothing at run time.
+//
+//	total ui.Derived[int] @ui.From(count * price)
+func From(expr any) FromExpr { return FromExpr{} }
+
+// FromExpr is what From returns: a field attribute the compiler reads.
+type FromExpr struct{}
+
+// memoOf is x as a Derived: a state of its own, at site, whose value the
+// browser keeps by key and computes from x's expression.
+func memoOf[T any](site string, x State[T]) Derived[T] {
+	return Derived[T]{State[T]{c: &stateCell{site: site, init: x.v, typ: reflect.TypeFor[T](), derived: &Binding{x.v, `{"$":0}`, []any{x}}, memo: true}, v: x.v}}
 }
 
 // stateField is the field name of a struct state, sample its value as
@@ -214,7 +258,11 @@ func (v stateView) ref(ctx context.Context, path []string) (any, error) {
 		if len(full) > 0 {
 			return nil, fmt.Errorf("ui: a field of a derived state isn't a state")
 		}
-		return d.expr(ctx)
+		x, err := d.expr(ctx)
+		if err != nil || !v.c.memo {
+			return x, err
+		}
+		return map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init, "x": x}, nil
 	}
 	r := map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init}
 	if len(full) > 0 {

@@ -16,7 +16,7 @@ import (
 // An operand is a value of the state's type or a state of it; a number
 // converts to a number state's type. The server renders the value the
 // expression has with the states' initial values. Not, And and Or take bool
-// states, Neg, Minus and the ordering ones numbers (Lt… strings too), Plus
+// states, Neg, Minus, Mul and the ordering ones numbers (Lt… strings too), Plus
 // numbers and strings, Len strings, slices and maps; another state panics,
 // as the compiler refuses it.
 
@@ -83,6 +83,21 @@ func (s State[T]) plus(o any) State[T] {
 func (s State[T]) minus(o any) State[T] {
 	a, b := s.kind("Minus", isNumber), operand("Minus", reflect.TypeFor[T](), o)
 	return newDerived(arith(a, b, -1).Interface().(T), exprMinus, s, o)
+}
+
+// Mul is s * o.
+func (s State[T]) mul(o any) State[T] {
+	a, b := s.kind("Mul", isNumber), operand("Mul", reflect.TypeFor[T](), o)
+	r := reflect.New(a.Type()).Elem()
+	switch {
+	case a.CanInt():
+		r.SetInt(a.Int() * b.Int())
+	case a.CanUint():
+		r.SetUint(a.Uint() * b.Uint())
+	default:
+		r.SetFloat(a.Float() * b.Float())
+	}
+	return newDerived(r.Interface().(T), exprMul, s, o)
 }
 
 // Neg is -s.
@@ -188,6 +203,7 @@ const (
 	exprGe    = `[">=",{"$":0},{"$":1}]`
 	exprPlus  = `["+",{"$":0},{"$":1}]`
 	exprMinus = `["-",{"$":0},{"$":1}]`
+	exprMul   = `["*",{"$":0},{"$":1}]`
 )
 
 func isBool(k reflect.Kind) bool    { return k == reflect.Bool }

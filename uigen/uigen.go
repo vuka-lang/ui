@@ -10,6 +10,7 @@ package uigen
 import (
 	"fmt"
 	"hash/fnv"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
@@ -56,6 +57,22 @@ func Derived[T any](v T) ui.State[T] {
 	return bridge.Derived(zero, v).(ui.State[T])
 }
 
+// From is a Derived field's state, computed from x: what the compiler
+// writes for @ui.From(x), one call site per field.
+func From[T any](x ui.State[T]) ui.Derived[T] {
+	return bridge.From(callSite(), x).(ui.Derived[T])
+}
+
+// Read is d as the state an expression reading it reads.
+func Read[T any](d ui.Derived[T]) ui.State[T] { return bridge.Read(d).(ui.State[T]) }
+
+// Derive registers fn, which sets the Derived fields of a *T from its
+// states once they have theirs: the compiler writes one per struct
+// declaring them, its fields in the order they read each other.
+func Derive[T any](fn func(p *T)) {
+	bridge.Derive(reflect.TypeFor[T](), func(p any) { fn(p.(*T)) })
+}
+
 // At is the field at path (Go field names, dotted) of a struct state: f.Q.
 func At[T, S any](s ui.State[S], path string) ui.State[T] {
 	var out ui.State[T]
@@ -94,6 +111,9 @@ func Plus[T any](s ui.State[T], o any) ui.State[T] { return op[T]("Plus", s, o) 
 
 // Minus is s - o.
 func Minus[T any](s ui.State[T], o any) ui.State[T] { return op[T]("Minus", s, o) }
+
+// Mul is s * o.
+func Mul[T any](s ui.State[T], o any) ui.State[T] { return op[T]("Mul", s, o) }
 
 // Neg is -s.
 func Neg[T any](s ui.State[T]) ui.State[T] { return op[T]("Neg", s, nil) }

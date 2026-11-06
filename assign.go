@@ -49,7 +49,7 @@ func stateOf(t reflect.Type) stateFields {
 		f := t.Field(i)
 		switch {
 		case f.IsExported() || f.Type == live || f.Tag.Get("vuka") == "-":
-		case f.Type.Implements(states):
+		case f.Type.Implements(states), f.Type.Implements(anyStateType):
 			// A ui.State field is the browser's: the server holds its
 			// handle, which a render reads the same way every time.
 		case reflect.PointerTo(f.Type).Implements(assignerType):
