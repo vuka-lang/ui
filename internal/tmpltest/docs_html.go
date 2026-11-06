@@ -56,6 +56,8 @@ func (c *Docs) Render() ui.Node {
 	value := ui.JS.Hide(ui.Closest("li"))
 //line docs.vuka.html:89
 	value2 := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
+//line docs.vuka.html:129
+	value3 := ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))
 //line docs.vuka.html:49
 	return ui.HTML(`
 <div>
@@ -99,6 +101,11 @@ func (c *Docs) Render() ui.Node {
     <button onClick={ui.JS.Hide(ui.Ref("dialog")).PopFocus()}>Cancel</button>
     <div ref="dialog" onKeyDown={ui.JS.Key("Escape").Exec(ui.Ref("cancel"), "data-vk-js-click")}><button ref="cancel" onClick={value2}>Cancel</button></div>
     <div ref="dialog" onKeyDown={ui.JS.Key("Escape").Hide(ui.Ref("dialog"))}>…</div>
+    <textarea onKeyDown={ui.JS.Key("ctrl+Enter").Push(c.Send)}/>
+    <a href="/orders" onClick={ui.JS.Prevent().Show(ui.Ref("menu"))}>Orders</a>
+    <li onClick={ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))}><button onClick={ui.JS.Stop().Push(func() { c.Delete(c.pet.Get().ID) })}>Delete</button></li>
+    <button onClick={ui.JS.Once().Push(c.Follow)}>Follow</button>
+    <button onClick={ui.JS.Prevent().Then(ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog")))}>Edit</button>
     <button onClick={ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved")))}>Save</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show()}>Done</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst()}>Edit</button>
@@ -134,7 +141,7 @@ func (c *Docs) Render() ui.Node {
     <button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like, ui.Timeout(3*time.Second))}>Like</button>
     <button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like).Timeout(3 * time.Second)}>Like</button>
     <button onClick={ui.JS.SetText(ui.Ref("status"), "Sending…").Push(c.Send, ui.KeepOnError()).OnError(ui.JS.SetText(ui.Ref("status"), "Not sent"))}>Send</button>
-    <button onClick={ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))}>Pick</button>
+    <button onClick={value3}>Pick</button>
     <input type="range" name="volume" onInput={ui.JS.Throttle(100 * time.Millisecond).Push(c.SetVolume)}/>
     <button onClick={ui.JS.Confirm("Delete " + c.pet.Get().Name + "?").Push(func() { c.Delete(c.pet.Get().ID) })}>Delete</button>
     <button onClick={ui.JS.SetText(ui.Ref("likes"), strconv.Itoa(c.likes.Get()+1)).Push(c.Like)}>♥ <span ref="likes">{c.likes.Get()}</span></button>
@@ -282,6 +289,12 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.Key("Escape").Exec(ui.Ref("cancel"), "data-vk-js-click"),
 		value2,
 		ui.JS.Key("Escape").Hide(ui.Ref("dialog")),
+		ui.JS.Key("ctrl+Enter").Push(c.Send),
+		ui.JS.Prevent().Show(ui.Ref("menu")),
+		ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID)),
+		ui.JS.Stop().Push(func() { c.Delete(c.pet.Get().ID) }),
+		ui.JS.Once().Push(c.Follow),
+		ui.JS.Prevent().Then(ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog"))),
 		ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved"))),
 		ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show(),
 		ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst(),
@@ -307,7 +320,7 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.AddClass(ui.This, "liked").Push(c.Like, ui.Timeout(3*time.Second)),
 		ui.JS.AddClass(ui.This, "liked").Push(c.Like).Timeout(3*time.Second),
 		ui.JS.SetText(ui.Ref("status"), "Sending…").Push(c.Send, ui.KeepOnError()).OnError(ui.JS.SetText(ui.Ref("status"), "Not sent")),
-		ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID)),
+		value3,
 		ui.JS.Throttle(100*time.Millisecond).Push(c.SetVolume),
 		ui.JS.Confirm("Delete "+c.pet.Get().Name+"?").Push(func() { c.Delete(c.pet.Get().ID) }),
 		ui.JS.SetText(ui.Ref("likes"), strconv.Itoa(c.likes.Get()+1)).Push(c.Like),

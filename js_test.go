@@ -49,6 +49,8 @@ func TestJSEncoding(t *testing.T) {
 		{ui.JS.Patch("/books?page=2").On(ui.This).Navigate("/books/7"), `[["patch",{"href":"/books?page=2"}],["navigate",{"href":"/books/7"}]]`},
 		{ui.JS.Debounce(300 * time.Millisecond).Throttle(time.Second), `[["debounce",{"ms":300}],["throttle",{"ms":1000}]]`},
 		{ui.JS.Key("Escape", "Enter").Confirm(`Delete "x" <now>?`), `[["key",{"keys":["Escape","Enter"]}],["confirm",{"msg":"Delete \"x\" <now>?"}]]`},
+		{ui.JS.Prevent().Stop().Once().Key("ctrl+Enter"), `[["prevent",{}],["stop",{}],["once",{}],["key",{"keys":["ctrl+Enter"]}]]`},
+		{ui.JS.Prevent().Then(ui.JS.Show("#m").Hide("#n")), `[["prevent",{}],["show",{"to":{"sel":"#m"}}],["hide",{"to":{"sel":"#n"}}]]`},
 		{ui.JS.If(menu.Checked()).Hide(menu).ElseIf(menu.Value().Eq("a")).Show(menu).Else().Toggle(menu).End(),
 			`[["if",{"cond":{"to":{"ref":"menu"},"checked":true}}],["hide",{"to":{"ref":"menu"}}],["else_if",{"cond":{"to":{"ref":"menu"},"value_eq":"a"}}],["show",{"to":{"ref":"menu"}}],["else",{}],["toggle",{"to":{"ref":"menu"}}],["end",{}]]`},
 		{ui.JS.If(menu.Value()).If(ui.This.Is(".open")).End().ElseIf(ui.Sel("#x").Exists()).ElseIf(menu.Attr("open")).End(),
