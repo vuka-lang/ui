@@ -422,12 +422,20 @@ func (c *Client) update(f *frame, u any) error {
 	if !ok {
 		return fmt.Errorf("not a change: %v", u)
 	}
-	for k, ch := range m {
+	// In index order, as the browser applies them: a string sent by
+	// reference is defined where it first appears.
+	idx := make([]int, 0, len(m))
+	for k := range m {
 		i, err := strconv.Atoi(k)
 		if err != nil || i < 0 || i >= len(f.d) {
 			return fmt.Errorf("no dynamic %s", k)
 		}
-		if f.d[i], err = c.change(f.d[i], ch); err != nil {
+		idx = append(idx, i)
+	}
+	slices.Sort(idx)
+	for _, i := range idx {
+		var err error
+		if f.d[i], err = c.change(f.d[i], m[strconv.Itoa(i)]); err != nil {
 			return err
 		}
 	}
