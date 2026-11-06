@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // State is a value the browser keeps: a menu's open flag, the tab picked,
@@ -51,6 +52,7 @@ type stateCell struct {
 	typ     reflect.Type
 	derived *Binding // an expression's, or a Derived's
 	memo    bool     // a Derived: the browser keeps its value by key
+	notify  *Notified
 	mu      sync.Mutex
 	key     string
 }
@@ -115,6 +117,50 @@ func From(expr any) FromExpr { return FromExpr{} }
 
 // FromExpr is what From returns: a field attribute the compiler reads.
 type FromExpr struct{}
+
+// Notify marks a ui.State field of a live component whose writes in the
+// browser call handler, a method of the component, with the new value: the
+// compiler reads it.
+//
+//	tab ui.State[string] @ui.Notify(OnTab)
+//	q   ui.State[string] @ui.Notify(Search).Debounce(300 * time.Millisecond)
+//
+// A write the server makes (p.tab = "env" in a method) calls nothing: the
+// server knows it.
+func Notify(handler any) Notified { return Notified{fn: handler} }
+
+// StateOption is a field attribute of a ui.State the compiler applies once
+// the state is given: Notify, Keep, Shared.
+type StateOption interface{ applyState(c *stateCell) }
+
+// Notified is what Notify returns: the handler, and how its calls are
+// paced.
+type Notified struct {
+	fn       any
+	debounce time.Duration
+	throttle time.Duration
+}
+
+func (n Notified) applyState(c *stateCell) { c.notify = &n }
+
+// Debounce calls the handler once the writes stop for d.
+func (n Notified) Debounce(d time.Duration) Notified { n.debounce = d; return n }
+
+// Throttle calls the handler at most once every d, with the last value.
+func (n Notified) Throttle(d time.Duration) Notified { n.throttle = d; return n }
+
+// chain is the commands a write runs: the push of the handler, its one
+// argument a placeholder the browser replaces with the value.
+func (n Notified) chain(t reflect.Type) Commands {
+	c := JS
+	switch {
+	case n.debounce > 0:
+		c = c.Debounce(n.debounce)
+	case n.throttle > 0:
+		c = c.Throttle(n.throttle)
+	}
+	return c.Push(n.fn, reflect.Zero(t).Interface())
+}
 
 // memoOf is x as a Derived: a state of its own, at site, whose value the
 // browser keeps by key and computes from x's expression.
@@ -265,6 +311,15 @@ func (v stateView) ref(ctx context.Context, path []string) (any, error) {
 		return map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init, "x": x}, nil
 	}
 	r := map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init}
+	if n := v.c.notify; n != nil && liveHost(ctx) != nil {
+		if _, probing := liveHost(ctx).(*pageProbe); !probing {
+			j, err := EncodeJS(ctx, n.chain(v.c.typ))
+			if err != nil {
+				return nil, fmt.Errorf("ui: @ui.Notify: %w", err)
+			}
+			r["w"] = json.RawMessage(j)
+		}
+	}
 	if len(full) > 0 {
 		p, err := jsonPath(v.c.typ, full)
 		if err != nil {

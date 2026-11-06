@@ -25,6 +25,8 @@ var (
 	From func(site string, x any) any
 	// Read is Derived d as the state its expressions read.
 	Read func(d any) any
+	// With applies o, a ui.StateOption, to state s.
+	With func(s, o any)
 	// Derive registers fn, which sets the Derived fields of a *t.
 	Derive func(t reflect.Type, fn func(p any))
 )

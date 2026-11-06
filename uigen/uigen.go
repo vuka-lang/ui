@@ -63,12 +63,17 @@ func From[T any](x ui.State[T]) ui.Derived[T] {
 	return bridge.From(callSite(), x).(ui.Derived[T])
 }
 
+// With applies a field attribute of state s — @ui.Notify(OnTab), @ui.Keep,
+// @ui.Shared —: what the compiler writes in a struct's Derive.
+func With[T any](s ui.State[T], o ui.StateOption) { bridge.With(s, o) }
+
 // Read is d as the state an expression reading it reads.
 func Read[T any](d ui.Derived[T]) ui.State[T] { return bridge.Read(d).(ui.State[T]) }
 
 // Derive registers fn, which sets the Derived fields of a *T from its
-// states once they have theirs: the compiler writes one per struct
-// declaring them, its fields in the order they read each other.
+// states once they have theirs, and the states' notifications: the
+// compiler writes one per struct declaring them, its Derived fields in the
+// order they read each other.
 func Derive[T any](fn func(p *T)) {
 	bridge.Derive(reflect.TypeFor[T](), func(p any) { fn(p.(*T)) })
 }

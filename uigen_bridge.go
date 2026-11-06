@@ -94,6 +94,7 @@ func init() {
 	bridge.States = func(p any) { initStates(reflect.ValueOf(p)) }
 	bridge.From = func(site string, x any) any { return x.(stateOps).memo(site) }
 	bridge.Read = func(d any) any { return d.(derivedOps).state() }
+	bridge.With = func(s any, o any) { o.(StateOption).applyState(s.(stateOps).stateOf().c) }
 	bridge.Derive = func(t reflect.Type, fn func(p any)) { derivers.Store(t, fn) }
 }
 
@@ -122,6 +123,7 @@ func initStates(p reflect.Value) {
 		}
 		idx, _ = fieldStates.LoadOrStore(t, out)
 	}
+	gave := false
 	for _, i := range idx.([]int) {
 		f := v.Field(i)
 		s := reflect.NewAt(f.Type(), f.Addr().UnsafePointer()).Elem()
@@ -132,8 +134,9 @@ func initStates(p reflect.Value) {
 		fmt.Fprintf(h, "%s.%s.%s", t.PkgPath(), t.Name(), t.Field(i).Name)
 		site := "f" + strconv.FormatUint(h.Sum64()&0xffffffffff, 36)
 		s.Set(reflect.ValueOf(reflect.Zero(f.Type()).Interface().(stateOps).declare(site, false, nil)))
+		gave = true
 	}
-	if fn, ok := derivers.Load(t); ok && zeroDerived(v) {
+	if fn, ok := derivers.Load(t); ok && (gave || zeroDerived(v)) {
 		fn.(func(any))(p.Interface())
 	}
 }
