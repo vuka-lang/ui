@@ -1077,13 +1077,50 @@ func (c Commands) Throttle(d time.Duration) Commands {
 }
 
 // Key stops the chain unless the event is a press of one of keys, named as
-// KeyboardEvent.key names them: "Enter", "Escape", "a". Put it first: the
+// KeyboardEvent.key names them: "Enter", "Escape", "a". A key may name the
+// modifiers held with it, joined by +: "ctrl+Enter", "shift+alt+Tab"
+// (ctrl, shift, alt, meta); others held don't count. Put it first: the
 // steps before it run on every key.
 //
 // Example:
 //
 //	<div ref="dialog" onKeyDown={ui.JS.Key("Escape").Hide(ui.Ref("dialog"))}>…</div>
+//	<textarea onKeyDown={ui.JS.Key("ctrl+Enter").Push(c.Send)}></textarea>
 func (c Commands) Key(keys ...string) Commands { return c.add("key", jsArg{"keys", keys}) }
+
+// Prevent keeps the browser from doing what the event would: following a
+// link, submitting a form, typing a key (Event.preventDefault).
+//
+// Example:
+//
+//	<a href="/orders" onClick={ui.JS.Prevent().Show(ui.Ref("menu"))}>Orders</a>
+func (c Commands) Prevent() Commands { return c.add("prevent") }
+
+// Stop keeps the event from reaching the elements around this one once
+// its own listeners have run (Event.stopPropagation): an on… attribute of
+// an ancestor doesn't handle it.
+//
+// Example:
+//
+//	<li onClick={ui.JS.Push(c.Pick, ui.Value(pet.ID))}><button onClick={ui.JS.Stop().Push(func() { c.Delete(pet.ID) })}>Delete</button></li>
+func (c Commands) Stop() Commands { return c.add("stop") }
+
+// Once runs the steps after it the first time the event fires on the
+// element only; later events run the steps before it alone.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Once().Push(c.Follow)}>Follow</button>
+func (c Commands) Once() Commands { return c.add("once") }
+
+// Then is the chain with chain's steps after its own.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Prevent().Then(ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog")))}>Edit</button>
+func (c Commands) Then(chain JSChain) Commands {
+	return Commands{append(slices.Clip(c.ops), chain.jsChain().ops...)}
+}
 
 // Confirm asks msg in the browser's confirm dialog, and stops the chain
 // unless the user accepts.

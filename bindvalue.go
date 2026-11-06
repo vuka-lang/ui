@@ -18,8 +18,10 @@ type Setter func(ctx context.Context, ev Event) error
 // input's, and an onInput setting the field to what is typed, after the
 // field's debounce, validated as a set of a bound field is. The field is
 // bound by its owner's LiveSchema (l.Field(&p.Q, ui.Bind{})) or a bind:
-// tag; any other is an error at render.
-func BindValue(owner, field any) []Attr {
+// tag; any other is an error at render. pace, when given, times the sets
+// in place of the field's debounce: JS.Throttle(time.Second), JS.Debounce(0)
+// for every key.
+func BindValue(owner, field any, pace ...JSChain) []Attr {
 	ov, fv := reflect.ValueOf(owner), reflect.ValueOf(field)
 	if ov.Kind() != reflect.Pointer || ov.Elem().Kind() != reflect.Struct || fv.Kind() != reflect.Pointer {
 		return []Attr{{Name: "value", Value: Try(nil, fmt.Errorf("ui: bind:value takes a field of a page's struct, not %T", field))}}
@@ -45,7 +47,14 @@ func BindValue(owner, field any) []Attr {
 			data, _ := json.Marshal(map[string]json.RawMessage{wire: raw})
 			return SetBound(ctx, ov, data)
 		})
-		return []Attr{{Name: "value", Value: st.Field(f.Index).Interface()}, {Name: "onInput", Value: JS.Debounce(f.Debounce).Push(set)}}
+		chain := JS.Debounce(f.Debounce)
+		for i, p := range pace {
+			if i == 0 {
+				chain = JS
+			}
+			chain = chain.Then(p)
+		}
+		return []Attr{{Name: "value", Value: st.Field(f.Index).Interface()}, {Name: "onInput", Value: chain.Push(set)}}
 	}
 	return []Attr{{Name: "value", Value: Try(nil, fmt.Errorf("ui: bind:value: the field isn't one of %s's", ov.Type().Elem().Name()))}}
 }
