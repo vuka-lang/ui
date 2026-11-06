@@ -22,6 +22,7 @@ type Docs struct {
 	key   uigen.Assign[struct{ Token string }]
 	todo  uigen.Assign[struct{ Title string }]
 	likes uigen.Assign[int]
+	liked ui.State[bool]
 }
 
 func (c *Docs) MenuOpened()     {}
@@ -50,15 +51,15 @@ func (c *Docs) CitiesOf(country string) []ui.Option {
 	return []ui.Option{{Value: country + "-1", Label: "City of " + country}}
 }
 
-//line docs.vuka.html:49
+//line docs.vuka.html:50
 func (c *Docs) Render() ui.Node {
-//line docs.vuka.html:71
+//line docs.vuka.html:72
 	value := ui.JS.Hide(ui.Closest("li"))
-//line docs.vuka.html:89
+//line docs.vuka.html:90
 	value2 := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
-//line docs.vuka.html:129
+//line docs.vuka.html:131
 	value3 := ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))
-//line docs.vuka.html:49
+//line docs.vuka.html:50
 	return ui.HTML(`
 <div>
   <div>
@@ -105,6 +106,7 @@ func (c *Docs) Render() ui.Node {
     <a href="/orders" onClick={ui.JS.Prevent().Show(ui.Ref("menu"))}>Orders</a>
     <li onClick={ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))}><button onClick={ui.JS.Stop().Push(func() { c.Delete(c.pet.Get().ID) })}>Delete</button></li>
     <button onClick={ui.JS.Once().Push(c.Follow)}>Follow</button>
+    <button onClick={ui.JS.Optimistic().Set(c.liked, true).Push(c.Like)}>♥</button>
     <button onClick={ui.JS.Prevent().Then(ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog")))}>Edit</button>
     <button onClick={ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved")))}>Save</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show()}>Done</button>
@@ -294,6 +296,7 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID)),
 		ui.JS.Stop().Push(func() { c.Delete(c.pet.Get().ID) }),
 		ui.JS.Once().Push(c.Follow),
+		ui.JS.Optimistic().Set(c.liked, true).Push(c.Like),
 		ui.JS.Prevent().Then(ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog"))),
 		ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved"))),
 		ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show(),
