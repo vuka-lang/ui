@@ -2,11 +2,13 @@ package ui_test
 
 import (
 	"context"
+	"io"
 	"reflect"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vuka-lang/ui/v2"
 	"github.com/vuka-lang/ui/v2/uigen"
@@ -210,3 +212,60 @@ func TestDerivedValues(t *testing.T) {
 		t.Errorf("a Derived of 3 * 3 = %v", got)
 	}
 }
+
+// search notifies its handler of its query's browser writes.
+type search struct {
+	ui.Live
+	q    ui.State[string]
+	page ui.State[int]
+	got  []string
+}
+
+func (s *search) Search(q string) { s.got = append(s.got, q) }
+func (s *search) Page(n int)      {}
+
+func init() {
+	uigen.Derive(func(s *search) {
+		uigen.Notify(s.q, ui.Notify(s.Search).Debounce(300*time.Millisecond))
+		uigen.Notify(s.page, ui.Notify(s.Page))
+	})
+}
+
+func (s *search) Render() ui.Node {
+	set := ui.JS.Set(s.q, "x")
+	return ui.HTML(`<p title={s.q} onClick={set}>{s.page}</p>`, s.q, set, s.page)
+}
+
+// TestNotify: a notified state's references carry the push its writes
+// run — the handler, paced as declared — in bindings and in commands.
+func TestNotify(t *testing.T) {
+	c := &search{}
+	if err := ui.MountLive(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	if err := c.Render().Render(ui.WithLiveHost(context.Background(), handlers{}), &b); err != nil {
+		t.Fatal(err)
+	}
+	out := strings.ReplaceAll(b.String(), "&#34;", `"`)
+	for _, want := range []string{
+		`"w":[["debounce",{"ms":300}],["push",{"h":`,
+		`["state_set",{"s":"f`,
+		`"args":[""]`,
+		`"args":[0]`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no %s in\n%s", want, out)
+		}
+	}
+	if n := strings.Count(out, `"w":`); n != 3 {
+		t.Errorf("%d references carry their push, want 3:\n%s", n, out)
+	}
+}
+
+// handlers is a live host giving every handler the id h.
+type handlers struct{}
+
+func (handlers) Component(ctx context.Context, n *ui.ComponentNode, w io.Writer) error { return nil }
+func (handlers) Handler(context.Context, any) string                                   { return "h" }
+func (handlers) Keyed(ctx context.Context, _ any) context.Context                      { return ctx }

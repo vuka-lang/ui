@@ -25,6 +25,8 @@ var (
 	From func(site string, x any) any
 	// Read is Derived d as the state its expressions read.
 	Read func(d any) any
+	// Notify makes state s's browser writes call n, a ui.Notified.
+	Notify func(s, n any)
 	// Derive registers fn, which sets the Derived fields of a *t.
 	Derive func(t reflect.Type, fn func(p any))
 )

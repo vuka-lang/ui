@@ -1825,6 +1825,9 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 				if p, ok := m["p"]; ok {
 					kvs = append(kvs, jsArg{"p", p})
 				}
+				if w, ok := m["w"]; ok {
+					kvs = append(kvs, jsArg{"w", w})
+				}
 			case *push:
 				var err error
 				if kvs, err = encodePush(ctx, host, x); err != nil {
