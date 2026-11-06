@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -55,6 +56,7 @@ type stateCell struct {
 	notify  *Notified
 	keep    string // @ui.Keep's key: localStorage holds the value
 	shared  bool   // @ui.Shared: writes reach the page's other tabs
+	name    string // a field's: Type.field, for the dev toolbar
 	mu      sync.Mutex
 	key     string
 }
@@ -334,9 +336,16 @@ func (v stateView) ref(ctx context.Context, path []string) (any, error) {
 		if err != nil || !v.c.memo {
 			return x, err
 		}
-		return map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init, "x": x}, nil
+		r := map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init, "x": x}
+		if v.c.name != "" && devStates() {
+			r["n"] = v.c.name
+		}
+		return r, nil
 	}
 	r := map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init}
+	if v.c.name != "" && devStates() {
+		r["n"] = v.c.name
+	}
 	if v.c.keep != "" {
 		r["k"] = v.c.keep
 	}
@@ -363,6 +372,13 @@ func (v stateView) ref(ctx context.Context, path []string) (any, error) {
 		r["p"] = p
 	}
 	return r, nil
+}
+
+// devStates reports whether state references carry their fields' names,
+// which the development toolbar's States panel shows: in development
+// (VUKA_ENV=development, VUKA_DEV=1, under vuka run).
+func devStates() bool {
+	return os.Getenv("VUKA_ENV") == "development" || os.Getenv("VUKA_DEV") == "1" || os.Getenv("VUKA_DEV_DIR") != ""
 }
 
 // jsonPath is a path of Go field names as the keys of the value's JSON.
