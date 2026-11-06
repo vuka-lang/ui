@@ -285,6 +285,14 @@ func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 	if c, ok := a.Value.(Classes); ok {
 		a.Value = c.binding()
 	}
+	switch name {
+	case "show":
+		return h.showAttr(tag, e, a.Value)
+	case "transition":
+		if t, ok := a.Value.(ShowTransition); ok {
+			return h.transitionAttr(t)
+		}
+	}
 	if b, ok := a.Value.(Binding); ok {
 		return h.bindAttr(tag, e, name, b)
 	}
