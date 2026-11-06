@@ -143,9 +143,9 @@
 --- live
 <main><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none min-h-4" aria-hidden="true"></div></main>
 === skeleton/class-attrs
-<div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none min-h-4 h-32 rounded-full" aria-hidden="true" id="avatar"></div>
+<div class="vk-skeleton block bg-current/10 animate-pulse motion-reduce:animate-none min-h-4 h-32 rounded-full" aria-hidden="true" id="avatar"></div>
 --- live
-<main><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none min-h-4 h-32 rounded-full" aria-hidden="true" id="avatar"></div></main>
+<main><div class="vk-skeleton block bg-current/10 animate-pulse motion-reduce:animate-none min-h-4 h-32 rounded-full" aria-hidden="true" id="avatar"></div></main>
 === skeleton/one-line
 <div class="vk-skeleton-lines flex flex-col gap-2" aria-hidden="true"><div class="vk-skeleton block rounded-md bg-current/10 animate-pulse motion-reduce:animate-none vk-skeleton--line h-4"></div></div>
 --- live
