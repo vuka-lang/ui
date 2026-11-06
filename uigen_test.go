@@ -226,8 +226,8 @@ func (s *search) Page(n int)      {}
 
 func init() {
 	uigen.Derive(func(s *search) {
-		uigen.Notify(s.q, ui.Notify(s.Search).Debounce(300*time.Millisecond))
-		uigen.Notify(s.page, ui.Notify(s.Page))
+		uigen.With(s.q, ui.Notify(s.Search).Debounce(300*time.Millisecond))
+		uigen.With(s.page, ui.Notify(s.Page))
 	})
 }
 

@@ -129,6 +129,10 @@ type FromExpr struct{}
 // server knows it.
 func Notify(handler any) Notified { return Notified{fn: handler} }
 
+// StateOption is a field attribute of a ui.State the compiler applies once
+// the state is given: Notify, Keep, Shared.
+type StateOption interface{ applyState(c *stateCell) }
+
 // Notified is what Notify returns: the handler, and how its calls are
 // paced.
 type Notified struct {
@@ -136,6 +140,8 @@ type Notified struct {
 	debounce time.Duration
 	throttle time.Duration
 }
+
+func (n Notified) applyState(c *stateCell) { c.notify = &n }
 
 // Debounce calls the handler once the writes stop for d.
 func (n Notified) Debounce(d time.Duration) Notified { n.debounce = d; return n }

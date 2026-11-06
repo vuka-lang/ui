@@ -94,7 +94,7 @@ func init() {
 	bridge.States = func(p any) { initStates(reflect.ValueOf(p)) }
 	bridge.From = func(site string, x any) any { return x.(stateOps).memo(site) }
 	bridge.Read = func(d any) any { return d.(derivedOps).state() }
-	bridge.Notify = func(s any, n any) { s.(stateOps).stateOf().c.notify = &[]Notified{n.(Notified)}[0] }
+	bridge.With = func(s any, o any) { o.(StateOption).applyState(s.(stateOps).stateOf().c) }
 	bridge.Derive = func(t reflect.Type, fn func(p any)) { derivers.Store(t, fn) }
 }
 

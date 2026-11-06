@@ -63,9 +63,9 @@ func From[T any](x ui.State[T]) ui.Derived[T] {
 	return bridge.From(callSite(), x).(ui.Derived[T])
 }
 
-// Notify makes s's writes in the browser call n's handler with the value:
-// what the compiler writes for @ui.Notify, in a struct's Derive.
-func Notify[T any](s ui.State[T], n ui.Notified) { bridge.Notify(s, n) }
+// With applies a field attribute of state s — @ui.Notify(OnTab), @ui.Keep,
+// @ui.Shared —: what the compiler writes in a struct's Derive.
+func With[T any](s ui.State[T], o ui.StateOption) { bridge.With(s, o) }
 
 // Read is d as the state an expression reading it reads.
 func Read[T any](d ui.Derived[T]) ui.State[T] { return bridge.Read(d).(ui.State[T]) }
