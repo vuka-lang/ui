@@ -53,6 +53,8 @@ type stateCell struct {
 	derived *Binding // an expression's, or a Derived's
 	memo    bool     // a Derived: the browser keeps its value by key
 	notify  *Notified
+	keep    string // @ui.Keep's key: localStorage holds the value
+	shared  bool   // @ui.Shared: writes reach the page's other tabs
 	mu      sync.Mutex
 	key     string
 }
@@ -128,6 +130,30 @@ type FromExpr struct{}
 // A write the server makes (p.tab = "env" in a method) calls nothing: the
 // server knows it.
 func Notify(handler any) Notified { return Notified{fn: handler} }
+
+// Keep keeps a state in the browser's localStorage under key: the value
+// stored wins over the one rendered when the page loads, and every write is
+// stored. A private window, or storage the browser refuses, leaves it an
+// ordinary state.
+//
+//	theme ui.State[string] @ui.Keep("theme")
+//
+// The value is the visitor's and JSON: never trust it on the server.
+func Keep(key string) Kept { return Kept{key} }
+
+// Kept is what Keep returns.
+type Kept struct{ key string }
+
+func (k Kept) applyState(c *stateCell) { c.keep = k.key }
+
+// Shared sends a state's writes to the page's other tabs, which apply them
+// as their own (their watches run): with Keep, a choice made in one tab
+// shows in every tab.
+//
+//	sidebar ui.State[bool] @ui.Keep("sidebar") @ui.Shared
+type Shared struct{}
+
+func (Shared) applyState(c *stateCell) { c.shared = true }
 
 // StateOption is a field attribute of a ui.State the compiler applies once
 // the state is given: Notify, Keep, Shared.
@@ -311,6 +337,15 @@ func (v stateView) ref(ctx context.Context, path []string) (any, error) {
 		return map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init, "x": x}, nil
 	}
 	r := map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init}
+	if v.c.keep != "" {
+		r["k"] = v.c.keep
+	}
+	if v.c.shared {
+		r["sh"] = v.c.site
+		if v.c.keep != "" {
+			r["sh"] = "k:" + v.c.keep
+		}
+	}
 	if n := v.c.notify; n != nil && liveHost(ctx) != nil {
 		if _, probing := liveHost(ctx).(*pageProbe); !probing {
 			j, err := EncodeJS(ctx, n.chain(v.c.typ))
