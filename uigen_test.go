@@ -302,3 +302,20 @@ func TestKeepShared(t *testing.T) {
 		t.Errorf("%d references are shared, want 2:\n%s", n, out)
 	}
 }
+
+// TestStateNames: in development a field's state references name it, for
+// the toolbar; otherwise they don't.
+func TestStateNames(t *testing.T) {
+	c := &cart{}
+	if err := ui.MountLive(context.Background(), c); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VUKA_ENV", "development")
+	out, _ := page(t, c.Render())
+	out = strings.ReplaceAll(out, "&#34;", `"`)
+	for _, want := range []string{`"n":"cart.total"`, `"n":"cart.count"`, `"n":"cart.over"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no %s in\n%s", want, out)
+		}
+	}
+}

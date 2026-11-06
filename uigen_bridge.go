@@ -134,10 +134,20 @@ func initStates(p reflect.Value) {
 		fmt.Fprintf(h, "%s.%s.%s", t.PkgPath(), t.Name(), t.Field(i).Name)
 		site := "f" + strconv.FormatUint(h.Sum64()&0xffffffffff, 36)
 		s.Set(reflect.ValueOf(reflect.Zero(f.Type()).Interface().(stateOps).declare(site, false, nil)))
+		s.Interface().(stateOps).stateOf().c.name = t.Name() + "." + t.Field(i).Name
 		gave = true
 	}
 	if fn, ok := derivers.Load(t); ok && (gave || zeroDerived(v)) {
 		fn.(func(any))(p.Interface())
+		ops := reflect.TypeFor[derivedOps]()
+		for i := 0; i < v.NumField(); i++ {
+			if f := v.Field(i); f.Type().Implements(ops) {
+				f = reflect.NewAt(f.Type(), f.Addr().UnsafePointer()).Elem()
+				if c := f.Interface().(AnyState).stateOf().c; c != nil {
+					c.name = t.Name() + "." + t.Field(i).Name
+				}
+			}
+		}
 	}
 }
 
