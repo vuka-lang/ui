@@ -40,13 +40,7 @@ func colClass[T any](c Column[T]) string {
 	case "center":
 		class = "vk-col--center"
 	}
-	if c.Class != "" {
-		if class != "" {
-			class += " "
-		}
-		class += c.Class
-	}
-	return class
+	return withClass(class, c.Class)
 }
 
 func (c Column[T]) cell(row T) Node {

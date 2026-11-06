@@ -9,12 +9,14 @@ package ui
 
 // The components' shared helpers.
 
-// withClass is base with extra after it, space-separated, when extra is set.
+// withClass is base with a caller's extra classes merged after it
+// (MergeClasses): where both set a Tailwind utility of one group, extra's
+// wins.
 func withClass(base, extra string) string {
 	if extra == "" {
 		return base
 	}
-	return base + " " + extra
+	return MergeClasses(base, extra)
 }
 
 // when is v when cond holds, else nil: an attribute written only then.
