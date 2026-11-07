@@ -4,15 +4,15 @@ go 1.27.3
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/vuka-lang/vuka/v2 v2.17.1-0.20261107121053-b80467705b82
+	github.com/vuka-lang/vuka/v2 v2.17.1-0.20261107123553-9156bdf7ad26
 )
 
 require (
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
 	github.com/andybalholm/brotli v1.2.7 // indirect
 	github.com/evanw/esbuild v0.28.2 // indirect
-	github.com/vuka-lang/vuka/cmd/vuka/v2 v2.17.1-0.20261107121053-b80467705b82 // indirect
-	github.com/vuka-lang/vuka/cmd/vukavet/v2 v2.17.1-0.20261107121053-b80467705b82 // indirect
+	github.com/vuka-lang/vuka/cmd/vuka/v2 v2.17.1-0.20261107123553-9156bdf7ad26 // indirect
+	github.com/vuka-lang/vuka/cmd/vukavet/v2 v2.17.1-0.20261107123553-9156bdf7ad26 // indirect
 	golang.org/x/mod v0.42.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
 	golang.org/x/sys v0.49.0 // indirect

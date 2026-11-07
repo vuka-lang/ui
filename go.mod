@@ -4,5 +4,5 @@ go 1.25.0
 
 require (
 	github.com/a-h/templ v0.3.1020
-	github.com/vuka-lang/vuka/v2 v2.17.1-0.20261107121053-b80467705b82
+	github.com/vuka-lang/vuka/v2 v2.17.1-0.20261107123553-9156bdf7ad26
 )
