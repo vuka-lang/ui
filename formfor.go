@@ -43,11 +43,15 @@ import (
 // A struct embedding a FormFor is a form type: a form of T with methods
 // of its own. Clean, Clean<Field> and <Field>Choices declared on it are the
 // form's, as T's are (dependencies injected; one T declares too is an
-// error: keep one). Its Init(ctx, deps…) error runs when the form is
-// created — as the page holding it is, before the page's Mount, which may
-// change what it set — and on every Load, after the record is copied in;
-// the page never calls it. The fields it declares itself are not the
-// form's.
+// error: keep one). Its Init(ctx, deps…) error runs once for each
+// instance of the form: just before the form's first render (a <ui.Form
+// for={Form}>), and again after a Load (which runs it, seeing the record)
+// or a Reset (its next render does); a Save of a form never rendered runs
+// it before the checks. A change or a submit never runs it, so what the
+// visitor typed stays. A form rendered hidden — in a closed dialog, a
+// hidden element — on a live page runs it once the browser first shows
+// the form, unless <ui.Form eager>. The page never calls it. The fields
+// the form type declares itself are not the form's.
 //
 //	type ProductForm struct {
 //		ui.FormFor[Product]
@@ -92,8 +96,8 @@ var formForType = reflect.TypeFor[interface{ formFor() }]()
 // Load makes v the record the form edits: its values the form's, and the
 // ones Dirty and Changed compare with. A model's row read from the
 // database is saved by an update of the form's fields; a new one, T{}, by
-// an insert. A form type's Init hook runs then, with ctx, as it did when
-// the form was created, and Load returns its error.
+// an insert. Load makes a new instance of the form: a form type's Init
+// runs, with ctx, seeing the record, and Load returns its error.
 func (f *FormFor[T]) Load(ctx context.Context, v T) error {
 	st, form := f.attached()
 	if st.ft.err != nil {
@@ -104,13 +108,8 @@ func (f *FormFor[T]) Load(ctx context.Context, v T) error {
 	f.Value = v
 	st.record = rec
 	st.load(form, rec)
-	if st.ft.init != nil {
-		if err := callForm(ctx, st.ft.init, form.Addr()); err != nil {
-			return err
-		}
-		st.base = cloneValue(form) // what Init set is the record's, not a change
-	}
-	return nil
+	st.inited = false // a new instance of the form, which Init sees loaded
+	return st.runInit(ctx, form)
 }
 
 // attached is f's state and the form it is: f, or the form type f is
@@ -123,7 +122,7 @@ func (f *FormFor[T]) attached() (*formState, reflect.Value) {
 // Attach makes form, a pointer to a struct embedding a FormFor (a form
 // type), the form its FormFor's methods are of, and returns it: Load and
 // Save then run the type's Init and Clean methods. A page attaches its
-// forms as it is created, and the compiler writes Attach at each Load and
+// forms as they render, and the compiler writes Attach at each Load and
 // Save of a form type in a .vuka file; Go code using a form type no page
 // holds calls it: ui.Attach(&f).Load(ctx, row).
 func Attach[F any](form *F) *F {
@@ -150,6 +149,9 @@ func (f *FormFor[T]) IsNew() bool {
 // shows at its field, and Save returns ErrFormInvalid.
 func (f *FormFor[T]) Save(ctx context.Context) error {
 	st, form := f.attached()
+	if err := st.runInit(ctx, form); err != nil {
+		return err // a form never rendered: Init first, as its render would
+	}
 	if !st.submitting {
 		if err := st.check(ctx, form, false); err != nil {
 			return err
@@ -217,6 +219,7 @@ func (st *formState) emptied(form reflect.Value) {
 	v.SetZero()
 	st.record = reflect.Value{}
 	st.load(form, reflect.New(v.Type()))
+	st.inited = false // a new form: its next render runs Init
 }
 
 // checkRecord is the record a field's Checker sees: a FormFor's loaded

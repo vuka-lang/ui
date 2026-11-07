@@ -70,6 +70,10 @@ type Form struct {
 	// Keep has a FormFor keep its values after a successful submit that
 	// didn't save it (a search, a filter): it is emptied otherwise.
 	Keep bool
+	// Eager has a form type's Init run at the form's first render though
+	// the form is hidden (inside a hidden element, a closed dialog): such a
+	// form otherwise runs it when the browser first shows it.
+	Eager bool
 	// Bound is the fields of a FormFor its markup binds, by Go path, the
 	// only ones a submit sets: the compiler writes it from the for={…} and
 	// model={…} inside the form. @ui.Fields on the form's field wins.
@@ -110,10 +114,10 @@ func (f Form) method() string {
 	return f.Method
 }
 
-//line form.vuka.html:105
+//line form.vuka.html:109
 func (f Form) View() Node {
 	var forView2 Node
-//line form.vuka.html:106
+//line form.vuka.html:110
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
@@ -139,9 +143,9 @@ func (f Form) View() Node {
 			f.Children,
 		)
 	}
-//line form.vuka.html:105
+//line form.vuka.html:109
 	return forView2
 }
 
-//line form.vuka.html:117
+//line form.vuka.html:121
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

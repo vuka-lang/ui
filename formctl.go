@@ -492,6 +492,16 @@ func (st *formState) takeError(form reflect.Value, herr error) bool {
 	return false
 }
 
+// init runs a form type's Init once the browser first shows a form it
+// rendered hidden: the form renders again, with what Init set. One a Load
+// already gave Init (the same event that showed it) is left as it is.
+func (c *formCtl) init(ctx context.Context) error {
+	if err := c.st.runInit(ctx, c.form.Elem()); err != nil {
+		return fmt.Errorf("%s.Init: %w", c.form.Elem().Type().Name(), err)
+	}
+	return nil
+}
+
 // savedOver answers the browser asking again once a successful submit's
 // Saved is over: the form renders, Saved false.
 func (c *formCtl) savedOver(context.Context) error { return nil }

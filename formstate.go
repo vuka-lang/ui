@@ -70,6 +70,7 @@ type formState struct {
 	record       reflect.Value       // a FormFor's: a pointer to the record it edits, as loaded; invalid for none
 	blank        map[string]bool     // the number fields the last bind left empty
 	saved        bool                // a FormFor's Save ran in the submit under way
+	inited       bool                // a form type's Init ran for this instance of the form: since it was made, loaded, reset or emptied
 }
 
 // pinnedErrors are errors that stay until what they were about changes: the
@@ -123,6 +124,23 @@ func attachForm(ptr reflect.Value) *formState {
 		}
 	}
 	return st
+}
+
+// runInit runs a form type's Init on form unless it ran for this instance
+// of the form already (inited): Init sees the record Load put in, and what
+// it sets is the form's baseline, not a change. Its error leaves the form
+// uninitialised, for the next trigger to try again.
+func (st *formState) runInit(ctx context.Context, form reflect.Value) error {
+	if st.ft == nil || st.ft.init == nil || st.inited {
+		return nil
+	}
+	if err := callForm(ctx, st.ft.init, form.Addr()); err != nil {
+		return err
+	}
+	st.inited = true
+	st.base = cloneValue(form)
+	st.gen++ // the browser's fields take what Init set
+	return nil
 }
 
 // ownerForm is the form type ptr's FormFor is embedded in, once its state

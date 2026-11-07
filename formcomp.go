@@ -40,6 +40,16 @@ func (f Form) forView() Node {
 		if st.ft.err != nil {
 			return Try(nil, st.ft.err)
 		}
+		_, overHTTP := liveHost(ctx).(*pageProbe)
+		// A form type's Init runs before the form's first render; inside an
+		// element the page renders hidden, on a live page, once the browser
+		// first shows the form (data-vk-init: its vkinit event).
+		deferred := st.ft.init != nil && !st.inited && !f.Eager && browserHidden(ctx) && !overHTTP && liveHost(ctx) != nil && inStreamRow(ctx) == nil
+		if !deferred {
+			if err := b.ready(ctx); err != nil {
+				return Try(nil, fmt.Errorf("%s.Init: %w", b.form.Elem().Type().Name(), err))
+			}
+		}
 		st.key = keyString(f.Key)
 		row := inStreamRow(ctx)
 		if row != nil {
@@ -67,7 +77,6 @@ func (f Form) forView() Node {
 		// HTTP: the runtime posts it to the page, which answers with its
 		// errors (FormReport) or where to go. The form makes the page live
 		// no more than a link does.
-		_, overHTTP := liveHost(ctx).(*pageProbe)
 		attrs := []Attr{
 			{"class", withClass("vk-form", f.Class)},
 			{"method", "post"},
@@ -100,6 +109,9 @@ func (f Form) forView() Node {
 		}
 		if f.ConfirmLeave {
 			attrs = append(attrs, Attr{"data-vk-confirm-leave", tr(ctx, "form.leave")}, Attr{"data-vk-dirty", st.dirty(b.value())})
+		}
+		if deferred {
+			attrs = append(attrs, Attr{"data-vk-init", true}, Attr{"aria-busy", "true"}, Attr{"onVkInit", On(ctl.init)})
 		}
 		if left := time.Until(st.savedUntil); left > 0 && !overHTTP && row == nil {
 			// Saved is true: the browser asks again once it isn't
