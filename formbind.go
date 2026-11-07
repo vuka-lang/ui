@@ -36,7 +36,7 @@ const (
 // parse leaves the field empty and is kept as typed, its error the field's
 // until it changes.
 func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Values, rendered map[string]string) {
-	st.raw, st.parsed, st.memo = nil, nil, nil
+	st.raw, st.parsed, st.memo, st.blank = nil, nil, nil, nil
 	st.bound = rendered
 	for _, f := range st.ft.fields {
 		if f.group {
@@ -67,6 +67,15 @@ func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Valu
 			}
 			st.raw[f.path] = text
 			st.parseErr(f, rule)
+		}
+		if f.needsInput && (len(vs) == 0 || strings.TrimSpace(vs[len(vs)-1]) == "") {
+			if st.blank == nil {
+				st.blank = map[string]bool{}
+			}
+			st.blank[f.path] = true
+		}
+		if f.lower {
+			lowerText(fv)
 		}
 	}
 }
@@ -146,6 +155,20 @@ func setField(v reflect.Value, vs []string, raw, number bool) (string, string) {
 // setOne sets v from s; the rule s broke when it doesn't parse, leaving v
 // empty.
 func setOne(v reflect.Value, s string, number bool) string {
+	if isOption(v.Type()) {
+		// empty is None
+		v.SetZero()
+		if s == "" {
+			return ""
+		}
+		val, ok := optionParts(v)
+		if rule := setOne(val, s, number); rule != "" {
+			val.SetZero()
+			return rule
+		}
+		ok.SetBool(true)
+		return ""
+	}
 	if v.Kind() == reflect.Pointer {
 		if s == "" {
 			v.SetZero()
@@ -248,10 +271,40 @@ func (st *formState) fieldText(form reflect.Value, f *formField) string {
 		return s
 	}
 	v, err := form.FieldByIndexErr(f.index)
-	if err != nil {
+	if err != nil || st.blank[f.path] {
 		return ""
 	}
+	if st.ft.typed && (isInt(v.Type()) || isFloat(v.Type())) && !st.isNew() {
+		return numberText(v) // a record's 0 is its value
+	}
 	return valueText(v)
+}
+
+// numberText is a number as a control shows it, 0 included.
+func numberText(v reflect.Value) string {
+	switch {
+	case v.CanInt():
+		return strconv.FormatInt(v.Int(), 10)
+	case v.CanUint():
+		return strconv.FormatUint(v.Uint(), 10)
+	}
+	return strconv.FormatFloat(v.Float(), 'f', -1, v.Type().Bits())
+}
+
+// lowerText lowercases the text a field holds, an Option's or a pointer's.
+func lowerText(v reflect.Value) {
+	if isOption(v.Type()) {
+		if val, ok := optionParts(v); ok.Bool() {
+			lowerText(val)
+		}
+		return
+	}
+	if v.Kind() == reflect.Pointer && !v.IsNil() {
+		v = v.Elem()
+	}
+	if v.Kind() == reflect.String && v.CanSet() {
+		v.SetString(strings.ToLower(v.String()))
+	}
 }
 
 // valueText is v as a control's value: a date as 2006-01-02, a number
@@ -262,6 +315,16 @@ func valueText(v reflect.Value) string {
 			return ""
 		}
 		v = v.Elem()
+	}
+	if isOption(v.Type()) {
+		val, ok := optionParts(v)
+		switch {
+		case !ok.Bool():
+			return ""
+		case isInt(val.Type()) || isFloat(val.Type()):
+			return numberText(val) // Some(0) is a value
+		}
+		return valueText(val)
 	}
 	if v.Type() == fileType {
 		return v.Interface().(File).ref

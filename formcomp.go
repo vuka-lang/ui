@@ -29,6 +29,13 @@ func (f Form) forView() Node {
 		if b.f != nil {
 			return Try(nil, fmt.Errorf("ui: <ui.Form for={…}> takes the form, not one of its fields (%s)", b.f.goPath))
 		}
+		if nf, ok := b.form.Interface().(namedForm); ok && !nf.ownNames() {
+			if f.Bound != nil && len(f.Bound) == 0 {
+				return Try(nil, fmt.Errorf("ui: <ui.Form for={…}> binds none of %s's fields where the compiler sees: name them on the form's field, @ui.Fields(…)", b.form.Elem().Type().Name()))
+			}
+			nf.setNames(f.Bound, false)
+			b.st = attachForm(b.form)
+		}
 		st := b.st
 		if st.ft.err != nil {
 			return Try(nil, st.ft.err)
@@ -50,7 +57,7 @@ func (f Form) forView() Node {
 		if st.idem == "" {
 			st.idem = newIdemKey()
 		}
-		ctl := &formCtl{form: b.form, st: st, onSubmit: f.OnSubmit, onChange: f.OnChange, validate: f.Validate}
+		ctl := &formCtl{form: b.form, st: st, onSubmit: f.OnSubmit, onChange: f.OnChange, validate: f.Validate, keep: f.Keep}
 		identity := st.identity()
 		if reg, ok := liveHost(ctx).(FormRegistrar); ok && row == nil {
 			reg.Form(identity, ctl.submit)
@@ -353,7 +360,7 @@ func (b boundField) group(ctx context.Context, opts Field) Node {
 	case opts.Type != "":
 		input = opts.Type
 	}
-	if (input == "radio" || input == "checkboxes") && (f.choices != nil || len(opts.Options) > 0) {
+	if (input == "radio" || input == "checkboxes") && (f.hasChoices() || len(opts.Options) > 0) {
 		return b.choiceGroup(ctx, opts, input)
 	}
 	label := tr(ctx, cmpOr(opts.Label, f.label))

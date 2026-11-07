@@ -269,6 +269,8 @@ var defaults = map[string]string{
 	"validate.whole":           "Enter a whole number",
 	"validate.format":          "Enter {label} in the correct format",
 	"validate.choice":          "Select {label} from the list",
+	"validate.unique":          "{Label} is already taken",
+	"validate.pattern":         "Enter {label} in the correct format",
 	"validate.max.string":      "{Label} must be {n, plural, one {# character} other {# characters}} or less",
 	"validate.min.string":      "{Label} must be {n, plural, one {# character} other {# characters}} or more",
 	"validate.len.string":      "{Label} must be {n, plural, one {# character} other {# characters}}",

@@ -66,6 +66,9 @@ type formState struct {
 	key          string              // the form's key attribute, as text: identity and ids
 	idem         string              // the idempotency key of the next submit
 	seq          int64               // the highest change sequence the form took
+	record       reflect.Value       // a FormFor's: a pointer to the record it edits, as loaded; invalid for none
+	blank        map[string]bool     // the number fields the last bind left empty
+	saved        bool                // a FormFor's Save ran in the submit under way
 }
 
 // pinnedErrors are errors that stay until what they were about changes: the
@@ -100,6 +103,9 @@ func attachForm(ptr reflect.Value) *formState {
 		fs.st = &formState{}
 	}
 	st := fs.st
+	if st.ft != nil && st.ft != ft && ft.typed {
+		st.ft = ft // a FormFor's fields, named since it was attached
+	}
 	if st.ft == nil {
 		st.ft = ft
 		if st.pending.IsValid() {
@@ -428,11 +434,18 @@ func formValues(form reflect.Value, ft *formType) []any {
 
 // asFormErrors is err as form errors, at path when they name none; ok is
 // false for an error that isn't one (a failure, not a verdict).
-func asFormErrors(err error, path string) ([]forms.Error, bool) {
+func (ft *formType) asFormErrors(err error, path string) ([]forms.Error, bool) {
 	var one forms.Error
 	var many forms.Errors
+	var fe *fieldErr
 	var out []forms.Error
 	switch {
+	case errors.As(err, &fe):
+		e := fe.e
+		if f := ft.byRef(fe.goPath); f != nil {
+			e.Path = f.path
+		}
+		out = []forms.Error{e}
 	case errors.As(err, &many):
 		out = slices.Clone(many)
 	case errors.As(err, &one):

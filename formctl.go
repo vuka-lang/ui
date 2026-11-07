@@ -317,6 +317,7 @@ type formCtl struct {
 	onSubmit any // the page's handler, run once the form passes its checks
 	onChange any
 	validate string // "", "submit" or "off"
+	keep     bool   // a FormFor keeps its values after a successful submit
 }
 
 // usedFrom adds the fields the runtime marked used to the form's.
@@ -436,7 +437,7 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 		abandon()
 		return ErrFormInvalid
 	}
-	st.submitting = true
+	st.submitting, st.saved = true, false
 	var herr error
 	if c.onSubmit != nil {
 		herr = CallHandler(ctx, c.onSubmit, c.payload(ev))
@@ -444,6 +445,9 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 	st.submitting = false
 	if herr == nil {
 		st.succeeded(form)
+		if st.ft.typed && !c.keep && !st.saved {
+			st.emptied(form)
+		}
 		if key != "" {
 			store.Finish(key, FormOutcome{Done: true})
 		}
@@ -467,7 +471,7 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 // form error (Fail, a forms.Error, a public error): a field's shows at the
 // field, any other in the summary. It reports whether it did.
 func (st *formState) takeError(form reflect.Value, herr error) bool {
-	if errs, ok := asFormErrors(herr, ""); ok {
+	if errs, ok := st.ft.asFormErrors(herr, ""); ok {
 		for _, e := range errs {
 			if f := st.ft.byPath[e.Path]; f != nil && e.Path != "" {
 				st.pin(e.Path, &pinnedErrors{errs: []forms.Error{e}, value: valueOf(form, f), set: true})
@@ -497,6 +501,18 @@ func (c *formCtl) savedOver(context.Context) error { return nil }
 func (c *formCtl) payload(ev Event) func(t reflect.Type) (reflect.Value, error) {
 	ft := c.form.Type().Elem()
 	return func(t reflect.Type) (reflect.Value, error) {
+		if c.st.ft.typed {
+			// a FormFor's handler takes the checked T
+			v := c.form.Elem().FieldByIndex(c.st.ft.recv)
+			switch {
+			case t == v.Type():
+				return cloneValue(v), nil
+			case t.Kind() == reflect.Pointer && t.Elem() == v.Type():
+				cp := reflect.New(v.Type())
+				cp.Elem().Set(v)
+				return cp, nil
+			}
+		}
 		switch {
 		case t == ft:
 			return c.form.Elem(), nil
@@ -508,6 +524,10 @@ func (c *formCtl) payload(ev Event) func(t reflect.Type) (reflect.Value, error) 
 			return reflect.ValueOf(ev), nil
 		case reflect.TypeFor[url.Values]().ConvertibleTo(t) && t.Kind() == reflect.Map:
 			return reflect.ValueOf(ev.Form).Convert(t), nil
+		}
+		if c.st.ft.typed {
+			vt := c.form.Elem().FieldByIndex(c.st.ft.recv).Type()
+			return reflect.Value{}, fmt.Errorf("ui: a FormFor's handler takes its value (%s or *%[1]s), the form, a ui.Event or url.Values; this one takes %s", vt, t)
 		}
 		return reflect.Value{}, fmt.Errorf("ui: a form's handler takes the form (%s or *%[1]s), a ui.Event or url.Values; this one takes %s", ft.Name(), t)
 	}

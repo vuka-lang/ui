@@ -82,6 +82,7 @@ type FieldOptions struct {
 	HasURLDefault bool
 	Defer         string   // the group it loads in after the first render
 	Validate      []string // rules, as a validate tag writes them: "required", "max=50"
+	FormFields    []string // the fields of a ui.FormFor it edits, by Go path: @ui.Fields
 }
 
 // Bind lets the component set the field (live.q.set(v)); a set waits

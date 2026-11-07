@@ -100,12 +100,27 @@ func modelFormTypeOf(t reflect.Type, names []string) *formType {
 	}
 	all := formTypeOf(t)
 	ft := &formType{t: t, name: all.name, state: all.state, stateAt: all.stateAt, recv: all.recv,
-		byPath: map[string]*formField{}, cleans: map[string]*reflect.Method{}, clean: all.clean, err: all.err}
+		byPath: map[string]*formField{}, cleans: map[string]*reflect.Method{}, clean: all.clean, err: all.err,
+		typed: all.typed, key: all.key}
 	model := t.Field(all.recv[0]).Type
+	if all.typed && len(names) == 0 {
+		// a FormFor no markup or attribute named fields of: every field
+		// it may edit
+		for _, f := range all.fields {
+			if f.fixed == "" && !strings.Contains(f.goPath, ".") {
+				names = append(names, f.goPath)
+			}
+		}
+	}
 	if len(names) == 0 && ft.err == nil {
 		ft.err = fmt.Errorf("ui: ui.FormOf[%s] names no field: name the fields the form edits, ui.FormOf[%[1]s](\"Name\", \"Email\")", model.Name())
 	}
 	for _, name := range names {
+		if all.typed {
+			if f := all.byRef(name); f != nil {
+				name = f.goPath // a typed field's name: "unit_price" is UnitPrice
+			}
+		}
 		var picked []*formField
 		for _, f := range all.fields {
 			if f.goPath == name || strings.HasPrefix(f.goPath, name+".") {
@@ -122,8 +137,12 @@ func modelFormTypeOf(t reflect.Type, names []string) *formType {
 			if ft.byPath[f.path] != nil {
 				continue
 			}
+			if f.fixed != "" && ft.err == nil {
+				ft.err = fmt.Errorf("ui: ui.FormFor[%s]: %s is %s, never a form's field: drop it from the form", model.Name(), f.goPath, f.fixed)
+			}
 			ft.fields = append(ft.fields, f)
 			ft.byPath[f.path] = f
+			ft.files = ft.files || ft.typed && f.input == "file"
 			if m := all.cleans[f.path]; m != nil {
 				ft.cleans[f.path] = m
 			}

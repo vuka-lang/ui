@@ -67,7 +67,14 @@ type Form struct {
 	// changes not saved: values differing from the ones it was loaded
 	// with (FormState.Dirty), or typed and not yet sent.
 	ConfirmLeave bool
-	ID           string
+	// Keep has a FormFor keep its values after a successful submit that
+	// didn't save it (a search, a filter): it is emptied otherwise.
+	Keep bool
+	// Bound is the fields of a FormFor its markup binds, by Go path, the
+	// only ones a submit sets: the compiler writes it from the for={…} and
+	// model={…} inside the form. @ui.Fields on the form's field wins.
+	Bound []string
+	ID    string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy
 	// state until the reply. A struct form in a stream row submits with a
@@ -103,10 +110,10 @@ func (f Form) method() string {
 	return f.Method
 }
 
-//line form.vuka.html:98
+//line form.vuka.html:105
 func (f Form) View() Node {
 	var forView2 Node
-//line form.vuka.html:99
+//line form.vuka.html:106
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
@@ -132,9 +139,9 @@ func (f Form) View() Node {
 			f.Children,
 		)
 	}
-//line form.vuka.html:98
+//line form.vuka.html:105
 	return forView2
 }
 
-//line form.vuka.html:110
+//line form.vuka.html:117
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }
