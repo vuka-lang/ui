@@ -14,6 +14,10 @@ package ui
 //
 // Opening traps focus (PushFocus then FocusFirst); closing restores it
 // (PopFocus). Escape and a backdrop click close a dismissible modal.
+//
+// It renders in a Teleport: the runtime moves it to the end of <body>, so
+// an ancestor with a mask-image, transform or filter can't clip its
+// backdrop.
 type Modal struct {
 	// Ref names the modal's root for the open/close commands (OpenModal,
 	// CloseModal) and for a server variant's Show/Hide. It must be unique on
@@ -95,37 +99,42 @@ func (m Modal) escape() any {
 	return esc
 }
 
+// teleportID keys the Teleport the modal renders in.
+func (m Modal) teleportID() string { return "vk-modal-" + m.ref() }
+
 // closeIcon is the close button's icon; the Icon field shadows the func in
 // the markup.
 func (m Modal) closeIcon() Node { return Icon("x") }
 </script>
 
-<div ref={m.ref()} class="vk-modal-root" style={m.hidden()}>
-  <div class="vk-modal-backdrop" {on("onClick", m.dismiss())...}></div>
-  <div class={m.classes()} role="dialog" aria-modal="true" tabindex="-1" {on("onKeyDown", m.escape())...}>
-    if m.Icon != nil || m.Title != nil || m.Subtitle != "" || !m.Closed {
-      <div class="vk-modal__header">
-        if m.Icon != nil {
-          <span class="vk-modal__icon">{m.Icon}</span>
-        }
-        if m.Title != nil || m.Subtitle != "" {
-          <div class="vk-modal__heading">
-            if m.Title != nil {
-              <h2 class="vk-modal__title">{m.Title}</h2>
-            }
-            if m.Subtitle != "" {
-              <p class="vk-modal__subtitle">{m.Subtitle}</p>
-            }
-          </div>
-        }
-        if !m.Closed {
-          <button type="button" class="vk-modal__close" aria-label="Close" onClick={m.close()}>{m.closeIcon()}</button>
-        }
-      </div>
-    }
-    <div class="vk-modal__body">{m.Children}</div>
-    if m.Footer != nil {
-      <div class="vk-modal__footer">{m.Footer}</div>
-    }
+<Teleport id={m.teleportID()}>
+  <div ref={m.ref()} class="vk-modal-root" style={m.hidden()}>
+    <div class="vk-modal-backdrop" {on("onClick", m.dismiss())...}></div>
+    <div class={m.classes()} role="dialog" aria-modal="true" tabindex="-1" {on("onKeyDown", m.escape())...}>
+      if m.Icon != nil || m.Title != nil || m.Subtitle != "" || !m.Closed {
+        <div class="vk-modal__header">
+          if m.Icon != nil {
+            <span class="vk-modal__icon">{m.Icon}</span>
+          }
+          if m.Title != nil || m.Subtitle != "" {
+            <div class="vk-modal__heading">
+              if m.Title != nil {
+                <h2 class="vk-modal__title">{m.Title}</h2>
+              }
+              if m.Subtitle != "" {
+                <p class="vk-modal__subtitle">{m.Subtitle}</p>
+              }
+            </div>
+          }
+          if !m.Closed {
+            <button type="button" class="vk-modal__close" aria-label="Close" onClick={m.close()}>{m.closeIcon()}</button>
+          }
+        </div>
+      }
+      <div class="vk-modal__body">{m.Children}</div>
+      if m.Footer != nil {
+        <div class="vk-modal__footer">{m.Footer}</div>
+      }
+    </div>
   </div>
-</div>
+</Teleport>

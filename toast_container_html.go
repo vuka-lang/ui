@@ -9,7 +9,8 @@ import (
 )
 
 // ToastContainer is the fixed region toasts stack in. Place one per page (a
-// live view renders a Toast per message it holds inside it):
+// live view renders a Toast per message it holds inside it); it renders in
+// a Teleport, at the end of <body> once the runtime runs:
 //
 //	<ui.ToastContainer>
 //		for _, m := range p.Messages {
@@ -17,7 +18,7 @@ import (
 //		}
 //	</ui.ToastContainer>
 //
-//line toast_container.vuka.html:12
+//line toast_container.vuka.html:13
 type ToastContainer struct {
 	// Ref names the region for ShowToast to reveal a toast inside it; the
 	// default is "toasts".
@@ -43,14 +44,14 @@ func (c ToastContainer) classes() string {
 	return withClass("vk-toasts vk-toasts--"+string(pos), c.Class)
 }
 
-//line toast_container.vuka.html:38
+//line toast_container.vuka.html:39
 func (c ToastContainer) View() Node {
-//line toast_container.vuka.html:38
-	return HTML(`<div ref={c.ref()} class={c.classes()} role="region" aria-label="Notifications" aria-live="polite">{c.Children}</div>`, c.ref(), c.classes(), c.Children)
+//line toast_container.vuka.html:39
+	return Teleport{ID: "vk-toasts-" + c.ref(), Children: HTML(`<div ref={c.ref()} class={c.classes()} role="region" aria-label="Notifications" aria-live="polite">{c.Children}</div>`, c.ref(), c.classes(), c.Children)}
 }
 
-//line toast_container.vuka.html:38
+//line toast_container.vuka.html:41
 func (c ToastContainer) Render(ctx context.Context, w io.Writer) error {
-//line toast_container.vuka.html:38
+//line toast_container.vuka.html:41
 	return c.View().Render(ctx, w)
 }

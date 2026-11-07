@@ -2,7 +2,8 @@
 package ui
 
 // ToastContainer is the fixed region toasts stack in. Place one per page (a
-// live view renders a Toast per message it holds inside it):
+// live view renders a Toast per message it holds inside it); it renders in
+// a Teleport, at the end of <body> once the runtime runs:
 //
 //	<ui.ToastContainer>
 //		for _, m := range p.Messages {
@@ -35,4 +36,6 @@ func (c ToastContainer) classes() string {
 }
 </script>
 
-<div ref={ref()} class={classes()} role="region" aria-label="Notifications" aria-live="polite">{Children}</div>
+<Teleport id={"vk-toasts-" + ref()}>
+  <div ref={ref()} class={classes()} role="region" aria-label="Notifications" aria-live="polite">{Children}</div>
+</Teleport>
