@@ -748,11 +748,12 @@ type instance struct {
 	kids     []*instance          // in render order, this pass
 	occ      map[string]int
 	handlers []any
-	keyed    map[string]any // its render's handlers under a key, by what follows "c1:" in their ids (keyedHandler)
-	pushes   map[string]any // the handlers of the commands it pushed, by id (pushHandler)
-	forms    map[string]any // the submit handlers of the forms its last render has, by identity
-	pushIDs  []string       // their ids, oldest first, at most maxPushes
-	pushSeq  int            // the number of the next one
+	keyed    map[string]any     // its render's handlers under a key, by what follows "c1:" in their ids (keyedHandler)
+	pushes   map[string]any     // the handlers of the commands it pushed, by id (pushHandler)
+	forms    map[string]any     // the submit handlers of the forms its last render has, by identity
+	claimed  map[string]uintptr // the forms its render under way shows, by identity (ClaimForm)
+	pushIDs  []string           // their ids, oldest first, at most maxPushes
+	pushSeq  int                // the number of the next one
 	topics   []string
 	js       []ui.Commands // pushed since the last reply
 	seen     int
@@ -842,6 +843,22 @@ func (sc *scope) Form(id string, submit any) {
 		sc.in.forms = map[string]any{}
 	}
 	sc.in.forms[id] = submit
+}
+
+// ClaimForm notes the form the instance's render shows under identity,
+// reporting false when another form of the render has it.
+func (sc *scope) ClaimForm(identity string, form uintptr) bool {
+	if sc.push {
+		return true
+	}
+	if sc.in.claimed == nil {
+		sc.in.claimed = map[string]uintptr{}
+	}
+	if at, ok := sc.in.claimed[identity]; ok && at != form {
+		return false
+	}
+	sc.in.claimed[identity] = form
+	return true
 }
 
 // Handler registers a handler of the instance's render and returns its id.
@@ -1152,6 +1169,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 	in.dups.begin()
 	defer in.dups.end(s)
 	clear(in.forms)
+	clear(in.claimed)
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
 	in.contextual = false
 	clear(in.vars)

@@ -261,6 +261,11 @@ func (b boundField) modelAttrs(spec ModelSpec) []Attr {
 			}
 			return nil
 		}})
+		if f.required() {
+			// read by assistive tech whether or not the browser checks
+			// it (novalidate)
+			add("aria-required", "true")
+		}
 	}
 	return out
 }
@@ -299,11 +304,29 @@ func (b boundField) options(ctx context.Context) Node {
 	form, f := b.value(), b.f
 	var out []Node
 	if !f.required() || optionText(form.FieldByIndex(f.index).Interface()) == "" {
-		out = append(out, El("option", []Attr{{Name: "value", Value: ""}}, Text(f.placeholder)))
+		out = append(out, El("option", []Attr{{Name: "value", Value: ""}}, Text(tr(ctx, cmpOr(f.placeholder, "form.choose")))))
+	}
+	var group []Node
+	label := ""
+	flush := func() {
+		if label != "" {
+			out = append(out, El("optgroup", []Attr{{Name: "label", Value: label}}, group...))
+		}
+		group, label = nil, ""
 	}
 	for _, o := range opts {
-		out = append(out, El("option", []Attr{{Name: "value", Value: o.Value}, {Name: "selected", Value: selected(form, f, o.Value)}}, Text(o.Label)))
+		opt := El("option", []Attr{{Name: "value", Value: o.Value}, {Name: "selected", Value: selected(form, f, o.Value)}}, Text(o.Label))
+		if o.Group != label {
+			flush()
+			label = o.Group
+		}
+		if label == "" {
+			out = append(out, opt)
+			continue
+		}
+		group = append(group, opt)
 	}
+	flush()
 	return Fragment(out...)
 }
 
@@ -335,7 +358,8 @@ func ModelID(field any, outer ...any) any {
 		return Try(nil, err)
 	}
 	if b.f == nil {
-		return lazyValue{func(context.Context) any { return b.st.identity() }}
+		// the form's element: form={Form} on a control outside it
+		return lazyValue{func(context.Context) any { return cmpOr(b.st.elemID, b.st.identity()) }}
 	}
 	return lazyValue{func(context.Context) any { return b.st.id(b.f.path) }}
 }

@@ -297,6 +297,7 @@ var defaults = map[string]string{
 	"form.show-password": "Show password",
 	"form.leave":         "You have changes that are not saved. Leave this page?",
 	"form.file.change":   "Change",
+	"form.choose":        "Choose…",
 }
 
 // DefaultMessages is a copy of the default wording, by key: what an app's

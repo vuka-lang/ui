@@ -310,6 +310,14 @@ type FormRegistrar interface {
 	Form(identity string, submit any)
 }
 
+// A FormClaimer is a LiveHost that tells the forms a render shows apart:
+// ClaimForm reports whether identity, the id of the form at address form,
+// is not another form's in the same render. Two forms of one type on a
+// page need a key each (key={…}), or they would share their ids.
+type FormClaimer interface {
+	ClaimForm(identity string, form uintptr) bool
+}
+
 // formCtl is a rendered form's controller: its submit and change handlers.
 type formCtl struct {
 	form     reflect.Value // *T, T embedding FormState
