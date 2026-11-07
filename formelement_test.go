@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -164,10 +165,10 @@ func TestFieldsetAttrs(t *testing.T) {
 type resetPage struct {
 	ui.Live
 	Form   ui.FormFor[stockItem]
-	resets int
+	resets *int
 }
 
-func (p *resetPage) Reset(ctx context.Context) error { p.resets++; return nil }
+func (p *resetPage) Reset(ctx context.Context) error { *p.resets++; return nil }
 
 func (p *resetPage) Render() ui.Node {
 	return ui.FormElement{For: ui.For(&p.Form, p), OnReset: p.Reset, OnSuccess: ui.JS.Hide(ui.Sel("#dialog")), OnError: ui.JS.Show(ui.Sel("#help")),
@@ -179,7 +180,8 @@ func (p *resetPage) Render() ui.Node {
 // as a submit with the "reset" intent) puts the loaded values back and
 // runs OnReset.
 func TestFormElementEvents(t *testing.T) {
-	p := &resetPage{}
+	resets := 0
+	p := &resetPage{resets: &resets}
 	p.Form.Load(context.Background(), stockItem{Name: "Tea", Category: "tea", Rating: 3})
 	s := live.NewSession(context.Background(), func(context.Context) ui.Node {
 		return &ui.ComponentNode{Site: "reset", Props: p, Routed: true}
@@ -194,9 +196,12 @@ func TestFormElementEvents(t *testing.T) {
 			t.Errorf("missing %s in %s", want, html)
 		}
 	}
-	p.Form.Value.Name = "Coffee"
-	send(t, c, submitTarget, "submit", formValues(html, map[string]string{"name": "Cake", ui.FormIntentField: "reset"}))
-	if p.Form.Value.Name != "Tea" || p.resets != 1 {
-		t.Errorf("after a reset: name %q, %d OnReset calls", p.Form.Value.Name, p.resets)
+	send(t, c, regexp.MustCompile(`data-vk-on-input="([^"]+)"`), "input", formValues(html, map[string]string{"name": "Coffee"}))
+	if !strings.Contains(c.HTML(), `value="Coffee"`) {
+		t.Fatalf("the change didn't take:\n%s", c.HTML())
+	}
+	send(t, c, submitTarget, "submit", formValues(c.HTML(), map[string]string{"name": "Cake", ui.FormIntentField: "reset"}))
+	if html := c.HTML(); !strings.Contains(html, `value="Tea"`) || resets != 1 {
+		t.Errorf("after a reset, %d OnReset calls:\n%s", resets, html)
 	}
 }
