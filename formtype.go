@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"encoding"
 	"fmt"
 	"reflect"
@@ -31,6 +32,10 @@ type formType struct {
 	files   bool                       // a File field: the form posts as multipart
 	typed   bool                       // a FormFor's: its fields' types decide what is required
 	key     []int                      // a FormFor's: its record's primary key, within the record
+	forType reflect.Type               // a form type embedding a FormFor: the FormFor's type (nil for the FormFor itself)
+	forAt   uintptr                    // and its offset in the form type
+	init    *reflect.Method            // the form type's Init(ctx) error, run by Load
+	hook    *reflect.Method            // the form type's Clean(ctx) error, run once every other check passed
 	err     error
 }
 
@@ -101,7 +106,8 @@ func isForm(t reflect.Type) bool {
 func buildFormType(t reflect.Type) *formType {
 	ft := &formType{t: t, name: kebab(t.Name()), byPath: map[string]*formField{}, cleans: map[string]*reflect.Method{}}
 	sf, _ := t.FieldByName("FormState")
-	ft.state, ft.stateAt = sf.Index, sf.Offset
+	ft.state = sf.Index
+	ft.stateAt, _ = offsetOf(t, sf.Index)
 	pt := reflect.PointerTo(t)
 	if pt.Implements(modelFormType) {
 		// a ModelForm: the fields and methods are its Value's, a model's
@@ -112,7 +118,11 @@ func buildFormType(t reflect.Type) *formType {
 			ft.err = fmt.Errorf("ui: a form edits a struct's fields, not a %s", vf.Type)
 			return ft
 		}
-		ft.addFields(vf.Type, vf.Index, vf.Offset, "", "")
+		vfAt, direct := offsetOf(t, vf.Index)
+		if ft.typed && len(vf.Index) > 1 {
+			ft.formHooks(t, vf.Index[:len(vf.Index)-1], direct)
+		}
+		ft.addFields(vf.Type, vf.Index, vfAt, "", "")
 		for _, f := range ft.fields {
 			if f.key && ft.key == nil {
 				ft.key = f.index[len(vf.Index):]
@@ -156,6 +166,52 @@ func buildFormType(t reflect.Type) *formType {
 		}
 	}
 	return ft
+}
+
+// offsetOf is the offset of the field at index in t, and whether it is in
+// t's own memory: no embedded pointer on the way.
+func offsetOf(t reflect.Type, index []int) (uintptr, bool) {
+	var off uintptr
+	for _, i := range index {
+		if t.Kind() != reflect.Struct {
+			return 0, false
+		}
+		f := t.Field(i)
+		off += f.Offset
+		t = f.Type
+	}
+	return off, true
+}
+
+var hookSig = reflect.TypeFor[func(context.Context) error]()
+
+// formHooks records a form type embedding a FormFor (at index): where the
+// FormFor is, and the type's Init and Clean hooks.
+func (ft *formType) formHooks(t reflect.Type, index []int, direct bool) {
+	if !direct {
+		ft.err = fmt.Errorf("ui: %s embeds a pointer to its ui.FormFor: embed the FormFor itself", t.Name())
+		return
+	}
+	ft.forType = t.FieldByIndex(index).Type
+	ft.forAt, _ = offsetOf(t, index)
+	pt := reflect.PointerTo(t)
+	for _, name := range []string{"Init", "Clean"} {
+		m, ok := pt.MethodByName(name)
+		if !ok {
+			continue
+		}
+		if m.Type.NumIn() != 2 || m.Type.In(1) != hookSig.In(0) || m.Type.NumOut() != 1 || m.Type.Out(0) != hookSig.Out(0) {
+			if ft.err == nil {
+				ft.err = fmt.Errorf("ui: %s.%s is a form's hook: want func (f *%[1]s) %[2]s(ctx context.Context) error", t.Name(), name)
+			}
+			continue
+		}
+		if name == "Init" {
+			ft.init = &m
+		} else {
+			ft.hook = &m
+		}
+	}
 }
 
 // isParent reports whether other fields' choices depend on the field at

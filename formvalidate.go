@@ -101,7 +101,41 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 			st.pin("", &pinnedErrors{errs: errs, value: values, form: true})
 		}
 	}
+	if ft.hook != nil {
+		if err := st.cleanHook(ctx, form, live); err != nil {
+			return err
+		}
+	}
 	st.reveal(form)
+	return nil
+}
+
+// cleanHook runs a form type's Clean hook, on a check that isn't live and
+// once every other check passed: a ui.FieldError it returns shows under
+// its field, any other error as the form's, until a field changes.
+func (st *formState) cleanHook(ctx context.Context, form reflect.Value, live bool) error {
+	ft := st.ft
+	values := formValues(form, ft)
+	if p := st.pinned[""]; p != nil && ft.clean == nil && (!live || !sameValue(p.value, values)) {
+		delete(st.pinned, "") // the hook's own, from an earlier check
+	}
+	if live || len(st.errs) > 0 {
+		return nil
+	}
+	for _, p := range st.pinned {
+		if len(p.errs) > 0 {
+			return nil
+		}
+	}
+	err := callForm(ctx, ft.hook, form.Addr())
+	if err == nil {
+		return nil
+	}
+	errs, ok := ft.asFormErrors(err, "")
+	if !ok {
+		errs = []forms.Error{{Key: err.Error()}}
+	}
+	st.pin("", &pinnedErrors{errs: errs, value: values, form: true})
 	return nil
 }
 

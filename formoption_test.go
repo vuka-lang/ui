@@ -43,7 +43,7 @@ func (p *deliveryPage) Render() ui.Node {
 func TestModelOption(t *testing.T) {
 	var saved []delivery
 	p := &deliveryPage{saved: &saved}
-	p.Form.Load(delivery{Note: vuka.Some("fragile")})
+	p.Form.Load(context.Background(), delivery{Note: vuka.Some("fragile")})
 	s := live.NewSession(context.Background(), func(context.Context) ui.Node {
 		return &ui.ComponentNode{Site: "deliveries", Props: p, Routed: true}
 	})
