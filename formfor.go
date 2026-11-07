@@ -40,14 +40,14 @@ import (
 // emptied again unless <ui.Form keep>. T's Clean, Clean<Field> and
 // <Field>Choices methods are the form's, as a ModelForm's are.
 //
-// A struct embedding a FormFor is a form type: a form of T with code of
-// its own. Its Init hook runs when the form is created — as the page
-// holding it is, before the page's Mount, which may change what it set —
-// and on every Load, after the record is copied in; the page never calls
-// it. Its Clean hook once every other check passed, before a submit's handler or
-// Save's write — a FieldError shows under its field, any other error as
-// the form's, and either stops the save. The fields it declares itself
-// are not the form's.
+// A struct embedding a FormFor is a form type: a form of T with methods
+// of its own. Clean, Clean<Field> and <Field>Choices declared on it are the
+// form's, as T's are (dependencies injected; one T declares too is an
+// error: keep one). Its Init(ctx, deps…) error runs when the form is
+// created — as the page holding it is, before the page's Mount, which may
+// change what it set — and on every Load, after the record is copied in;
+// the page never calls it. The fields it declares itself are not the
+// form's.
 //
 //	type ProductForm struct {
 //		ui.FormFor[Product]
@@ -122,7 +122,7 @@ func (f *FormFor[T]) attached() (*formState, reflect.Value) {
 
 // Attach makes form, a pointer to a struct embedding a FormFor (a form
 // type), the form its FormFor's methods are of, and returns it: Load and
-// Save then run the type's Init and Clean hooks. A page attaches its
+// Save then run the type's Init and Clean methods. A page attaches its
 // forms as it is created, and the compiler writes Attach at each Load and
 // Save of a form type in a .vuka file; Go code using a form type no page
 // holds calls it: ui.Attach(&f).Load(ctx, row).
@@ -143,8 +143,7 @@ func (f *FormFor[T]) IsNew() bool {
 // Save saves the record the form edits, a model's row: T has Save and
 // SaveFields methods, as every orm model does (the compiler reports a
 // FormFor whose T hasn't). It runs the form's checks when no submit did —
-// the field rules, then T's Clean methods, then a form type's Clean hook —
-// inserts a new record, the form's value, or copies the form's fields onto
+// the field rules and the Clean methods, T's and a form type's — inserts a new record, the form's value, or copies the form's fields onto
 // a loaded one and updates only those — a change made meanwhile to another
 // column stays — then reads the row again, so a new one has its key and
 // what the database computed, and the form is clean. A check that fails

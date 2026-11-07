@@ -34,8 +34,8 @@ type formType struct {
 	key     []int                      // a FormFor's: its record's primary key, within the record
 	forType reflect.Type               // a form type embedding a FormFor: the FormFor's type (nil for the FormFor itself)
 	forAt   uintptr                    // and its offset in the form type
-	init    *reflect.Method            // the form type's Init(ctx) error, run by Load
-	hook    *reflect.Method            // the form type's Clean(ctx) error, run once every other check passed
+	init    *reflect.Method            // the form type's Init(ctx, deps…) error: run as the form is created, and by Load
+	own     map[*reflect.Method]bool   // the methods declared by the form type, called on it rather than on T
 	err     error
 }
 
@@ -132,29 +132,9 @@ func buildFormType(t reflect.Type) *formType {
 	} else {
 		ft.addFields(t, nil, 0, "", "")
 	}
-	for i := 0; i < pt.NumMethod(); i++ {
-		m := pt.Method(i)
-		if _, own := formStateType.MethodByName(m.Name); own && ft.recv == nil {
-			continue
-		}
-		if _, own := reflect.PointerTo(formStateType).MethodByName(m.Name); own && ft.recv == nil {
-			continue
-		}
-		switch name := m.Name; {
-		case name == "Clean":
-			ft.clean = &m
-		case strings.HasPrefix(name, "Clean"):
-			if f := ft.byGoPath(strings.TrimPrefix(name, "Clean")); f != nil && !f.group {
-				ft.cleans[f.path] = &m
-			}
-		case strings.HasSuffix(name, "Choices"):
-			if f := ft.byGoPath(strings.TrimSuffix(name, "Choices")); f != nil && !f.group {
-				f.choices = &m
-				if f.inputTag == "" && f.input != "checkboxes" {
-					f.input = "select"
-				}
-			}
-		}
+	ft.methods(pt, false)
+	if ft.forType != nil {
+		ft.methods(reflect.PointerTo(t), true)
 	}
 	for _, f := range ft.fields {
 		for _, d := range strings.Fields(strings.ReplaceAll(f.tag.Get("depends"), ",", " ")) {
@@ -183,10 +163,75 @@ func offsetOf(t reflect.Type, index []int) (uintptr, bool) {
 	return off, true
 }
 
-var hookSig = reflect.TypeFor[func(context.Context) error]()
+// methods records the form's methods of pt: Clean, Clean<Field> and
+// <Field>Choices. own: pt is a form type's, whose own methods are called
+// on it, and which may not declare one its T does too.
+func (ft *formType) methods(pt reflect.Type, own bool) {
+	var promoted reflect.Type
+	if own {
+		promoted = reflect.PointerTo(ft.forType)
+	}
+	set := func(slot **reflect.Method, m reflect.Method) {
+		if own {
+			if *slot != nil && ft.err == nil {
+				ft.err = fmt.Errorf("ui: %s.%s and %s.%[2]s: a form type and its T declare the same method; keep one", ft.t.Name(), m.Name, ft.t.FieldByIndex(ft.recv).Type.Name())
+			}
+			if ft.own == nil {
+				ft.own = map[*reflect.Method]bool{}
+			}
+			ft.own[&m] = true
+		}
+		*slot = &m
+	}
+	for i := 0; i < pt.NumMethod(); i++ {
+		m := pt.Method(i)
+		if _, isState := formStateType.MethodByName(m.Name); isState && ft.recv == nil {
+			continue
+		}
+		if _, isState := reflect.PointerTo(formStateType).MethodByName(m.Name); isState && ft.recv == nil {
+			continue
+		}
+		if promoted != nil {
+			if _, ok := promoted.MethodByName(m.Name); ok {
+				continue // the FormFor's
+			}
+		}
+		switch name := m.Name; {
+		case own && name == "Init":
+			if !hookShape(m.Type) {
+				if ft.err == nil {
+					ft.err = fmt.Errorf("ui: %s.Init is the form type's Init hook: want func (f *%[1]s) Init(ctx context.Context, deps…) error", ft.t.Name())
+				}
+				continue
+			}
+			ft.init = &m
+		case name == "Clean":
+			set(&ft.clean, m)
+		case strings.HasPrefix(name, "Clean"):
+			if f := ft.byGoPath(strings.TrimPrefix(name, "Clean")); f != nil && !f.group {
+				slot := ft.cleans[f.path]
+				set(&slot, m)
+				ft.cleans[f.path] = slot
+			}
+		case strings.HasSuffix(name, "Choices"):
+			if f := ft.byGoPath(strings.TrimSuffix(name, "Choices")); f != nil && !f.group {
+				set(&f.choices, m)
+				if f.inputTag == "" && f.input != "checkboxes" {
+					f.input = "select"
+				}
+			}
+		}
+	}
+}
+
+// hookShape reports whether a method type (its receiver first) takes a
+// context first and returns an error.
+func hookShape(t reflect.Type) bool {
+	return t.NumIn() >= 2 && t.In(1) == reflect.TypeFor[context.Context]() && t.NumOut() == 1 && t.Out(0) == reflect.TypeFor[error]()
+}
 
 // formHooks records a form type embedding a FormFor (at index): where the
-// FormFor is, and the type's Init and Clean hooks.
+// FormFor is.
 func (ft *formType) formHooks(t reflect.Type, index []int, direct bool) {
 	if !direct {
 		ft.err = fmt.Errorf("ui: %s embeds a pointer to its ui.FormFor: embed the FormFor itself", t.Name())
@@ -194,24 +239,15 @@ func (ft *formType) formHooks(t reflect.Type, index []int, direct bool) {
 	}
 	ft.forType = t.FieldByIndex(index).Type
 	ft.forAt, _ = offsetOf(t, index)
-	pt := reflect.PointerTo(t)
-	for _, name := range []string{"Init", "Clean"} {
-		m, ok := pt.MethodByName(name)
-		if !ok {
-			continue
-		}
-		if m.Type.NumIn() != 2 || m.Type.In(1) != hookSig.In(0) || m.Type.NumOut() != 1 || m.Type.Out(0) != hookSig.Out(0) {
-			if ft.err == nil {
-				ft.err = fmt.Errorf("ui: %s.%s is a form's hook: want func (f *%[1]s) %[2]s(ctx context.Context) error", t.Name(), name)
-			}
-			continue
-		}
-		if name == "Init" {
-			ft.init = &m
-		} else {
-			ft.hook = &m
-		}
+}
+
+// recvOf is the value form's method m is called on: the form type for its
+// own methods, else what receiver says.
+func (ft *formType) recvOf(m *reflect.Method, form reflect.Value) reflect.Value {
+	if ft.own[m] {
+		return form.Addr()
 	}
+	return ft.receiver(form)
 }
 
 // isParent reports whether other fields' choices depend on the field at

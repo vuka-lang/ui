@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/ui/v2/forms"
 	"github.com/vuka-lang/ui/v2/live"
 	"github.com/vuka-lang/ui/v2/live/livetest"
 )
@@ -30,10 +31,19 @@ func (f *productForm) Init(ctx context.Context) error {
 	return nil
 }
 
+// CleanPrice is a form type's own Clean<Field>, run once Price's rules
+// passed.
+func (f *productForm) CleanPrice(ctx context.Context) error {
+	if f.Value.Price == 13 {
+		return forms.Errorf("Not 13")
+	}
+	return nil
+}
+
 func (f *productForm) Clean(ctx context.Context) error {
 	switch {
 	case f.Value.Name == "Closed":
-		return errors.New("The catalog is closed")
+		return forms.Errorf("The catalog is closed")
 	case f.Value.Status == "live" && f.Value.Notes.IsNone():
 		return ui.FieldError("Notes", "A live product needs notes")
 	}
@@ -70,10 +80,10 @@ func (p *hookedPage) Render() ui.Node {
 			)})
 }
 
-// TestFormForHooks: a struct embedding a FormFor is a form of its T; Load
-// runs its Init, and its Clean runs once the other checks passed, its
-// FieldError under its field, another error the form's, either stopping
-// the save.
+// TestFormForHooks: a struct embedding a FormFor is a form of its T; a new
+// form runs its Init as its page is created, a Load again; its Clean and
+// Clean<Field> methods run as T's would, a FieldError under its field, a
+// form error the form's, either stopping the save.
 func TestFormForHooks(t *testing.T) {
 	products, saves, inits = &[]product{{ID: 1, Name: "Kettle", Price: 30, Status: "live", Stock: 5}}, nil, 0
 	ctx := context.Background()
@@ -91,8 +101,12 @@ func TestFormForHooks(t *testing.T) {
 		t.Fatalf("a form type's form:\n%s", html)
 	}
 	send(t, c, submitTarget, "submit", formValues(html, map[string]string{"name": "Desk lamp", "price": "", "status": "live", "notes": ""}))
-	if len(saves) != 0 || !strings.Contains(c.HTML(), "Enter price") || strings.Contains(c.HTML(), "A live product needs notes") {
-		t.Fatalf("Clean ran before the field rules passed: %v\n%s", saves, c.HTML())
+	if len(saves) != 0 || !strings.Contains(c.HTML(), "Enter price") || !strings.Contains(c.HTML(), "A live product needs notes") {
+		t.Fatalf("the rules' and Clean's errors: %v\n%s", saves, c.HTML())
+	}
+	send(t, c, submitTarget, "submit", formValues(c.HTML(), map[string]string{"name": "Desk lamp", "price": "13", "status": "draft", "notes": ""}))
+	if len(saves) != 0 || !strings.Contains(c.HTML(), "Not 13") {
+		t.Fatalf("the form type's CleanPrice: %v\n%s", saves, c.HTML())
 	}
 	send(t, c, submitTarget, "submit", formValues(c.HTML(), map[string]string{"name": "Desk lamp", "price": "45", "status": "live", "notes": ""}))
 	if len(saves) != 0 || !strings.Contains(c.HTML(), "A live product needs notes") {
@@ -172,8 +186,13 @@ type badHook struct{ ui.FormFor[product] }
 
 func (*badHook) Init(n int) error { return nil }
 
+type twoChoices struct{ ui.FormFor[product] }
+
+func (*twoChoices) StatusChoices() []ui.Option { return nil }
+
 // TestFormForHookErrors: Init's error is Load's; a hook of another
-// signature is the form's error, naming the one it should have.
+// signature is the form's error, naming the one it should have, as is a
+// method both the form type and its T declare.
 func TestFormForHookErrors(t *testing.T) {
 	ctx := context.Background()
 	var f failingInit
@@ -182,7 +201,12 @@ func TestFormForHookErrors(t *testing.T) {
 	}
 	var b badHook
 	err := ui.Attach(&b).Load(ctx, product{})
-	if err == nil || !strings.Contains(err.Error(), "want func (f *badHook) Init(ctx context.Context) error") {
+	if err == nil || !strings.Contains(err.Error(), "want func (f *badHook) Init(ctx context.Context, deps…) error") {
 		t.Errorf("a hook of another signature: %v", err)
+	}
+	var two twoChoices
+	err = ui.Attach(&two).Load(ctx, product{})
+	if err == nil || !strings.Contains(err.Error(), "twoChoices.StatusChoices and product.StatusChoices") {
+		t.Errorf("a method the form type and its T declare: %v", err)
 	}
 }
