@@ -105,6 +105,12 @@ func (r FieldRef) resolve() (boundField, error) {
 // value is the form's struct.
 func (b boundField) value() reflect.Value { return b.form.Elem() }
 
+// ready is what every form element bound with for={Form} runs before it
+// renders: a form type's Init, once for this instance of the form.
+func (b boundField) ready(ctx context.Context) error {
+	return b.st.runInit(ctx, b.value())
+}
+
 // id is the field's control's id.
 func (b boundField) id() string { return b.st.id(b.f.path) }
 

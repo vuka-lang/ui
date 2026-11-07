@@ -162,6 +162,9 @@ func walkElement(ctx context.Context, n *Element, r Renderer, void bool) error {
 	if err := r.Open(n); err != nil || void {
 		return err
 	}
+	if !browserHidden(ctx) && hidesChildren(n) {
+		ctx = context.WithValue(ctx, browserHiddenKey{}, true)
+	}
 	for _, c := range n.Children {
 		if err := Walk(ctx, c, r); err != nil {
 			return err
@@ -297,4 +300,69 @@ func withSets(e *Element) *Element {
 		}
 	}
 	return &cp
+}
+
+// browserHiddenKey marks a render inside an element the page renders
+// hidden: what is in it shows only once the browser shows it.
+type browserHiddenKey struct{}
+
+// browserHidden reports whether ctx renders inside a hidden element.
+func browserHidden(ctx context.Context) bool {
+	h, _ := ctx.Value(browserHiddenKey{}).(bool)
+	return h
+}
+
+// hidesChildren reports whether e renders hidden, its children with it: the
+// hidden attribute, a show={…} not holding, display: none, a <dialog> not
+// open, a popover.
+func hidesChildren(e *Element) bool {
+	open := false
+	for _, a := range e.Attrs {
+		switch a.Name {
+		case "hidden":
+			if present(a.Value) {
+				return true
+			}
+		case "show":
+			switch v := a.Value.(type) {
+			case bool:
+				if !v {
+					return true
+				}
+			case Binding:
+				if b, ok := v.Init.(bool); ok && !b {
+					return true
+				}
+			}
+		case "style":
+			switch v := a.Value.(type) {
+			case Style:
+				if strings.TrimSpace(v["display"]) == "none" {
+					return true
+				}
+			case string:
+				if strings.Contains(strings.ReplaceAll(v, " ", ""), "display:none") {
+					return true
+				}
+			}
+		case "popover":
+			if present(a.Value) {
+				return true
+			}
+		case "open":
+			open = open || present(a.Value)
+		}
+	}
+	return e.Tag == "dialog" && !open
+}
+
+// present reports whether a boolean attribute's value writes it.
+func present(v any) bool {
+	switch v := v.(type) {
+	case nil:
+		return false
+	case bool:
+		return v
+	}
+	return true
 }

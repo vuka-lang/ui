@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"context"
-	"fmt"
 	"reflect"
 	"strings"
 	"time"
@@ -94,6 +92,7 @@ func (s *FormState) Reset() {
 	}
 	st.clear()
 	st.gen++
+	st.inited = false // its next render runs a form type's Init again
 }
 
 // Saved reports whether the form's last submit succeeded in the last 2
@@ -318,63 +317,4 @@ func attachForms(p reflect.Value) {
 			attachForm(f.Addr())
 		}
 	}
-}
-
-// initedForm is a form type of a page that ran its Init as the page was
-// created: its state, its value, and the state's Load count then.
-type initedForm struct {
-	st   *formState
-	form reflect.Value
-	gen  int
-}
-
-// mounted makes the form's values, as the page's Mount left them, its
-// baseline, unless Mount loaded a record.
-func (f initedForm) mounted() {
-	if f.st.gen == f.gen {
-		f.st.base = cloneValue(f.form)
-	}
-}
-
-// initForms runs the Init hook of each form type p holds, a new form, as
-// the page is created: before its Mount, which may change what Init set.
-func initForms(ctx context.Context, p reflect.Value) ([]initedForm, error) {
-	if p.Kind() != reflect.Pointer || p.IsNil() || p.Elem().Kind() != reflect.Struct {
-		return nil, nil
-	}
-	var out []initedForm
-	v := p.Elem()
-	for i := 0; i < v.NumField(); i++ {
-		sf := v.Type().Field(i)
-		f := v.Field(i)
-		if !sf.IsExported() || sf.Anonymous {
-			continue
-		}
-		var ptr reflect.Value
-		switch {
-		case f.Kind() == reflect.Pointer && !f.IsNil() && isForm(f.Type().Elem()):
-			ptr = f
-		case f.Kind() == reflect.Struct && isForm(f.Type()) && f.CanAddr():
-			ptr = f.Addr()
-		default:
-			continue
-		}
-		ft := formTypeOf(ptr.Type().Elem())
-		if ft.init == nil {
-			continue
-		}
-		st := attachForm(ptr)
-		if st.ft.err != nil {
-			return nil, st.ft.err
-		}
-		if !st.isNew() {
-			continue // loaded already
-		}
-		if err := callForm(ctx, st.ft.init, ptr); err != nil {
-			return nil, fmt.Errorf("%s.Init: %w", ptr.Type().Elem().Name(), err)
-		}
-		st.base = cloneValue(ptr.Elem())
-		out = append(out, initedForm{st: st, form: ptr.Elem(), gen: st.gen})
-	}
-	return out, nil
 }
