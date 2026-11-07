@@ -58,6 +58,13 @@ type Form struct {
 	// changes not saved: values differing from the ones it was loaded
 	// with (FormState.Dirty), or typed and not yet sent.
 	ConfirmLeave bool
+	// Keep has a FormFor keep its values after a successful submit that
+	// didn't save it (a search, a filter): it is emptied otherwise.
+	Keep bool
+	// Bound is the fields of a FormFor its markup binds, by Go path, the
+	// only ones a submit sets: the compiler writes it from the for={…} and
+	// model={…} inside the form. @ui.Fields on the form's field wins.
+	Bound []string
 	ID           string
 	// OnSubmit runs when the form is submitted; over a live connection it
 	// receives the fields bound to its struct, and the form shows its busy

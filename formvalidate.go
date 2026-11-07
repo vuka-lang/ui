@@ -27,6 +27,10 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 			st.errs = append(st.errs, e)
 			continue
 		}
+		if f.needsInput && st.blank[f.path] {
+			st.errs = append(st.errs, f.errorFor(rule{name: "required"}, ""))
+			continue
+		}
 		if e, ok := f.verdict(form); ok {
 			st.errs = append(st.errs, e)
 			continue
@@ -45,6 +49,11 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 			if f := ft.byPath[path]; f == nil || !sameValue(p.value, valueOf(form, f)) {
 				delete(st.pinned, path)
 			}
+		}
+	}
+	if !live {
+		if err := st.checkFields(ctx, form); err != nil {
+			return err
 		}
 	}
 	cctx := formCtx(ctx, live)
@@ -69,7 +78,7 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 			}
 			continue
 		}
-		errs, ok := asFormErrors(err, f.path)
+		errs, ok := ft.asFormErrors(err, f.path)
 		if !ok {
 			return fmt.Errorf("%s.%s: %w", ft.t.Name(), m.Name, err)
 		}
@@ -81,7 +90,7 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 			delete(st.pinned, "")
 		}
 		err := callForm(cctx, ft.clean, recv)
-		switch errs, ok := asFormErrors(err, ""); {
+		switch errs, ok := ft.asFormErrors(err, ""); {
 		case err == nil:
 			if !live {
 				delete(st.pinned, "")
@@ -134,6 +143,11 @@ func (f *formField) verdict(form reflect.Value) (forms.Error, bool) {
 			return f.errorFor(r, f.kind(r)), true
 		}
 	}
+	for _, check := range f.validators {
+		if err := check(v.Interface()); err != nil {
+			return forms.Error{Path: f.path, Rule: "invalid", Key: err.Error()}, true
+		}
+	}
 	return forms.Error{}, false
 }
 
@@ -141,7 +155,7 @@ func (f *formField) verdict(form reflect.Value) (forms.Error, bool) {
 // (string), a number, a list's items, a choice, a checkbox, an email
 // address.
 func (f *formField) kind(r rule) string {
-	base := derefType(f.typ)
+	base := valueType(f.typ)
 	switch r.name {
 	case "required":
 		switch {
@@ -153,7 +167,7 @@ func (f *formField) kind(r rule) string {
 			return "check"
 		case base.Kind() == reflect.Slice:
 			return "list"
-		case f.choices != nil || f.input == "radio" || f.input == "select":
+		case f.hasChoices() || f.input == "radio" || f.input == "select":
 			return "choice"
 		}
 	case "min", "max", "len":
@@ -166,7 +180,7 @@ func (f *formField) kind(r rule) string {
 			return "number"
 		}
 	case "oneof":
-		if f.choices != nil || f.input == "radio" || f.input == "select" {
+		if f.hasChoices() || f.input == "radio" || f.input == "select" {
 			return "choice"
 		}
 	}
@@ -232,7 +246,7 @@ func choices(ctx context.Context, m *reflect.Method, recv reflect.Value) (opts [
 // once its Country changed — is cleared, its error (an empty required
 // field's) showing on submit; on submit it is an error.
 func (st *formState) checkChoice(ctx context.Context, form reflect.Value, f *formField, live bool) (forms.Error, bool, error) {
-	if f.choices == nil {
+	if !f.hasChoices() {
 		return forms.Error{}, false, nil
 	}
 	v, err := form.FieldByIndexErr(f.index)
@@ -284,6 +298,9 @@ func (st *formState) checkChoice(ctx context.Context, form reflect.Value, f *for
 // choicesOf are a field's choices, its <Field>Choices called once per
 // event (bind) or render.
 func (st *formState) choicesOf(ctx context.Context, form reflect.Value, f *formField) ([]Option, error) {
+	if f.choices == nil {
+		return f.options, nil
+	}
 	opts, ok := st.memo[f.path]
 	if !ok {
 		var err error

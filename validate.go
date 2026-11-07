@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/mail"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -174,6 +175,7 @@ type rule struct {
 	name, param string
 	n           float64
 	set         []string
+	re          *regexp.Regexp // pattern's
 }
 
 type fieldRules struct {
@@ -322,13 +324,25 @@ func (r rule) check(v reflect.Value) string {
 		}
 		return ""
 	}
-	for v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface {
+	for v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface || isOption(v.Type()) {
+		if isOption(v.Type()) {
+			val, ok := optionParts(v)
+			if !ok.Bool() {
+				return ""
+			}
+			v = val
+			continue
+		}
 		if v.IsNil() {
 			return ""
 		}
 		v = v.Elem()
 	}
 	switch r.name {
+	case "pattern":
+		if v.Kind() == reflect.String && v.String() != "" && !r.re.MatchString(v.String()) {
+			return "in the right format"
+		}
 	case "min", "max", "len":
 		size, unit, ok := measure(v)
 		if !ok {

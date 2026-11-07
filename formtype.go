@@ -11,6 +11,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/vuka-lang/ui/v2/forms"
+	"github.com/vuka-lang/vuka/v2"
+	vfield "github.com/vuka-lang/vuka/v2/field"
 )
 
 // formType is what a form struct (one embedding FormState) declares: its
@@ -27,6 +29,8 @@ type formType struct {
 	cleans  map[string]*reflect.Method // Clean<Field>, by path
 	recv    []int                      // the index of the value the methods are of: nil for the form, Value's for a ModelForm
 	files   bool                       // a File field: the form posts as multipart
+	typed   bool                       // a FormFor's: its fields' types decide what is required
+	key     []int                      // a FormFor's: its record's primary key, within the record
 	err     error
 }
 
@@ -54,6 +58,13 @@ type formField struct {
 	choices                  *reflect.Method   // <Field>Choices
 	depends                  []string          // the paths of the fields its choices follow (depends:)
 	tag                      reflect.StructTag
+	options                  []Option          // the choices its attributes give (orm.Char{Choices}, ui.OneOf)
+	needsInput               bool              // a number a FormFor requires: its input may not be left empty
+	lower                    bool              // its text is lowercased as it is bound
+	validators               []func(any) error // its attributes' Validate methods
+	checkers                 []vfield.Checker  // its attributes' checks needing the server, run on submit
+	fixed                    string            // why it is never a FormFor's field: "the record's primary key", …
+	key                      bool              // the record's primary key
 }
 
 var (
@@ -96,7 +107,17 @@ func buildFormType(t reflect.Type) *formType {
 		// a ModelForm: the fields and methods are its Value's, a model's
 		vf, _ := t.FieldByName("Value")
 		ft.name, ft.recv = kebab(vf.Type.Name()), vf.Index
+		ft.typed = pt.Implements(formForType)
+		if vf.Type.Kind() != reflect.Struct {
+			ft.err = fmt.Errorf("ui: a form edits a struct's fields, not a %s", vf.Type)
+			return ft
+		}
 		ft.addFields(vf.Type, vf.Index, vf.Offset, "", "")
+		for _, f := range ft.fields {
+			if f.key && ft.key == nil {
+				ft.key = f.index[len(vf.Index):]
+			}
+		}
 		pt = reflect.PointerTo(vf.Type)
 	} else {
 		ft.addFields(t, nil, 0, "", "")
@@ -169,6 +190,7 @@ func (ft *formType) byGoPath(name string) *formField {
 }
 
 func (ft *formType) addFields(t reflect.Type, index []int, offset uintptr, path, goPath string) {
+	attrs := vuka.FieldAttrsOf(t)
 	for i := 0; i < t.NumField(); i++ {
 		sf := t.Field(i)
 		if sf.Type == formStateType || !sf.IsExported() && !sf.Anonymous {
@@ -205,6 +227,9 @@ func (ft *formType) addFields(t reflect.Type, index []int, offset uintptr, path,
 		if m := sf.Tag.Get("msg"); m != "" {
 			f.msgs = parseMsgs(m)
 		}
+		if err := ft.describe(f, sf, attrs[sf.Name]); err != nil && ft.err == nil {
+			ft.err = within(t.Name()+"."+sf.Name, err)
+		}
 		if base := derefType(sf.Type); base.Kind() == reflect.Struct && !isLeaf(base) {
 			f.group = true
 			ft.fields = append(ft.fields, f)
@@ -224,6 +249,9 @@ func (ft *formType) addFields(t reflect.Type, index []int, offset uintptr, path,
 			ft.files = true
 		} else {
 			f.control(sf)
+		}
+		if f.options != nil && f.inputTag == "" && f.input != "checkboxes" {
+			f.input = "select"
 		}
 		ft.fields = append(ft.fields, f)
 		ft.byPath[f.path] = f
@@ -286,15 +314,15 @@ func derefType(t reflect.Type) reflect.Type {
 // isLeaf reports whether a struct type is one value, not a group of fields:
 // a time.Time, a TextUnmarshaler.
 func isLeaf(t reflect.Type) bool {
-	return t == timeType || t == fileType || reflect.PointerTo(t).Implements(textUnmarshaler)
+	return t == timeType || t == fileType || isOption(t) || reflect.PointerTo(t).Implements(textUnmarshaler)
 }
 
 // control decides a field's input, autocomplete and inputmode from its
 // tags, type and name.
 func (f *formField) control(sf reflect.StructField) {
-	input := sf.Tag.Get("input")
+	input := cmpOr(sf.Tag.Get("input"), f.inputTag)
 	f.inputTag = input
-	base := derefType(f.typ)
+	base := valueType(f.typ)
 	if input == "" {
 		switch {
 		case base == timeType:
@@ -325,7 +353,7 @@ func (f *formField) control(sf reflect.StructField) {
 	case input == "text" && isFloat(base):
 		f.inputmode = "decimal"
 	}
-	f.autocomplete = sf.Tag.Get("autocomplete")
+	f.autocomplete = cmpOr(sf.Tag.Get("autocomplete"), f.autocomplete)
 	if f.autocomplete == "" {
 		f.autocomplete = inferAutocomplete(sf.Name, input)
 	}
@@ -350,7 +378,11 @@ func (f *formField) rule(name string) (rule, bool) {
 }
 
 // required reports whether the field must be filled.
-func (f *formField) required() bool { return f.hasRule("required") }
+func (f *formField) required() bool { return f.hasRule("required") || f.needsInput }
+
+// hasChoices reports whether the field's value is one of choices: its
+// <Field>Choices method's, or its attributes'.
+func (f *formField) hasChoices() bool { return f.choices != nil || f.options != nil }
 
 // htmlType is the type attribute an <input> for the field has.
 func (f *formField) htmlType() string {

@@ -82,6 +82,11 @@ func (r FieldRef) resolve() (boundField, error) {
 		if c.Kind() != reflect.Pointer || c.IsNil() || !isForm(c.Elem().Type()) {
 			continue
 		}
+		if nf, ok := c.Interface().(namedForm); ok && i < len(r.outer) {
+			if names := ownerFields(r.outer[i], c); names != nil {
+				nf.setNames(names, true)
+			}
+		}
 		st := attachForm(c)
 		if i == 0 {
 			return boundField{form: c, st: st}, nil
@@ -298,7 +303,7 @@ func (b boundField) options(ctx context.Context) Node {
 
 // choices are the field's options: its <Field>Choices.
 func (b boundField) choices(ctx context.Context) ([]Option, error) {
-	if b.f.choices == nil {
+	if !b.f.hasChoices() {
 		return nil, nil
 	}
 	return b.st.choicesOf(ctx, b.value(), b.f)
