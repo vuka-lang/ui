@@ -57,7 +57,6 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 		}
 	}
 	cctx := formCtx(ctx, live)
-	recv := ft.receiver(form)
 	for _, f := range ft.fields {
 		m := ft.cleans[f.path]
 		if m == nil {
@@ -71,7 +70,7 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 			delete(st.pinned, f.path)
 			continue
 		}
-		err := callForm(cctx, m, recv)
+		err := callForm(cctx, m, ft.recvOf(m, form))
 		if err == nil {
 			if !live || p != nil && !sameValue(p.value, valueOf(form, f)) {
 				delete(st.pinned, f.path)
@@ -89,7 +88,7 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 		if p := st.pinned[""]; p != nil && !sameValue(p.value, values) {
 			delete(st.pinned, "")
 		}
-		err := callForm(cctx, ft.clean, recv)
+		err := callForm(cctx, ft.clean, ft.recvOf(ft.clean, form))
 		switch errs, ok := ft.asFormErrors(err, ""); {
 		case err == nil:
 			if !live {
@@ -304,7 +303,7 @@ func (st *formState) choicesOf(ctx context.Context, form reflect.Value, f *formF
 	opts, ok := st.memo[f.path]
 	if !ok {
 		var err error
-		if opts, err = choices(ctx, f.choices, st.ft.receiver(form)); err != nil {
+		if opts, err = choices(ctx, f.choices, st.ft.recvOf(f.choices, form)); err != nil {
 			return nil, fmt.Errorf("ui: %s.%s: %w", st.ft.t.Name(), f.choices.Name, err)
 		}
 		if st.memo == nil {

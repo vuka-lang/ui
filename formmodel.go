@@ -101,8 +101,8 @@ func modelFormTypeOf(t reflect.Type, names []string) *formType {
 	all := formTypeOf(t)
 	ft := &formType{t: t, name: all.name, state: all.state, stateAt: all.stateAt, recv: all.recv,
 		byPath: map[string]*formField{}, cleans: map[string]*reflect.Method{}, clean: all.clean, err: all.err,
-		typed: all.typed, key: all.key}
-	model := t.Field(all.recv[0]).Type
+		typed: all.typed, key: all.key, forType: all.forType, forAt: all.forAt, init: all.init, own: all.own}
+	model := t.FieldByIndex(all.recv).Type
 	if all.typed && len(names) == 0 {
 		// a FormFor no markup or attribute named fields of: every field
 		// it may edit

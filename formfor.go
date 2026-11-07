@@ -27,8 +27,7 @@ import (
 //	}
 //
 //	func (p *Products) edit(ctx context.Context, id int64) error {
-//		p.Form.Load(Product.Objects.Get(ctx, Product.ID.Eq(id))?)
-//		return nil
+//		return p.Form.Load(ctx, Product.Objects.Get(ctx, Product.ID.Eq(id))?)
 //	}
 //
 //	func (p *Products) save(ctx context.Context) error {
@@ -40,6 +39,33 @@ import (
 // handler takes the checked T as a parameter, and on success the form is
 // emptied again unless <ui.Form keep>. T's Clean, Clean<Field> and
 // <Field>Choices methods are the form's, as a ModelForm's are.
+//
+// A struct embedding a FormFor is a form type: a form of T with methods
+// of its own. Clean, Clean<Field> and <Field>Choices declared on it are the
+// form's, as T's are (dependencies injected; one T declares too is an
+// error: keep one). Its Init(ctx, deps…) error runs when the form is
+// created — as the page holding it is, before the page's Mount, which may
+// change what it set — and on every Load, after the record is copied in;
+// the page never calls it. The fields it declares itself are not the
+// form's.
+//
+//	type ProductForm struct {
+//		ui.FormFor[Product]
+//	}
+//
+//	func (f *ProductForm) Init(ctx context.Context) error {
+//		if f.IsNew() {
+//			f.Value.Stock = 1
+//		}
+//		return nil
+//	}
+//
+//	func (f *ProductForm) Clean(ctx context.Context) error {
+//		if f.Value.Sale > f.Value.Price {
+//			return ui.FieldError(Product.Sale, "Sale price must be below the price.")
+//		}
+//		return nil
+//	}
 type FormFor[T any] struct {
 	FormState
 	// Value is the form's values.
@@ -66,36 +92,64 @@ var formForType = reflect.TypeFor[interface{ formFor() }]()
 // Load makes v the record the form edits: its values the form's, and the
 // ones Dirty and Changed compare with. A model's row read from the
 // database is saved by an update of the form's fields; a new one, T{}, by
-// an insert.
-func (f *FormFor[T]) Load(v T) {
-	rv := reflect.ValueOf(f)
-	st := attachForm(rv)
+// an insert. A form type's Init hook runs then, with ctx, as it did when
+// the form was created, and Load returns its error.
+func (f *FormFor[T]) Load(ctx context.Context, v T) error {
+	st, form := f.attached()
+	if st.ft.err != nil {
+		return st.ft.err
+	}
 	rec := reflect.New(reflect.TypeFor[T]())
 	rec.Elem().Set(reflect.ValueOf(v))
 	f.Value = v
 	st.record = rec
-	st.load(rv.Elem(), rec)
+	st.load(form, rec)
+	if st.ft.init != nil {
+		if err := callForm(ctx, st.ft.init, form.Addr()); err != nil {
+			return err
+		}
+		st.base = cloneValue(form) // what Init set is the record's, not a change
+	}
+	return nil
+}
+
+// attached is f's state and the form it is: f, or the form type f is
+// embedded in, once it was attached as that type (Attach, or its page).
+func (f *FormFor[T]) attached() (*formState, reflect.Value) {
+	ptr := ownerForm(reflect.ValueOf(f))
+	return attachForm(ptr), ptr.Elem()
+}
+
+// Attach makes form, a pointer to a struct embedding a FormFor (a form
+// type), the form its FormFor's methods are of, and returns it: Load and
+// Save then run the type's Init and Clean methods. A page attaches its
+// forms as it is created, and the compiler writes Attach at each Load and
+// Save of a form type in a .vuka file; Go code using a form type no page
+// holds calls it: ui.Attach(&f).Load(ctx, row).
+func Attach[F any](form *F) *F {
+	if form != nil && isForm(reflect.TypeFor[F]()) {
+		attachForm(reflect.ValueOf(form))
+	}
+	return form
 }
 
 // IsNew reports whether the record the form edits is new: none was loaded,
 // or its primary key is unset.
 func (f *FormFor[T]) IsNew() bool {
-	rv := reflect.ValueOf(f)
-	return attachForm(rv).isNew()
+	st, _ := f.attached()
+	return st.isNew()
 }
 
 // Save saves the record the form edits, a model's row: T has Save and
 // SaveFields methods, as every orm model does (the compiler reports a
-// FormFor whose T hasn't). It runs the form's checks when no submit did,
-// inserts a new record, the form's value, or copies the form's fields onto
+// FormFor whose T hasn't). It runs the form's checks when no submit did —
+// the field rules and the Clean methods, T's and a form type's — inserts a new record, the form's value, or copies the form's fields onto
 // a loaded one and updates only those — a change made meanwhile to another
 // column stays — then reads the row again, so a new one has its key and
 // what the database computed, and the form is clean. A check that fails
 // shows at its field, and Save returns ErrFormInvalid.
 func (f *FormFor[T]) Save(ctx context.Context) error {
-	rv := reflect.ValueOf(f)
-	st := attachForm(rv)
-	form := rv.Elem()
+	st, form := f.attached()
 	if !st.submitting {
 		if err := st.check(ctx, form, false); err != nil {
 			return err

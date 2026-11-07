@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/vuka-lang/ui/v2/forms"
 )
@@ -86,6 +87,7 @@ func attachForm(ptr reflect.Value) *formState {
 	for ptr.Kind() == reflect.Pointer && ptr.Elem().Kind() == reflect.Pointer {
 		ptr = ptr.Elem()
 	}
+	ptr = ownerForm(ptr)
 	v := ptr.Elem()
 	var ft *formType
 	if ptr.Type().Implements(modelFormType) {
@@ -104,6 +106,10 @@ func attachForm(ptr reflect.Value) *formState {
 	}
 	st := fs.st
 	if st.ft != nil && st.ft != ft && ft.typed {
+		if st.ft.t != ft.t {
+			// a FormFor loaded before the page had it, in its form type
+			st.base = cloneValue(v)
+		}
 		st.ft = ft // a FormFor's fields, named since it was attached
 	}
 	if st.ft == nil {
@@ -117,6 +123,26 @@ func attachForm(ptr reflect.Value) *formState {
 		}
 	}
 	return st
+}
+
+// ownerForm is the form type ptr's FormFor is embedded in, once its state
+// knows it (it was attached as that type); else ptr. As FormState's
+// methods do, it takes the FormFor to be where its form put it.
+func ownerForm(ptr reflect.Value) reflect.Value {
+	t := ptr.Type().Elem()
+	if t.Kind() != reflect.Struct || !ptr.Type().Implements(formForType) {
+		return ptr
+	}
+	sf, ok := t.FieldByName("FormState")
+	if !ok || len(sf.Index) != 1 {
+		return ptr
+	}
+	fs := (*FormState)(ptr.Elem().Field(sf.Index[0]).Addr().UnsafePointer())
+	st := fs.st
+	if st == nil || st.ft == nil || st.ft.forType != t {
+		return ptr // not attached as a form type
+	}
+	return reflect.NewAt(st.ft.t, unsafe.Add(ptr.UnsafePointer(), -int(st.ft.forAt)))
 }
 
 // formOfPointer is the form a FormState method's receiver belongs to: its

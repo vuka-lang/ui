@@ -57,10 +57,17 @@ func MountPage(ctx context.Context, p any) error {
 	if err := initStreams(reflect.ValueOf(p)); err != nil {
 		return err
 	}
+	inited, err := initForms(ctx, reflect.ValueOf(p))
+	if err != nil {
+		return err
+	}
 	if hasMount(t) {
 		if err := liveHooks(reflect.ValueOf(p)).mount(ctx); err != nil {
 			return err
 		}
+	}
+	for _, f := range inited {
+		f.mounted()
 	}
 	attachForms(reflect.ValueOf(p))
 	return nil

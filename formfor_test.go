@@ -211,12 +211,12 @@ type productsPage struct {
 	Form ui.FormFor[product]
 }
 
-func (p *productsPage) Add(context.Context) error { p.Form.Load(product{}); return nil }
+func (p *productsPage) Add(ctx context.Context) error { return p.Form.Load(ctx, product{}) }
 
 func (p *productsPage) Edit(ctx context.Context, id int64) error {
 	for _, q := range *products {
 		if q.ID == id {
-			p.Form.Load(q)
+			return p.Form.Load(ctx, q)
 		}
 	}
 	return nil
@@ -244,7 +244,7 @@ func (p *productsPage) Render() ui.Node {
 func TestFormForModel(t *testing.T) {
 	products, saves = &[]product{{ID: 1, Name: "Kettle", Price: 30, Status: "live", Stock: 5}}, nil
 	page := &productsPage{}
-	page.Form.Load(product{})
+	page.Form.Load(context.Background(), product{})
 	s := live.NewSession(context.Background(), func(context.Context) ui.Node {
 		return &ui.ComponentNode{Site: "products", Props: page, Routed: true}
 	})
@@ -302,7 +302,7 @@ func TestFormForFixed(t *testing.T) {
 	if err := plain.Save(context.Background()); !errors.Is(err, ui.ErrFormInvalid) {
 		t.Errorf("saving a form that fails its checks: %v", err)
 	}
-	plain.Load(registration{Email: "ada@example.com", Password: "a long password", Plan: "free", Terms: true, Seats: 1})
+	plain.Load(context.Background(), registration{Email: "ada@example.com", Password: "a long password", Plan: "free", Terms: true, Seats: 1})
 	if err := plain.Save(context.Background()); err == nil || !strings.Contains(err.Error(), "has no Save and SaveFields methods") {
 		t.Errorf("saving a form whose T has no Save: %v", err)
 	}
