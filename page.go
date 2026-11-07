@@ -42,6 +42,20 @@ func RenderPage(ctx context.Context, n Node, w io.Writer) (info PageInfo, err er
 type pageProbe struct {
 	info   PageInfo
 	states map[string]int
+	forms  map[string]uintptr // the forms it met, by identity (ClaimForm)
+}
+
+// ClaimForm notes a form the page shows, reporting false when another form
+// of the page has its identity.
+func (p *pageProbe) ClaimForm(identity string, form uintptr) bool {
+	if p.forms == nil {
+		p.forms = map[string]uintptr{}
+	}
+	if at, ok := p.forms[identity]; ok && at != form {
+		return false
+	}
+	p.forms[identity] = form
+	return true
 }
 
 // StateKey names a state as a live session names those of its page (c0),

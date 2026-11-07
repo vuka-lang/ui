@@ -6,7 +6,13 @@ import (
 )
 
 // Option is one choice of a Select.
-type Option struct{ Value, Label string }
+type Option struct {
+	Value, Label string
+	// Group puts the option under an <optgroup> of that label in a
+	// <select model={…}> showing a field's choices: consecutive options of
+	// one Group share it.
+	Group string
+}
 
 // FieldProps is Field, by its former name.
 //

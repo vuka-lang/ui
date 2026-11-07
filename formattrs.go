@@ -39,7 +39,7 @@ func constraintAttrs(f *formField, typ string) []Attr {
 			case "max":
 				out = append(out, Attr{"maxlength", r.param})
 			}
-		case typ == "number" && (isInt(base) || isFloat(base)):
+		case (typ == "number" || typ == "range") && (isInt(base) || isFloat(base)):
 			switch r.name {
 			case "min", "max":
 				out = append(out, Attr{r.name, r.param})

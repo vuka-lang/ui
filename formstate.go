@@ -35,6 +35,8 @@ type FormState struct{ st *formState }
 type formState struct {
 	ft *formType
 
+	elemID string // the id written on its <form>, when one is: form={Form} names it
+
 	errs   []forms.Error            // the rules' and parse errors of the last check, in field order
 	pinned map[string]*pinnedErrors // Clean<Field>, Clean and SetError errors, by path ("" for the form's)
 	failed []forms.Error            // Fail's, and a Save error's: the form's, until the next submit

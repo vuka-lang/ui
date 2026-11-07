@@ -19,7 +19,12 @@ import (
 
 // forView is a Form with For set: a struct form, bound, checked and
 // submitted by the form itself (see FormState).
-func (f Form) forView() Node {
+func (f Form) forView() Node { return f.formView(false) }
+
+// formView is the form a <form for={Form}> (FormElement, plain: its class
+// the page's) or a <ui.Form for={Form}> (its class vk-form and the page's)
+// renders.
+func (f Form) formView(plain bool) Node {
 	return Ctx(func(ctx context.Context) Node {
 		ref, _ := refOf(f.For)
 		b, err := ref.resolve()
@@ -51,6 +56,7 @@ func (f Form) forView() Node {
 			}
 		}
 		st.key = keyString(f.Key)
+		st.elemID = f.ID
 		row := inStreamRow(ctx)
 		if row != nil {
 			// a stream row's: its submit a Push of the owner's method, its
@@ -69,6 +75,9 @@ func (f Form) forView() Node {
 		}
 		ctl := &formCtl{form: b.form, st: st, onSubmit: f.OnSubmit, onChange: f.OnChange, validate: f.Validate, keep: f.Keep}
 		identity := st.identity()
+		if c, ok := liveHost(ctx).(FormClaimer); ok && row == nil && !c.ClaimForm(identity, b.form.Pointer()) {
+			return Try(nil, fmt.Errorf("ui: two forms of %s on one page share the id %q: give each a key={…} (a row's id) to tell them apart", b.form.Elem().Type().Name(), identity))
+		}
 		if reg, ok := liveHost(ctx).(FormRegistrar); ok && row == nil {
 			reg.Form(identity, ctl.submit)
 		}
@@ -77,8 +86,12 @@ func (f Form) forView() Node {
 		// HTTP: the runtime posts it to the page, which answers with its
 		// errors (FormReport) or where to go. The form makes the page live
 		// no more than a link does.
+		class := withClass("vk-form", f.Class)
+		if plain {
+			class = f.Class
+		}
 		attrs := []Attr{
-			{"class", withClass("vk-form", f.Class)},
+			{"class", nonEmpty(class)},
 			{"method", "post"},
 			{"action", nonEmpty(f.Action)},
 			{"id", cmpOr(f.ID, identity)},
