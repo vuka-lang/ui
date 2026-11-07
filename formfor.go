@@ -123,9 +123,9 @@ func (f *FormFor[T]) attached() (*formState, reflect.Value) {
 // Attach makes form, a pointer to a struct embedding a FormFor (a form
 // type), the form its FormFor's methods are of, and returns it: Load and
 // Save then run the type's Init and Clean hooks. A page attaches its
-// forms once Mount returned, and the compiler writes Attach at each Load
-// and Save of a form type in a .vuka file; Go code loading one before its
-// page has it calls it: ui.Attach(&p.Form).Load(ctx, row).
+// forms as it is created, and the compiler writes Attach at each Load and
+// Save of a form type in a .vuka file; Go code using a form type no page
+// holds calls it: ui.Attach(&f).Load(ctx, row).
 func Attach[F any](form *F) *F {
 	if form != nil && isForm(reflect.TypeFor[F]()) {
 		attachForm(reflect.ValueOf(form))
