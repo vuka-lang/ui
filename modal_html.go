@@ -22,7 +22,11 @@ import (
 // Opening traps focus (PushFocus then FocusFirst); closing restores it
 // (PopFocus). Escape and a backdrop click close a dismissible modal.
 //
-//line modal.vuka.html:17
+// It renders in a Teleport: the runtime moves it to the end of <body>, so
+// an ancestor with a mask-image, transform or filter can't clip its
+// backdrop.
+//
+//line modal.vuka.html:21
 type Modal struct {
 	// Ref names the modal's root for the open/close commands (OpenModal,
 	// CloseModal) and for a server variant's Show/Hide. It must be unique on
@@ -104,28 +108,31 @@ func (m Modal) escape() any {
 	return esc
 }
 
+// teleportID keys the Teleport the modal renders in.
+func (m Modal) teleportID() string { return "vk-modal-" + m.ref() }
+
 // closeIcon is the close button's icon; the Icon field shadows the func in
 // the markup.
 func (m Modal) closeIcon() Node { return Icon("x") }
 
-//line modal.vuka.html:103
+//line modal.vuka.html:110
 func (m Modal) View() Node {
 	var div Node
-//line modal.vuka.html:106
+//line modal.vuka.html:114
 	if m.Icon != nil || m.Title != nil || m.Subtitle != "" || !m.Closed {
 		var span2 Node
 		if m.Icon != nil {
 			span2 = HTML(`<span class="vk-modal__icon">{m.Icon}</span>`, m.Icon)
 		}
 		var div2 Node
-//line modal.vuka.html:111
+//line modal.vuka.html:119
 		if m.Title != nil || m.Subtitle != "" {
 			var h2 Node
 			if m.Title != nil {
 				h2 = HTML(`<h2 class="vk-modal__title">{m.Title}</h2>`, m.Title)
 			}
 			var p2 Node
-//line modal.vuka.html:116
+//line modal.vuka.html:124
 			if m.Subtitle != "" {
 				p2 = HTML(`<p class="vk-modal__subtitle">{m.Subtitle}</p>`, m.Subtitle)
 			}
@@ -136,7 +143,7 @@ func (m Modal) View() Node {
 </div>`, h2, p2)
 		}
 		var button Node
-//line modal.vuka.html:121
+//line modal.vuka.html:129
 		if !m.Closed {
 			button = HTML(`<button type="button" class="vk-modal__close" aria-label="Close" onClick={m.close()}>{m.closeIcon()}</button>`, m.close(), m.closeIcon())
 		}
@@ -148,12 +155,12 @@ func (m Modal) View() Node {
 </div>`, span2, div2, button)
 	}
 	var div3 Node
-//line modal.vuka.html:127
+//line modal.vuka.html:135
 	if m.Footer != nil {
 		div3 = HTML(`<div class="vk-modal__footer">{m.Footer}</div>`, m.Footer)
 	}
-//line modal.vuka.html:103
-	return HTML(`
+//line modal.vuka.html:110
+	return Teleport{ID: m.teleportID(), Children: HTML(`
 <div ref={m.ref()} class="vk-modal-root" style={m.hidden()}>
   <div class="vk-modal-backdrop" {on("onClick", m.dismiss())...}/>
   <div class={m.classes()} role="dialog" aria-modal="true" tabindex="-1" {on("onKeyDown", m.escape())...}>
@@ -170,8 +177,8 @@ func (m Modal) View() Node {
 		div,
 		m.Children,
 		div3,
-	)
+	)}
 }
 
-//line modal.vuka.html:131
+//line modal.vuka.html:140
 func (m Modal) Render(ctx context.Context, w io.Writer) error { return m.View().Render(ctx, w) }
