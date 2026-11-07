@@ -41,8 +41,10 @@ import (
 // <Field>Choices methods are the form's, as a ModelForm's are.
 //
 // A struct embedding a FormFor is a form type: a form of T with code of
-// its own. Its Init hook runs in Load, after the record is copied in; its
-// Clean hook once every other check passed, before a submit's handler or
+// its own. Its Init hook runs when the form is created — as the page
+// holding it is, before the page's Mount, which may change what it set —
+// and on every Load, after the record is copied in; the page never calls
+// it. Its Clean hook once every other check passed, before a submit's handler or
 // Save's write — a FieldError shows under its field, any other error as
 // the form's, and either stops the save. The fields it declares itself
 // are not the form's.
@@ -90,8 +92,8 @@ var formForType = reflect.TypeFor[interface{ formFor() }]()
 // Load makes v the record the form edits: its values the form's, and the
 // ones Dirty and Changed compare with. A model's row read from the
 // database is saved by an update of the form's fields; a new one, T{}, by
-// an insert. A form type's Init hook runs then, with ctx, and Load returns
-// its error.
+// an insert. A form type's Init hook runs then, with ctx, as it did when
+// the form was created, and Load returns its error.
 func (f *FormFor[T]) Load(ctx context.Context, v T) error {
 	st, form := f.attached()
 	if st.ft.err != nil {

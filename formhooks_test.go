@@ -78,12 +78,6 @@ func TestFormForHooks(t *testing.T) {
 	products, saves, inits = &[]product{{ID: 1, Name: "Kettle", Price: 30, Status: "live", Stock: 5}}, nil, 0
 	ctx := context.Background()
 	page := &hookedPage{}
-	if err := ui.Attach(&page.Form).Load(ctx, product{}); err != nil {
-		t.Fatal(err)
-	}
-	if inits != 1 || page.Form.Value.Price != 10 || page.Form.Dirty() {
-		t.Fatalf("Init: %d runs, value %+v, dirty %v", inits, page.Form.Value, page.Form.Dirty())
-	}
 	s := live.NewSession(ctx, func(context.Context) ui.Node {
 		return &ui.ComponentNode{Site: "products", Props: page, Routed: true}
 	})
@@ -92,7 +86,8 @@ func TestFormForHooks(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := c.HTML()
-	if !strings.Contains(html, `name="price" id="product-price" type="text" value="10"`) || strings.Contains(html, `name="mode"`) {
+	// a new form, no Load: Init ran as the page was created
+	if inits != 1 || !strings.Contains(html, `name="price" id="product-price" type="text" value="10"`) || strings.Contains(html, `name="mode"`) {
 		t.Fatalf("a form type's form:\n%s", html)
 	}
 	send(t, c, submitTarget, "submit", formValues(html, map[string]string{"name": "Desk lamp", "price": "", "status": "live", "notes": ""}))
@@ -111,8 +106,8 @@ func TestFormForHooks(t *testing.T) {
 	if !slices.Equal(saves, []string{"insert"}) || strings.Contains(c.HTML(), "The catalog is closed") {
 		t.Fatalf("saves %v\n%s", saves, c.HTML())
 	}
-	if inits != 1 || page.Form.IsNew() {
-		t.Errorf("after the save: %d Init runs, new %v", inits, page.Form.IsNew())
+	if inits != 1 {
+		t.Errorf("after the save: %d Init runs", inits)
 	}
 
 	// loaded after its page attached it, a form type runs Init without Attach
@@ -128,6 +123,44 @@ func TestFormForHooks(t *testing.T) {
 	}
 	if !errors.Is(closedSave, ui.ErrFormInvalid) || !slices.Equal(saves, []string{"insert"}) || !strings.Contains(c.HTML(), "The catalog is closed") {
 		t.Errorf("Save with Clean failing: %v, saves %v\n%s", closedSave, saves, c.HTML())
+	}
+}
+
+// mountedPage's Mount changes what its form's Init set.
+type mountedPage struct {
+	ui.Live
+	Form productForm
+}
+
+func (p *mountedPage) LiveSchema(l *ui.LiveSchema)     { l.Mount(p.Mount) }
+func (p *mountedPage) Mount(ctx context.Context) error { p.Form.Value.Price = 20; return nil }
+func (p *mountedPage) Render() ui.Node                 { return nil }
+
+type failingPage struct {
+	ui.Live
+	Form failingInit
+}
+
+func (p *failingPage) Render() ui.Node { return nil }
+
+// TestFormForInitMount: a page's new form runs Init before the page's
+// Mount, which may change what it set, and stays clean; Init's error fails
+// the mount; a form Load gives a new record runs it again.
+func TestFormForInitMount(t *testing.T) {
+	ctx := context.Background()
+	inits = 0
+	p := &mountedPage{}
+	if err := ui.MountLive(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	if inits != 1 || p.Form.Value.Price != 20 || p.Form.Value.Status != "draft" || p.Form.Dirty() {
+		t.Errorf("Init then Mount: %d runs, %+v, dirty %v", inits, p.Form.Value, p.Form.Dirty())
+	}
+	if err := p.Form.Load(ctx, product{}); err != nil || inits != 2 || p.Form.Value.Price != 10 {
+		t.Errorf("Load: %v, %d runs, %+v", err, inits, p.Form.Value)
+	}
+	if err := ui.MountLive(ctx, &failingPage{}); err == nil || !strings.Contains(err.Error(), "no catalog") {
+		t.Errorf("Init's error at mount: %v", err)
 	}
 }
 
