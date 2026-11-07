@@ -23,7 +23,7 @@ const (
 	FormIdemField   = "_vk_idem"   // the submit's idempotency key
 	FormCSRFField   = "_vk_csrf"   // the CSRF token
 	FormSeqField    = "_vk_seq"    // the runtime's sequence number of a change
-	FormIntentField = "_vk_intent" // a submit button's intent: "update" renders the form again, Save not called
+	FormIntentField = "_vk_intent" // a submit button's intent: "update" renders the form again, Save not called; "reset" (a reset button, sent by the runtime) puts its loaded values back
 	FormCheckField  = "_vk_check"  // a check sent over HTTP: "1" runs the checks only, "submitted" as after a failed submit
 )
 

@@ -324,6 +324,7 @@ type formCtl struct {
 	st       *formState
 	onSubmit any // the page's handler, run once the form passes its checks
 	onChange any
+	onReset  any    // a handler run after a reset (a ui.JS chain is the browser's)
 	validate string // "", "submit" or "off"
 	keep     bool   // a FormFor keeps its values after a successful submit
 }
@@ -400,6 +401,11 @@ func (c *formCtl) submit(ctx context.Context, ev Event) error {
 			}
 		}
 		return ErrFormChecked
+	}
+	if ev.Form.Get(FormIntentField) == "reset" {
+		// a <button type="reset"> (live.js sends the reset as a submit
+		// with this intent): the loaded values back, nothing saved
+		return c.reset(ctx, ev)
 	}
 	if ev.Form.Get(FormIntentField) == "update" {
 		// the no-script Update button: the form takes its values, its
@@ -506,6 +512,18 @@ func (st *formState) takeError(form reflect.Value, herr error) bool {
 func (c *formCtl) init(ctx context.Context) error {
 	if err := c.st.runInit(ctx, c.form.Elem()); err != nil {
 		return fmt.Errorf("%s.Init: %w", c.form.Elem().Type().Name(), err)
+	}
+	return nil
+}
+
+// reset answers the form's reset (a <button type="reset">, sent as a
+// submit with the intent "reset"): the form's
+// values go back to the ones it was loaded with and its errors are
+// cleared, as FormState.Reset does, then the page's OnReset handler runs.
+func (c *formCtl) reset(ctx context.Context, ev Event) error {
+	c.form.Elem().FieldByIndex(c.st.ft.state).Addr().Interface().(*FormState).Reset()
+	if c.onReset != nil {
+		return CallHandler(ctx, c.onReset, c.payload(ev))
 	}
 	return nil
 }

@@ -160,3 +160,43 @@ func TestFieldsetAttrs(t *testing.T) {
 		}
 	}
 }
+
+type resetPage struct {
+	ui.Live
+	Form   ui.FormFor[stockItem]
+	resets int
+}
+
+func (p *resetPage) Reset(ctx context.Context) error { p.resets++; return nil }
+
+func (p *resetPage) Render() ui.Node {
+	return ui.FormElement{For: ui.For(&p.Form, p), OnReset: p.Reset, OnSuccess: ui.JS.Hide(ui.Sel("#dialog")), OnError: ui.JS.Show(ui.Sel("#help")),
+		Bound: []string{"Name"}, Children: ui.HTML(`<input {a...}/>`, ui.Model(ui.ModelSpec{Tag: "input"}, &p.Form.Value.Name, &p.Form, p))}
+}
+
+// TestFormElementEvents: a form's OnSuccess and OnError chains are its
+// element's, for the browser to run after a submit's reply; a reset (sent
+// as a submit with the "reset" intent) puts the loaded values back and
+// runs OnReset.
+func TestFormElementEvents(t *testing.T) {
+	p := &resetPage{}
+	p.Form.Load(context.Background(), stockItem{Name: "Tea", Category: "tea", Rating: 3})
+	s := live.NewSession(context.Background(), func(context.Context) ui.Node {
+		return &ui.ComponentNode{Site: "reset", Props: p, Routed: true}
+	})
+	c, err := livetest.Join(s, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := c.HTML()
+	for _, want := range []string{`data-vk-js-vksuccess=`, `data-vk-js-vkerror=`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing %s in %s", want, html)
+		}
+	}
+	p.Form.Value.Name = "Coffee"
+	send(t, c, submitTarget, "submit", formValues(html, map[string]string{"name": "Cake", ui.FormIntentField: "reset"}))
+	if p.Form.Value.Name != "Tea" || p.resets != 1 {
+		t.Errorf("after a reset: name %q, %d OnReset calls", p.Form.Value.Name, p.resets)
+	}
+}

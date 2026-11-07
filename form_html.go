@@ -89,6 +89,19 @@ type Form struct {
 	// OnChange runs as fields change (oninput), for live validation; leave it
 	// nil for none.
 	OnChange any
+	// OnSuccess, OnError and OnInvalid are ui.JS chains the browser runs
+	// after a submit: once its reply is in place without errors, once its
+	// reply shows errors (a field's or the summary), and when the
+	// browser's own checks (Config.BrowserChecks) stop it before it is
+	// sent.
+	OnSuccess any
+	OnError   any
+	OnInvalid any
+	// OnReset runs when the form is reset (a <button type="reset">): the
+	// form's values go back to the ones it was loaded with on the server,
+	// its errors cleared, then a method runs as a handler, or a ui.JS
+	// chain in the browser.
+	OnReset any
 	// Method and Action are the plain-HTML fallback for a form that posts
 	// without a live connection; Method defaults to "post".
 	Method string
@@ -114,10 +127,10 @@ func (f Form) method() string {
 	return f.Method
 }
 
-//line form.vuka.html:109
+//line form.vuka.html:122
 func (f Form) View() Node {
 	var forView2 Node
-//line form.vuka.html:110
+//line form.vuka.html:123
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
@@ -143,9 +156,9 @@ func (f Form) View() Node {
 			f.Children,
 		)
 	}
-//line form.vuka.html:109
+//line form.vuka.html:122
 	return forView2
 }
 
-//line form.vuka.html:121
+//line form.vuka.html:134
 func (f Form) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }
