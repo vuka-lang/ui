@@ -443,6 +443,9 @@ func (t *tmpl) check(s *tslot, i int, v any) (any, bool, error) {
 			cp.site = t.sites[i]
 			return &cp, true, nil
 		case Node:
+			if n, ok := asWidget(v); ok {
+				return n, true, nil
+			}
 			return v, false, nil
 		case []Node:
 			if len(x) == 0 {

@@ -201,7 +201,7 @@ func (f Form) formView(plain bool) Node {
 		}, body))
 		kids = append(kids, El("input", []Attr{{"type", "hidden"}, {"name", FormFieldsField}, {"value", lazyValue{func(ctx context.Context) any {
 			st.rendered, st.summary, st.inRender = st.rendering, st.summaryNow, false
-			st.memo = nil
+			st.memo, st.results = nil, nil
 			if r, ok := formHostOf(ctx).(FormReporter); ok {
 				r.FormReport(ctx, st.report(ctx))
 			}
@@ -400,6 +400,9 @@ func (b boundField) group(ctx context.Context, opts Field) Node {
 		input = "checkbox"
 	case opts.Type != "":
 		input = opts.Type
+	}
+	if w, ok := f.widgetFor(); ok && opts.kind == kindInput && opts.Type == "" && len(opts.Options) == 0 {
+		return b.widgetGroup(ctx, opts, w)
 	}
 	if (input == "radio" || input == "checkboxes") && (f.hasChoices() || len(opts.Options) > 0) {
 		return b.choiceGroup(ctx, opts, input)

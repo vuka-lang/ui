@@ -175,7 +175,7 @@ func (st *formState) dirty(form reflect.Value) bool {
 // clear drops what the form knows of the visitor's use of it: errors, the
 // used fields, the submitted state.
 func (st *formState) clear() {
-	st.errs, st.pinned, st.failed, st.raw, st.parsed = nil, nil, nil, nil, nil
+	st.errs, st.pinned, st.failed, st.raw, st.parsed, st.parts = nil, nil, nil, nil, nil, nil
 	st.used, st.shown, st.vis = nil, nil, nil
 	st.submitted = false
 }

@@ -62,6 +62,11 @@ func tr(ctx context.Context, text string) string {
 	return forms.Translate(messageCtx(ctx), text)
 }
 
+// Tr is text in the visitor's language, as a form's own words are: a
+// label, or one of the form components' keys ("form.choose",
+// "form.optional"). A widget writes its words with it.
+func Tr(ctx context.Context, text string) string { return tr(ctx, text) }
+
 var (
 	configMu  sync.RWMutex
 	appConfig Config
@@ -333,7 +338,11 @@ type formCtl struct {
 func (st *formState) usedFrom(vals url.Values) {
 	for _, list := range vals[FormUsedField] {
 		for _, p := range strings.Split(list, ",") {
-			if p = strings.TrimSpace(p); p != "" && st.ft.byPath[p] != nil {
+			p = strings.TrimSpace(p)
+			if path, _, ok := strings.Cut(p, partSep); ok {
+				p = path // a part of a widget of several inputs: its field
+			}
+			if p != "" && st.ft.byPath[p] != nil {
 				if st.used == nil {
 					st.used = map[string]bool{}
 				}

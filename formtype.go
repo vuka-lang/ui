@@ -37,6 +37,7 @@ type formType struct {
 	init    *reflect.Method            // the form type's Init(ctx, deps…) error: run as the form is created, and by Load
 	own     map[*reflect.Method]bool   // the methods declared by the form type, called on it rather than on T
 	meta    map[string][]any           // a form type's: the attributes of its ui.Meta members, by the name of T's field each describes
+	parts   sync.Map                   // path → *widgetInfo: the fields a widget of several inputs (Format, Parse) rendered
 	err     error
 }
 
@@ -73,6 +74,8 @@ type formField struct {
 	key                      bool              // the record's primary key
 	disabled, readOnly       bool              // shown but never set by a submit (ui.Spec)
 	dflt                     reflect.Value     // a new record's starting value (a column's default); invalid for none
+	widget                   reflect.Value     // its widget, @ui.Spec{Widget: …}'s; invalid for none
+	related                  bool              // an orm.FK: its choices are its model's rows
 }
 
 var (
@@ -447,8 +450,11 @@ func (f *formField) control(sf reflect.StructField) {
 	input := cmpOr(sf.Tag.Get("input"), f.inputTag)
 	f.inputTag = input
 	base := valueType(f.typ)
+	f.related = base.Implements(relatedType)
 	if input == "" {
 		switch {
+		case f.related:
+			input = "select"
 		case base == timeType:
 			input = "date"
 		case base.Kind() == reflect.Bool:
@@ -506,7 +512,7 @@ func (f *formField) required() bool { return f.hasRule("required") || f.needsInp
 
 // hasChoices reports whether the field's value is one of choices: its
 // <Field>Choices method's, or its attributes'.
-func (f *formField) hasChoices() bool { return f.choices != nil || f.options != nil }
+func (f *formField) hasChoices() bool { return f.choices != nil || f.options != nil || f.related }
 
 // htmlType is the type attribute an <input> for the field has.
 func (f *formField) htmlType() string {

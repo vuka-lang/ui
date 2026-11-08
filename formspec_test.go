@@ -214,10 +214,10 @@ func init() {
 	vuka.RegisterFields[looseWidget](map[string][]any{"Name": {ui.Spec{Widget: widgetValue{4}}}})
 }
 
-// TestFormSpecWidget: Widget takes a control's name today; another value
-// is the form's error, not ignored.
+// TestFormSpecWidget: Widget takes a widget or a control's name; another
+// value is the form's error, not ignored.
 func TestFormSpecWidget(t *testing.T) {
-	if err := ui.Attach(&looseWidget{}).Load(context.Background(), loose{}); err == nil || !strings.Contains(err.Error(), "Widget is a control's name") {
+	if err := ui.Attach(&looseWidget{}).Load(context.Background(), loose{}); err == nil || !strings.Contains(err.Error(), "Widget is a widget (widget.Textarea{Rows: 4}) or a control's name") {
 		t.Errorf("a widget value: %v", err)
 	}
 }
