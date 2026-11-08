@@ -43,7 +43,6 @@ package widget
 
 import (
 	"context"
-	"io"
 	"reflect"
 	"strconv"
 
@@ -86,12 +85,16 @@ type Choice[T any] struct {
 //	widget.Use[orm.FK[Product]](widget.RelatedSearch{Limit: 20})
 func Use[T any](w any) { ui.UseWidget(reflect.TypeFor[T](), w) }
 
-// render fills w from its field, then renders what view makes of it.
-func render[W any](ctx context.Context, out io.Writer, w *W, view func(context.Context) ui.Node) error {
-	if err := ui.FillWidget(ctx, w); err != nil {
-		return ui.Try(nil, err).Render(ctx, out)
-	}
-	return view(ctx).Render(ctx, out)
+// view is w's markup: w filled from its field as it renders, then what
+// build makes of it. A widget is a component as a .vuka.html file's is:
+// its View the markup, its Render the View's.
+func view[W any](w W, build func(w W, ctx context.Context) ui.Node) ui.Node {
+	return ui.Ctx(func(ctx context.Context) ui.Node {
+		if err := ui.FillWidget(ctx, &w); err != nil {
+			return ui.Try(nil, err)
+		}
+		return build(w, ctx)
+	})
 }
 
 // control is a control's attributes: its class (marked when the field

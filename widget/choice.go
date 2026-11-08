@@ -39,14 +39,16 @@ type Checkboxes struct {
 	Class   string
 }
 
-func (w Select) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(ctx context.Context) ui.Node {
+func (w Select) View() ui.Node {
+	return view(w, func(w Select, ctx context.Context) ui.Node {
 		return ui.El("select", w.control("select", "", cls("vk-select", w.Class)), options(ctx, w.Props, w.Choices, false)...)
 	})
 }
 
-func (w MultiSelect) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(ctx context.Context) ui.Node {
+func (w Select) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w MultiSelect) View() ui.Node {
+	return view(w, func(w MultiSelect, ctx context.Context) ui.Node {
 		extra := []ui.Attr{{Name: "multiple", Value: true}}
 		if w.Size > 0 {
 			extra = append(extra, ui.Attr{Name: "size", Value: w.Size})
@@ -55,15 +57,25 @@ func (w MultiSelect) Render(ctx context.Context, out io.Writer) error {
 	})
 }
 
-func (w Radios) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node { return items(w.Props, w.Choices, "radio") })
+func (w MultiSelect) Render(ctx context.Context, out io.Writer) error {
+	return w.View().Render(ctx, out)
 }
+
+func (w Radios) View() ui.Node {
+	return view(w, func(w Radios, _ context.Context) ui.Node { return items(w.Props, w.Choices, "radio") })
+}
+
+func (w Radios) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
 
 // FieldLayout: a field group shows the radios as a fieldset.
 func (Radios) FieldLayout() string { return "fieldset" }
 
+func (w Checkboxes) View() ui.Node {
+	return view(w, func(w Checkboxes, _ context.Context) ui.Node { return items(w.Props, w.Choices, "checkbox") })
+}
+
 func (w Checkboxes) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node { return items(w.Props, w.Choices, "checkbox") })
+	return w.View().Render(ctx, out)
 }
 
 // FieldLayout: a field group shows the checkboxes as a fieldset.
