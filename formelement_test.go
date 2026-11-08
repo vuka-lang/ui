@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -158,5 +159,49 @@ func TestFieldsetAttrs(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %s in %s", want, out)
 		}
+	}
+}
+
+type resetPage struct {
+	ui.Live
+	Form   ui.FormFor[stockItem]
+	resets *int
+}
+
+func (p *resetPage) Reset(ctx context.Context) error { *p.resets++; return nil }
+
+func (p *resetPage) Render() ui.Node {
+	return ui.FormElement{For: ui.For(&p.Form, p), OnReset: p.Reset, OnSuccess: ui.JS.Hide(ui.Sel("#dialog")), OnError: ui.JS.Show(ui.Sel("#help")),
+		Bound: []string{"Name"}, Children: ui.HTML(`<input {a...}/>`, ui.Model(ui.ModelSpec{Tag: "input"}, &p.Form.Value.Name, &p.Form, p))}
+}
+
+// TestFormElementEvents: a form's OnSuccess and OnError chains are its
+// element's, for the browser to run after a submit's reply; a reset (sent
+// as a submit with the "reset" intent) puts the loaded values back and
+// runs OnReset.
+func TestFormElementEvents(t *testing.T) {
+	resets := 0
+	p := &resetPage{resets: &resets}
+	p.Form.Load(context.Background(), stockItem{Name: "Tea", Category: "tea", Rating: 3})
+	s := live.NewSession(context.Background(), func(context.Context) ui.Node {
+		return &ui.ComponentNode{Site: "reset", Props: p, Routed: true}
+	})
+	c, err := livetest.Join(s, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := c.HTML()
+	for _, want := range []string{`data-vk-js-vksuccess=`, `data-vk-js-vkerror=`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("missing %s in %s", want, html)
+		}
+	}
+	send(t, c, regexp.MustCompile(`data-vk-on-input="([^"]+)"`), "input", formValues(html, map[string]string{"name": "Coffee"}))
+	if !strings.Contains(c.HTML(), `value="Coffee"`) {
+		t.Fatalf("the change didn't take:\n%s", c.HTML())
+	}
+	send(t, c, submitTarget, "submit", formValues(c.HTML(), map[string]string{"name": "Cake", ui.FormIntentField: "reset"}))
+	if html := c.HTML(); !strings.Contains(html, `value="Tea"`) || resets != 1 {
+		t.Errorf("after a reset, %d OnReset calls:\n%s", resets, html)
 	}
 }

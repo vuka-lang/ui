@@ -74,6 +74,10 @@ func (f Form) formView(plain bool) Node {
 			st.idem = newIdemKey()
 		}
 		ctl := &formCtl{form: b.form, st: st, onSubmit: f.OnSubmit, onChange: f.OnChange, validate: f.Validate, keep: f.Keep}
+		resetChain, isChain := f.OnReset.(JSChain)
+		if !isChain && f.OnReset != nil {
+			ctl.onReset = f.OnReset
+		}
 		identity := st.identity()
 		if c, ok := liveHost(ctx).(FormClaimer); ok && row == nil && !c.ClaimForm(identity, b.form.Pointer()) {
 			return Try(nil, fmt.Errorf("ui: two forms of %s on one page share the id %q: give each a key={…} (a row's id) to tell them apart", b.form.Elem().Type().Name(), identity))
@@ -113,6 +117,16 @@ func (f Form) formView(plain bool) Node {
 			}
 		default:
 			attrs = append(attrs, Attr{"onSubmit", On(ctl.submit)})
+		}
+		// what the browser runs after a submit's reply, or a reset's
+		// (live.js: vksuccess, vkerror, vkinvalid, vkreset)
+		for _, ev := range []struct {
+			name string
+			v    any
+		}{{"onVkSuccess", f.OnSuccess}, {"onVkError", f.OnError}, {"onVkInvalid", f.OnInvalid}, {"onVkReset", resetChain}} {
+			if ev.v != nil && (ev.name != "onVkReset" || isChain) {
+				attrs = append(attrs, Attr{ev.name, ev.v})
+			}
 		}
 		if configOf(ctx).BrowserChecks || overHTTP {
 			attrs = append(attrs, Attr{"data-vk-words", formWords(ctx)})
