@@ -76,6 +76,7 @@ type formState struct {
 	saved        bool                // a FormFor's Save ran in the submit under way
 	inited       bool                // a form type's Init ran for this instance of the form: since it was made, loaded, reset or emptied
 	defaulted    bool                // and the fields' defaults were set, a new record's
+	prefix       string              // a row's (ui.Rows): what its controls' names start with, "lines.r1."
 }
 
 // pinnedErrors are errors that stay until what they were about changes: the

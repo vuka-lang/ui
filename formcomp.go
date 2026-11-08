@@ -79,6 +79,7 @@ func (f Form) formView(plain bool) Node {
 		}
 		st.keepMessages(ctx)
 		st.beginRender()
+		st.eachRows(b.value(), func(_ rowField, rs rowSet) { rs.rowsBegin() })
 		if st.idem == "" {
 			st.idem = newIdemKey()
 		}
@@ -215,6 +216,7 @@ func (f Form) formView(plain bool) Node {
 		kids = append(kids, El("input", []Attr{{"type", "hidden"}, {"name", FormFieldsField}, {"value", lazyValue{func(ctx context.Context) any {
 			st.rendered, st.summary, st.inRender = st.rendering, st.summaryNow, false
 			st.memo, st.results = nil, nil
+			st.eachRows(b.value(), func(_ rowField, rs rowSet) { rs.rowsFinish() })
 			if r, ok := formHostOf(ctx).(FormReporter); ok {
 				r.FormReport(ctx, st.report(ctx))
 			}
@@ -654,7 +656,7 @@ func (b boundField) choiceGroup(ctx context.Context, opts Field, input string) N
 	}
 	return El("fieldset", []Attr{{"class", withClass(classes, opts.Class)}, {"data-invalid", shows},
 		{"aria-describedby", lazyValue{func(context.Context) any { return st.describedBy(f) }}},
-		{"data-vk-name", f.path}, {"data-vk-check", b.checkSpec(ctx, f.raw)}},
+		{"data-vk-name", st.prefix + f.path}, {"data-vk-check", b.checkSpec(ctx, f.raw)}},
 		El("legend", []Attr{{"class", "vk-fieldset__legend"}}, Text(tr(ctx, cmpOr(opts.Label, f.label))), b.marker(ctx)),
 		hint, errNode, El("div", []Attr{{"class", "vk-choices"}}, items...), b.update(ctx))
 }
@@ -716,7 +718,7 @@ func (c Choices) View() Node {
 		if b.f.input == "checkboxes" {
 			typ = "checkbox"
 		}
-		return El("div", []Attr{{"class", withClass("vk-choices", c.Class)}, {"data-vk-name", b.f.path}, {"data-vk-check", b.checkSpec(ctx, b.f.raw)}},
+		return El("div", []Attr{{"class", withClass("vk-choices", c.Class)}, {"data-vk-name", b.st.prefix + b.f.path}, {"data-vk-check", b.checkSpec(ctx, b.f.raw)}},
 			b.choiceItems(opts, typ, false)...)
 	})
 }
@@ -851,11 +853,14 @@ func (s Summary) Render(ctx context.Context, w io.Writer) error { return s.View(
 func summaryOf(ctx context.Context, b boundField, slot, title string, class ...string) Node {
 	st := b.st
 	errs := st.shownErrors()
-	if len(errs) == 0 || !st.submitted && len(st.failed) == 0 {
+	var rowItems []SummaryItem
+	st.eachRows(b.value(), func(_ rowField, rs rowSet) { rowItems = append(rowItems, rs.rowsSummary(ctx)...) })
+	if len(errs)+len(rowItems) == 0 || !st.submitted && len(st.failed) == 0 {
 		return El("div", []Attr{{"id", st.identity() + "-summary-" + cmpOr(slot, "at")}, {"hidden", true}})
 	}
 	var items []Node
 	sum := st.summaryOf(ctx, errs, title)
+	sum.Items = append(sum.Items, rowItems...)
 	for _, it := range sum.Items {
 		if it.Href == "" {
 			items = append(items, El("li", nil, Text(it.Text)))

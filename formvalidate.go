@@ -22,6 +22,11 @@ func (st *formState) check(ctx context.Context, form reflect.Value, live bool) e
 	}
 	st.keepMessages(ctx)
 	st.errs = st.errs[:0]
+	if bad, err := st.checkRows(ctx, form, live); err != nil {
+		return err
+	} else if bad {
+		st.errs = append(st.errs, forms.Error{Path: rowsFailed}) // shown at the rows' own fields
+	}
 	for _, f := range ft.fields {
 		if e, ok := st.parsed[f.path]; ok {
 			st.errs = append(st.errs, e)

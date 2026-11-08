@@ -203,7 +203,7 @@ func (b boundField) modelAttrs(spec ModelSpec) []Attr {
 	}
 	add("name", lazyValue{func(context.Context) any {
 		st.renderField(f.path, spec.Mods)
-		return f.path
+		return st.prefix + f.path
 	}})
 	add("id", lazyValue{func(context.Context) any { return st.controlID(f.path) }})
 	if tag == "input" {

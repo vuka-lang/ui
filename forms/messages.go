@@ -281,6 +281,8 @@ var defaults = map[string]string{
 	"validate.min.list":        "Select {n} or more {label}",
 	"validate.len.list":        "Select {n} {label}",
 	"validate.oneof":           "{Label} must be one of: {values}",
+	"validate.min.rows":        "{Label} must have at least {n}",
+	"validate.max.rows":        "{Label} can have at most {n}",
 	"validate.oneof.choice":    "Select {label}",
 	"validate.digits":          "{Label} must only include numbers",
 	"validate.file.max":        "{Label} must be smaller than {size}",

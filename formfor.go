@@ -111,6 +111,22 @@ func (f *FormFor[T]) Load(ctx context.Context, v T) error {
 	st.record = rec
 	st.load(form, rec)
 	st.inited, st.defaulted = false, false // a new instance of the form, which Init sees loaded
+	if len(st.ft.rows) > 0 {
+		var err error
+		key := st.rowsKey()
+		st.eachRows(form, func(_ rowField, rs rowSet) {
+			switch {
+			case err != nil:
+			case st.isNew():
+				rs.rowsClear()
+			default:
+				err = rs.rowsLoad(ctx, key)
+			}
+		})
+		if err != nil {
+			return err
+		}
+	}
 	return st.runInit(ctx, form)
 }
 
@@ -150,6 +166,15 @@ func (f *FormFor[T]) IsNew() bool {
 // what the database computed, and the form is clean. A check that fails
 // shows at its field, and Save returns ErrFormInvalid.
 func (f *FormFor[T]) Save(ctx context.Context) error {
+	st, form := f.attached()
+	if tx := st.rowsTx(form); tx != nil {
+		// with its rows: in one transaction
+		return tx(ctx, func(ctx context.Context) error { return f.save(ctx) })
+	}
+	return f.save(ctx)
+}
+
+func (f *FormFor[T]) save(ctx context.Context) error {
 	st, form := f.attached()
 	if err := st.runInit(ctx, form); err != nil {
 		return err // a form never rendered: Init first, as its render would
@@ -197,6 +222,9 @@ func (f *FormFor[T]) Save(ctx context.Context) error {
 		}
 	}
 	st.record, st.saved = rec, true
+	if err := st.saveRows(ctx, form); err != nil {
+		return err
+	}
 	st.load(form, rec)
 	return nil
 }
@@ -220,6 +248,7 @@ func (st *formState) emptied(form reflect.Value) {
 	v := form.FieldByIndex(st.ft.recv)
 	v.SetZero()
 	st.record = reflect.Value{}
+	st.eachRows(form, func(_ rowField, rs rowSet) { rs.rowsClear() })
 	st.load(form, reflect.New(v.Type()))
 	st.inited, st.defaulted = false, false // a new form: its next render runs Init
 }
