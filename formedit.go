@@ -92,7 +92,7 @@ func (s *FormState) Reset() {
 	}
 	st.clear()
 	st.gen++
-	st.inited = false // its next render runs a form type's Init again
+	st.inited, st.defaulted = false, false // its next render runs a form type's Init again
 }
 
 // Saved reports whether the form's last submit succeeded in the last 2

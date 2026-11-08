@@ -51,7 +51,9 @@ import (
 // visitor typed stays. A form rendered hidden — in a closed dialog, a
 // hidden element — on a live page runs it once the browser first shows
 // the form, unless <ui.Form eager>. The page never calls it. The fields
-// the form type declares itself are not the form's.
+// the form type declares itself are not the form's; a ui.Meta member
+// describes T's field of its name in this form instead (@ui.Spec{…} after
+// it), over the model's attributes.
 //
 //	type ProductForm struct {
 //		ui.FormFor[Product]
@@ -108,7 +110,7 @@ func (f *FormFor[T]) Load(ctx context.Context, v T) error {
 	f.Value = v
 	st.record = rec
 	st.load(form, rec)
-	st.inited = false // a new instance of the form, which Init sees loaded
+	st.inited, st.defaulted = false, false // a new instance of the form, which Init sees loaded
 	return st.runInit(ctx, form)
 }
 
@@ -219,7 +221,7 @@ func (st *formState) emptied(form reflect.Value) {
 	v.SetZero()
 	st.record = reflect.Value{}
 	st.load(form, reflect.New(v.Type()))
-	st.inited = false // a new form: its next render runs Init
+	st.inited, st.defaulted = false, false // a new form: its next render runs Init
 }
 
 // checkRecord is the record a field's Checker sees: a FormFor's loaded

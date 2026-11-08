@@ -267,7 +267,29 @@ func (b boundField) modelAttrs(spec ModelSpec) []Attr {
 			add("aria-required", "true")
 		}
 	}
+	switch lock := f.lockAttr(tag, typ); lock {
+	case "disabled":
+		add("disabled", true)
+	case "readonly":
+		add("readonly", true)
+	}
 	return out
+}
+
+// lockAttr is the attribute keeping the visitor from changing a disabled
+// or read-only field's control: disabled, or readonly where the browser
+// honours it (a text input, a textarea; a select, a checkbox or a radio
+// is disabled instead). "" for a field the visitor edits.
+func (f *formField) lockAttr(tag, typ string) string {
+	switch {
+	case f.disabled:
+		return "disabled"
+	case !f.readOnly:
+		return ""
+	case tag == "select" || tag == "input" && (typ == "checkbox" || typ == "radio"):
+		return "disabled"
+	}
+	return "readonly"
 }
 
 // ModelText is the text of a <textarea model={…}>: the field's value.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -56,6 +57,141 @@ type (
 	// Pattern is a regular expression the whole value matches.
 	Pattern string
 )
+
+// Spec is a field's details in one attribute, the single attributes'
+// settings as its members: what a form shows of the field and what its
+// messages say. On a model's field it describes every form of the model;
+// on a form type's ui.Meta member, that form's (Meta):
+//
+//	Name Option[string] @orm.Char{Max: 100, Unique: true} @ui.Spec{
+//		Required:    "Name is required.",
+//		Placeholder: "e.g. Blue mug",
+//		Msg:         ui.Msgs{"unique": "A product with this name already exists."},
+//	}
+//
+// A Spec states only what a model's attributes don't: Min and Max may
+// tighten the field's limits, Choices narrow its choices, never widen
+// them. Required is the message of a required field, and makes an
+// optional one (an Option, a NULL column) required; Optional makes a
+// required one optional. The single attributes (@ui.Required,
+// @ui.Placeholder, @ui.Msg, …) set one member each: one setting given by
+// both is a compile error, as one given by a tag and an attribute is.
+type Spec struct {
+	Label, Help, Placeholder string
+	// Widget is the field's control, by name for now: "textarea",
+	// "radio", "password", … (any, so widget values can join the names).
+	Widget       any
+	Autocomplete string
+	// Required is the message a required field shows when left empty.
+	Required string
+	// Optional makes a field its type or model would require optional.
+	Optional bool
+	// Min and Max bound a text's length, or a number's value: 0 is none.
+	Min, Max int
+	// Choices are the values the field may take, of the model's when it
+	// has some.
+	Choices []string
+	// Msg are the field's messages, by rule: "required", "min", "max",
+	// "len", "pattern", "oneof", "choice", "email", "unique", "number",
+	// "whole", "format", "digits", "file".
+	Msg Msgs
+	// Disabled and ReadOnly show the field's value without letting the
+	// visitor change it: a submit never sets it.
+	Disabled, ReadOnly bool
+}
+
+// Msgs are a field's messages by rule, Spec's Msg.
+type Msgs map[string]string
+
+// Meta is a form type's member describing its T's field of the same name:
+// the attributes written after it are that field's in this form, over
+// the model's. Its type holds nothing, so a form type's Name of type
+// ui.Meta is not a field of its own, and Form.Name is still T's:
+//
+//	type ProductForm struct {
+//		ui.FormFor[Product]
+//
+//		Name ui.Meta @ui.Spec{Required: "Name is required.", Placeholder: "e.g. Blue mug"}
+//		Note ui.Meta @ui.Widget("textarea")
+//	}
+//
+// Different forms of one model word the same field their own way.
+type Meta struct{}
+
+// msgRules are the rules a field's message may be for.
+var msgRules = []string{"required", "min", "max", "len", "pattern", "oneof", "choice", "email", "unique", "number", "whole", "format", "digits", "file"}
+
+func (x Spec) Describe(s *vfield.Spec) {
+	w := ""
+	if v := reflect.ValueOf(x.Widget); v.Kind() == reflect.String {
+		w = v.String()
+	}
+	for dst, v := range map[*string]string{&s.Label: x.Label, &s.Help: x.Help, &s.Placeholder: x.Placeholder, &s.Widget: w, &s.Autocomplete: x.Autocomplete} {
+		if v != "" {
+			*dst = v
+		}
+	}
+	if x.Required != "" {
+		s.Required, s.Optional = true, false
+		s.SetMessage("required", x.Required)
+	}
+	if x.Optional {
+		s.Required, s.Optional = false, true
+	}
+	if n := float64(x.Min); x.Min > 0 && (s.Min == nil || n > *s.Min) {
+		s.Min = vfield.Float(n)
+	}
+	if n := float64(x.Max); x.Max > 0 && (s.Max == nil || n < *s.Max) {
+		s.Max = vfield.Float(n)
+	}
+	if x.Choices != nil {
+		var out []vfield.Choice
+		for _, v := range x.Choices {
+			c := vfield.Choice{Value: v, Label: v}
+			for _, had := range s.Choices {
+				if had.Value == v {
+					c = had
+				}
+			}
+			out = append(out, c)
+		}
+		s.Choices = out
+	}
+	for r, text := range x.Msg {
+		s.SetMessage(r, text)
+	}
+}
+
+// fits reports a Spec that would loosen what the attributes before it
+// said of the field (s): a Max above theirs, a Min below, a choice they
+// don't have; and one whose members contradict each other.
+func (x Spec) fits(s vfield.Spec) error {
+	switch {
+	case x.Required != "" && x.Optional:
+		return fmt.Errorf("ui.Spec: Required and Optional: a field is one or the other")
+	case x.Widget != nil && reflect.TypeOf(x.Widget).Kind() != reflect.String:
+		return fmt.Errorf("ui.Spec: Widget is a control's name (\"textarea\", \"radio\", …), not a %T", x.Widget)
+	case x.Min < 0 || x.Max < 0:
+		return fmt.Errorf("ui.Spec: Min and Max are 0 or more")
+	case x.Max > 0 && s.Max != nil && float64(x.Max) > *s.Max:
+		return fmt.Errorf("ui.Spec: Max %d is above the model's %s: a form may tighten the field's limits, not loosen them", x.Max, strconv.FormatFloat(*s.Max, 'f', -1, 64))
+	case x.Min > 0 && s.Min != nil && float64(x.Min) < *s.Min:
+		return fmt.Errorf("ui.Spec: Min %d is below the model's %s: a form may tighten the field's limits, not loosen them", x.Min, strconv.FormatFloat(*s.Min, 'f', -1, 64))
+	}
+	if x.Choices != nil && s.Choices != nil {
+		for _, v := range x.Choices {
+			if !slices.ContainsFunc(s.Choices, func(c vfield.Choice) bool { return c.Value == v }) {
+				return fmt.Errorf("ui.Spec: the choice %q isn't one of the model's: a form may narrow the field's choices, not add to them", v)
+			}
+		}
+	}
+	for r := range x.Msg {
+		if !slices.Contains(msgRules, r) {
+			return fmt.Errorf("ui.Spec: Msg %q is no rule: the rules are %s", r, strings.Join(msgRules, ", "))
+		}
+	}
+	return nil
+}
 
 // MsgAttr is Msg's attribute.
 type MsgAttr struct{ Rule, Text string }
@@ -137,14 +273,36 @@ func (Max) vukaTargets() [vuka.OnField]struct{}          { return [vuka.OnField]
 func (Required) vukaTargets() [vuka.OnField]struct{}     { return [vuka.OnField]struct{}{} }
 func (Email) vukaTargets() [vuka.OnField]struct{}        { return [vuka.OnField]struct{}{} }
 func (FieldsAttr) vukaTargets() [vuka.OnField]struct{}   { return [vuka.OnField]struct{}{} }
+func (Spec) vukaTargets() [vuka.OnField]struct{}         { return [vuka.OnField]struct{}{} }
 
 // describe gives a form's field what its attributes say (vfield.Describer),
 // under what its tags say, and its attributes' checks. A FormFor's field
 // is required by its type: a plain field is, a number by its input not left
 // empty; an Option, a pointer, a slice and a bool aren't, but @ui.Required
 // makes them (a bool then must be ticked).
-func (ft *formType) describe(f *formField, sf reflect.StructField, attrs []any) error {
-	s := vfield.Describe(attrs)
+//
+// The attributes apply in their order of precedence: what another
+// library's (a model's orm.Char) implies, then ui's own, then the form
+// type's (form, its ui.Meta member's): a later one's settings win.
+func (ft *formType) describe(f *formField, sf reflect.StructField, attrs, form []any) error {
+	attrs = byPrecedence(attrs, form)
+	var s vfield.Spec
+	for _, a := range attrs {
+		if x, ok := a.(Spec); ok {
+			if err := x.fits(s); err != nil {
+				return err
+			}
+			f.disabled, f.readOnly = f.disabled || x.Disabled, f.readOnly || x.ReadOnly
+		}
+		if d, ok := a.(vfield.Describer); ok {
+			d.Describe(&s)
+		}
+		if d, ok := a.(fieldDefault); ok {
+			if v, ok := d.FieldDefault(); ok {
+				f.dflt = reflect.ValueOf(v)
+			}
+		}
+	}
 	for _, a := range attrs {
 		if c, ok := a.(vfield.Checker); ok {
 			f.checkers = append(f.checkers, c)
@@ -223,6 +381,26 @@ func (ft *formType) describe(f *formField, sf reflect.StructField, attrs []any) 
 		f.rules = append(f.rules, rule{name: "pattern", param: s.Pattern, re: re})
 	}
 	return nil
+}
+
+// fieldDefault is a field attribute giving a new record's starting value
+// for the field: a column's default (orm.Char{Default: "draft"}).
+type fieldDefault interface{ FieldDefault() (any, bool) }
+
+var uiPkg = reflect.TypeFor[Spec]().PkgPath()
+
+// byPrecedence is a field's attributes in the order they apply: other
+// libraries' first, then ui's, each as written, then form's.
+func byPrecedence(attrs, form []any) []any {
+	out := make([]any, 0, len(attrs)+len(form))
+	for _, own := range []bool{false, true} {
+		for _, a := range attrs {
+			if t := reflect.TypeOf(a); (t != nil && t.PkgPath() == uiPkg) == own {
+				out = append(out, a)
+			}
+		}
+	}
+	return append(out, form...)
 }
 
 var optionPkg = reflect.TypeFor[vuka.Option[int]]().PkgPath()

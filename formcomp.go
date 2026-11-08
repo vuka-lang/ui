@@ -50,7 +50,9 @@ func (f Form) formView(plain bool) Node {
 		// element the page renders hidden, on a live page, once the browser
 		// first shows the form (data-vk-init: its vkinit event).
 		deferred := st.ft.init != nil && !st.inited && !f.Eager && browserHidden(ctx) && !overHTTP && liveHost(ctx) != nil && inStreamRow(ctx) == nil
-		if !deferred {
+		if deferred {
+			st.applyDefaults(b.value()) // a new record's starting values show at once
+		} else {
 			if err := b.ready(ctx); err != nil {
 				return Try(nil, fmt.Errorf("%s.Init: %w", b.form.Elem().Type().Name(), err))
 			}
@@ -541,7 +543,7 @@ func (b boundField) control(ctx context.Context, opts Field, input string, inval
 		return base
 	}
 	extra := func(a []Attr) []Attr {
-		if opts.Disabled {
+		if opts.Disabled && !f.disabled && !f.readOnly {
 			a = append(a, Attr{"disabled", true})
 		}
 		if opts.Placeholder != "" {
@@ -621,7 +623,7 @@ func (b boundField) choiceGroup(ctx context.Context, opts Field, input string) N
 	if input == "checkboxes" {
 		typ = "checkbox"
 	}
-	items := b.choiceItems(choices, typ, opts.Disabled)
+	items := b.choiceItems(choices, typ, opts.Disabled && f.lockAttr("input", typ) == "")
 	classes := "vk-fieldset vk-field"
 	if shows {
 		classes += " vk-field--invalid"
