@@ -14,8 +14,8 @@ type Textarea struct {
 	Class string
 }
 
-func (w Textarea) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node {
+func (w Textarea) View() ui.Node {
+	return view(w, func(w Textarea, _ context.Context) ui.Node {
 		rows := w.Rows
 		if rows == 0 {
 			rows = 3
@@ -23,3 +23,5 @@ func (w Textarea) Render(ctx context.Context, out io.Writer) error {
 		return ui.El("textarea", w.control("textarea", "", cls("vk-textarea", w.Class), ui.Attr{Name: "rows", Value: rows}), ui.Text(ui.ModelText(w.Model)))
 	})
 }
+
+func (w Textarea) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
