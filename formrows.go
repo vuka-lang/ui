@@ -74,21 +74,21 @@ func (r *Rows[T]) Values() []T {
 
 // Add is the event adding a row: <button type="button"
 // onClick={Form.Lines.Add()}>. Beyond Max it adds none.
-func (r *Rows[T]) Add() EventHandler {
-	return On(func(ctx context.Context) error {
+func (r *Rows[T]) Add() func(context.Context) error {
+	return func(ctx context.Context) error {
 		_, err := r.Append(ctx)
 		return err
-	})
+	}
 }
 
 // Remove is the event removing row: <button type="button"
 // onClick={Form.Lines.Remove(r)}>. A loaded row removed is deleted when
 // the form saves.
-func (r *Rows[T]) Remove(row *FormFor[T]) EventHandler {
-	return On(func(context.Context) error {
+func (r *Rows[T]) Remove(row *FormFor[T]) func(context.Context) error {
+	return func(context.Context) error {
 		r.Delete(row)
 		return nil
-	})
+	}
 }
 
 // Append adds a new row and returns it: T's zero value, its fields'
