@@ -20,7 +20,10 @@ import (
 //	<ui.Field name="age" label="Age" type="number" min="18"/>
 //	<ui.Input name="email" label="Email" type="email" required/>
 //
-//line field.vuka.html:15
+// Deprecated: use widget.Field (github.com/vuka-lang/ui/v2/widget), the
+// same component: a form's components come from package widget.
+//
+//line field.vuka.html:18
 type Field struct {
 	// For is a field of a struct form (see Form.For): for={Form.Email}. The
 	// field group is the field's — its label, hint, error and control, the
@@ -146,16 +149,16 @@ func (f Field) input() Node {
 	)
 }
 
-//line field.vuka.html:141
+//line field.vuka.html:144
 func (f Field) View() Node {
 	var forView2 Node
-//line field.vuka.html:142
+//line field.vuka.html:145
 	if f.For != nil {
 		forView2 = f.forView()
 	} else {
 		var label2 Node
 		if f.kind == kindCheckbox {
-//line field.vuka.html:148
+//line field.vuka.html:151
 			value2 := f.id()
 			label2 = HTML(`
 <label class="vk-check" for={f.id()}>
@@ -172,10 +175,10 @@ func (f Field) View() Node {
 			)
 		} else {
 			var label22 Node
-//line field.vuka.html:152
+//line field.vuka.html:155
 			if f.Label != "" {
 				var span2 Node
-//line field.vuka.html:155
+//line field.vuka.html:158
 				if f.Required {
 					span2 = HTML(`<span class="vk-field__req" aria-hidden="true">*</span>`)
 				}
@@ -190,12 +193,12 @@ func (f Field) View() Node {
 {f.input()}`, label22, f.input())
 		}
 		var div Node
-//line field.vuka.html:162
+//line field.vuka.html:165
 		if f.Help != "" {
 			div = HTML(`<div class="vk-field__help" id={f.id() + "-help"}>{f.Help}</div>`, f.id()+"-help", f.Help)
 		}
 		var div2 Node
-//line field.vuka.html:165
+//line field.vuka.html:168
 		if f.invalid() {
 			div2 = HTML(`<div class="vk-field__error" id={f.id() + "-error"} role="alert">{f.Error}</div>`, f.id()+"-error", f.Error)
 		}
@@ -206,9 +209,9 @@ func (f Field) View() Node {
   {div2}
 </div>`, f.classes(), label2, div, div2)
 	}
-//line field.vuka.html:141
+//line field.vuka.html:144
 	return forView2
 }
 
-//line field.vuka.html:170
+//line field.vuka.html:173
 func (f Field) Render(ctx context.Context, w io.Writer) error { return f.View().Render(ctx, w) }

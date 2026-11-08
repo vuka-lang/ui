@@ -532,7 +532,12 @@ func (b boundField) errorNode(ctx context.Context, e forms.Error, shows bool, cl
 	if key == "" {
 		key = forms.DefaultKey(e)
 	}
-	return El("p", []Attr{{"class", cls}, {"id", b.st.id(b.f.path) + "-error"}, {"data-vk-error", key}},
+	attrs := []Attr{{"class", cls}, {"id", b.st.id(b.f.path) + "-error"}, {"data-vk-error", key}}
+	if w, ok := appErrorWidget.Load().(reflect.Value); ok && w.IsValid() {
+		bb := b
+		return renderPartWidget(w, map[string]any{"Model": FieldRef{bound: &bb}, "Message": b.st.message(ctx, e), "Attrs": attrs})
+	}
+	return El("p", attrs,
 		El("span", []Attr{{"class", "vk-sr-only"}}, Text(tr(ctx, "form.error"))), Text(" "+b.st.message(ctx, e)))
 }
 
@@ -668,6 +673,9 @@ func (b boundField) choiceItems(choices []Option, typ string, disabled bool) []N
 //	</fieldset>
 //
 // The first control's id is the field's, which the error summary links to.
+//
+// Deprecated: use widget.Choices (github.com/vuka-lang/ui/v2/widget), the
+// same component: a form's components come from package widget.
 type Choices struct {
 	// For is the field: for={Form.Plan}.
 	For   any
@@ -709,6 +717,9 @@ func (c Choices) Render(ctx context.Context, w io.Writer) error { return c.View(
 //
 // It renders nothing when the field shows no error; the control's
 // aria-describedby links it when it does.
+//
+// Deprecated: use widget.Error (github.com/vuka-lang/ui/v2/widget), the
+// same component: a form's components come from package widget.
 type Error struct {
 	// For is the field: for={Form.Email}.
 	For   any
@@ -741,6 +752,9 @@ func (e Error) Render(ctx context.Context, w io.Writer) error { return e.View().
 //		<ui.Field for={Form.Street}/>
 //		<ui.Field for={Form.City}/>
 //	</ui.Fieldset>
+//
+// Deprecated: use widget.Fieldset (github.com/vuka-lang/ui/v2/widget), the
+// same component: a form's components come from package widget.
 type Fieldset struct {
 	Legend   string
 	For      any
@@ -786,6 +800,9 @@ func (s Fieldset) Render(ctx context.Context, w io.Writer) error { return s.View
 // the field shows. <ui.Form for> puts one at the top of the form; a
 // <ui.Summary/> inside it puts it there instead. The browser moves focus to
 // it, and the page's title starts "Error: ".
+//
+// Deprecated: use widget.Summary (github.com/vuka-lang/ui/v2/widget), the
+// same component: a form's components come from package widget.
 type Summary struct {
 	// For is the form, when the summary is outside its <ui.Form>.
 	For any
@@ -835,7 +852,11 @@ func summaryOf(ctx context.Context, b boundField, slot, title string, class ...s
 	if len(class) > 0 {
 		cls = withClass(cls, class[0])
 	}
-	return El("div", []Attr{{"class", cls}, {"id", st.identity() + "-summary"}, {"tabindex", "-1"}, {"autofocus", true}, {"data-vk-summary", true}},
+	attrs := []Attr{{"class", cls}, {"id", st.identity() + "-summary"}, {"tabindex", "-1"}, {"autofocus", true}, {"data-vk-summary", true}}
+	if w, ok := appSummaryWidget.Load().(reflect.Value); ok && w.IsValid() {
+		return renderPartWidget(w, map[string]any{"Title": sum.Title, "Items": sum.Items, "Attrs": attrs})
+	}
+	return El("div", attrs,
 		El("div", []Attr{{"role", "alert"}},
 			El("h2", []Attr{{"class", "vk-summary__title"}}, Text(cmpOr(title, tr(ctx, "form.problem")))),
 			El("ul", []Attr{{"class", "vk-summary__list"}}, items...)))
