@@ -244,6 +244,15 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 func (s *Session) run(fn any, ev ui.Event) (Patch, error) {
 	ctx, edit := s.beginURL(s.ctx)
 	res, herr := callPush(ctx, fn, ev)
+	for _, t := range ev.Shown {
+		// the hidden forms and lazy regions the event's chain showed: theirs
+		// run after it, so a Load in it is what an Init sees
+		if init, ok := s.handler(t).(ui.InitHandler); ok {
+			if _, err := callPush(ctx, init, ui.Event{Target: t, Type: "vkinit"}); err != nil && herr == nil {
+				herr = err
+			}
+		}
+	}
 	s.root.js = append(s.root.js, s.endURL(edit)...)
 	if to, ok := ui.RedirectOf(herr); ok && ui.LoadableURL(to) {
 		s.root.js = append(s.root.js, ui.JS.Navigate(to))
@@ -747,6 +756,7 @@ type instance struct {
 	children map[string]*instance // by place: key path, site, key or occurrence
 	kids     []*instance          // in render order, this pass
 	occ      map[string]int
+	lazy     map[string]bool // the lazy regions its renders showed, by LazyKey
 	handlers []any
 	keyed    map[string]any     // its render's handlers under a key, by what follows "c1:" in their ids (keyedHandler)
 	pushes   map[string]any     // the handlers of the commands it pushed, by id (pushHandler)
@@ -909,6 +919,26 @@ func (sc *scope) StateKey(_ context.Context, site string) string {
 	occ := "\x00state " + site
 	sc.in.occ[occ]++
 	return sc.in.id + ":" + site + ":" + strconv.Itoa(sc.in.occ[occ])
+}
+
+// LazyKey names a lazy region the instance renders: the keys around it and
+// how many it rendered before under them in this render.
+func (sc *scope) LazyKey(context.Context) string {
+	occ := "\x00lazy " + sc.keys
+	sc.in.occ[occ]++
+	return sc.keys + strconv.Itoa(sc.in.occ[occ])
+}
+
+// LazyShown reports whether the browser showed the region key names.
+func (sc *scope) LazyShown(key string) bool { return sc.in.lazy[key] }
+
+// ShowLazy notes that the browser showed the region key names: its content
+// renders from now on.
+func (sc *scope) ShowLazy(key string) {
+	if sc.in.lazy == nil {
+		sc.in.lazy = map[string]bool{}
+	}
+	sc.in.lazy[key] = true
 }
 
 func (sc *scope) Keyed(ctx context.Context, key any) context.Context {
