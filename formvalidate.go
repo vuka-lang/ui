@@ -201,21 +201,23 @@ func callForm(ctx context.Context, m *reflect.Method, recv reflect.Value) (err e
 var optionsType = reflect.TypeFor[[]Option]()
 
 // choices are the options of a field with a <Field>Choices method, called
-// as a Clean method is; it returns []ui.Option, and maybe an error.
-func choices(ctx context.Context, m *reflect.Method, recv reflect.Value) (opts []Option, err error) {
+// as a Clean method is; it returns []ui.Option, or a query of the rows the
+// field may take (an orm query: its rows the options, and the allow-list
+// a submitted key is checked against), and maybe an error.
+func choices(ctx context.Context, m *reflect.Method, recv reflect.Value) (opts []Option, src rowSource, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%s panicked: %v", m.Name, r)
 		}
 	}()
 	ft := m.Func.Type()
-	if ft.NumOut() == 0 || ft.Out(0) != optionsType || ft.NumOut() > 2 || ft.NumOut() == 2 && ft.Out(1) != errType || ft.IsVariadic() {
-		return nil, fmt.Errorf("%s is %s: a <Field>Choices method returns []ui.Option, and maybe an error", m.Name, ft)
+	if !choicesShape(ft) {
+		return nil, nil, fmt.Errorf("%s is %s: a <Field>Choices method returns []ui.Option or a query of rows (an orm query), and maybe an error", m.Name, ft)
 	}
 	slots, issues := plan(ft, 1, hookCall, InjectorOf(ctx))
 	if len(issues) > 0 {
 		is := issues[0]
-		return nil, fmt.Errorf("%s's %s parameter, %s, %s", m.Name, ordinal(is.index+1), is.t, is.why)
+		return nil, nil, fmt.Errorf("%s's %s parameter, %s, %s", m.Name, ordinal(is.index+1), is.t, is.why)
 	}
 	args := []reflect.Value{recv}
 	for _, s := range slots {
@@ -225,7 +227,7 @@ func choices(ctx context.Context, m *reflect.Method, recv reflect.Value) (opts [
 			v = reflect.ValueOf(&ctx).Elem()
 		case s.inject != nil:
 			if v, err = s.inject(ctx); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		if !v.IsValid() {
@@ -235,9 +237,21 @@ func choices(ctx context.Context, m *reflect.Method, recv reflect.Value) (opts [
 	}
 	out := m.Func.Call(args)
 	if len(out) == 2 && !out[1].IsNil() {
-		return nil, out[1].Interface().(error)
+		return nil, nil, out[1].Interface().(error)
 	}
-	return out[0].Interface().([]Option), nil
+	if out[0].Type() == optionsType {
+		return out[0].Interface().([]Option), nil, nil
+	}
+	return nil, out[0].Interface().(rowSource), nil
+}
+
+// choicesShape reports whether a <Field>Choices method's type (its receiver
+// first) returns []ui.Option or a rowSource, and maybe an error.
+func choicesShape(ft reflect.Type) bool {
+	if ft.NumOut() == 0 || ft.NumOut() > 2 || ft.NumOut() == 2 && ft.Out(1) != errType || ft.IsVariadic() {
+		return false
+	}
+	return ft.Out(0) == optionsType || ft.Out(0).Implements(rowSourceType)
 }
 
 // checkChoice checks that a field with choices (<Field>Choices) holds one
@@ -252,13 +266,9 @@ func (st *formState) checkChoice(ctx context.Context, form reflect.Value, f *for
 	if err != nil || v.IsZero() {
 		return forms.Error{}, false, nil
 	}
-	opts, err := st.choicesOf(ctx, form, f)
+	allowed, err := st.allowList(ctx, form, f, v)
 	if err != nil {
 		return forms.Error{}, false, err
-	}
-	allowed := make(map[string]bool, len(opts))
-	for _, o := range opts {
-		allowed[o.Value] = true
 	}
 	var stray bool
 	if v.Kind() == reflect.Slice && v.Type().Elem().Kind() != reflect.Uint8 {
@@ -294,24 +304,58 @@ func (st *formState) checkChoice(ctx context.Context, form reflect.Value, f *for
 	return f.errorFor(rule{name: "choice"}, ""), true, nil
 }
 
+// allowList is which of the values v holds are among the field's
+// choices: looked up one by one in a query's rows (an orm query, a large
+// table never listed), else the choices listed.
+func (st *formState) allowList(ctx context.Context, form reflect.Value, f *formField, v reflect.Value) (map[string]bool, error) {
+	src, err := st.sourceOf(ctx, form, f)
+	if err != nil {
+		return nil, err
+	}
+	allowed := map[string]bool{}
+	if src != nil {
+		var vals []string
+		if v.Kind() == reflect.Slice && v.Type().Elem().Kind() != reflect.Uint8 {
+			for i := 0; i < v.Len(); i++ {
+				vals = append(vals, valueText(v.Index(i)))
+			}
+		} else {
+			vals = []string{valueText(v)}
+		}
+		for _, k := range vals {
+			if _, _, ok, err := src.FormChoice(ctx, k); err != nil {
+				return nil, fmt.Errorf("ui: checking %s: %w", f.goPath, err)
+			} else if ok {
+				allowed[k] = true
+			}
+		}
+		return allowed, nil
+	}
+	opts, err := st.choicesOf(ctx, form, f)
+	if err != nil {
+		return nil, err
+	}
+	for _, o := range opts {
+		allowed[o.Value] = true
+	}
+	return allowed, nil
+}
+
 // choicesOf are a field's choices, its <Field>Choices called once per
-// event (bind) or render.
+// event (bind) or render. Every field with a <Field>Choices method
+// reports what its render showed: one whose choices follow another
+// field's value (reading f.Value.Country) gets them as that field
+// changes, whether or not a depends: tag says so.
 func (st *formState) choicesOf(ctx context.Context, form reflect.Value, f *formField) ([]Option, error) {
-	if f.choices == nil {
-		return f.options, nil
+	rows, err := st.choiceRows(ctx, form, f)
+	if err != nil {
+		return nil, err
 	}
-	opts, ok := st.memo[f.path]
-	if !ok {
-		var err error
-		if opts, err = choices(ctx, f.choices, st.ft.recvOf(f.choices, form)); err != nil {
-			return nil, fmt.Errorf("ui: %s.%s: %w", st.ft.t.Name(), f.choices.Name, err)
-		}
-		if st.memo == nil {
-			st.memo = map[string][]Option{}
-		}
-		st.memo[f.path] = opts
+	opts := make([]Option, len(rows))
+	for i, r := range rows {
+		opts[i] = r.Option
 	}
-	if st.inRender && len(f.depends) > 0 {
+	if st.inRender && (f.choices != nil || len(f.depends) > 0) {
 		if st.shownChoices == nil {
 			st.shownChoices = map[string][]Option{}
 		}

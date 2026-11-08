@@ -36,7 +36,8 @@ const (
 // parse leaves the field empty and is kept as typed, its error the field's
 // until it changes.
 func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Values, rendered map[string]string) {
-	st.raw, st.parsed, st.memo, st.blank = nil, nil, nil, nil
+	st.raw, st.parsed, st.memo, st.results, st.blank = nil, nil, nil, nil, nil
+	st.parts = sentParts(vals)
 	st.bound = rendered
 	for _, f := range st.ft.fields {
 		if f.group || f.disabled || f.readOnly {
@@ -48,6 +49,15 @@ func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Valu
 		}
 		mods, shown := rendered[f.path]
 		vs, sent := lookupValues(vals, f.path)
+		if pw, ok := st.ft.parts.Load(f.path); ok {
+			// a widget of several inputs: its Parse sets the field
+			if in, sent := st.parts[f.path]; sent {
+				st.bindParts(fv, f, pw.(*widgetInfo), in)
+			} else if shown {
+				fv.SetZero()
+			}
+			continue
+		}
 		if f.input == "file" {
 			if sent || shown {
 				st.bindFile(ctx, fv, f, vs, vals)

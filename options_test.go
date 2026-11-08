@@ -201,7 +201,8 @@ type reportHost struct {
 func (h *reportHost) FormReport(_ context.Context, r ui.FormReport) { h.reports = append(h.reports, r) }
 
 // TestFormReportChoices: a form's report carries the choices its render
-// computed for the fields depending on others, from the values it has.
+// computed for the fields with a <Field>Choices method, from the values it
+// has: a field whose choices follow another's gets them as it changes.
 func TestFormReportChoices(t *testing.T) {
 	h := &reportHost{keyHost: keyHost{[]byte("k")}}
 	ctx := ui.WithFormHost(context.Background(), h)
@@ -213,7 +214,7 @@ func TestFormReportChoices(t *testing.T) {
 		t.Fatalf("%d reports", len(h.reports))
 	}
 	j, _ := json.Marshal(h.reports[0].Choices)
-	if string(j) != `{"city":[{"value":"nbo","label":"Nairobi"}]}` {
+	if string(j) != `{"city":[{"value":"nbo","label":"Nairobi"}],"country":[{"value":"tz","label":"Tanzania"},{"value":"ke","label":"Kenya"}]}` {
 		t.Errorf("the report's choices: %s", j)
 	}
 }

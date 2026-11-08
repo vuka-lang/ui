@@ -22,6 +22,7 @@ import (
 type FieldRef struct {
 	field reflect.Value
 	outer []reflect.Value
+	bound *boundField // resolved already: the field a form gave its widget
 }
 
 // For is a reference to the field field points to, outer pointing to the
@@ -72,6 +73,9 @@ func refOf(v any) (FieldRef, bool) {
 
 // resolve finds the form the field is in, and the field.
 func (r FieldRef) resolve() (boundField, error) {
+	if r.bound != nil {
+		return *r.bound, nil
+	}
 	if !r.field.IsValid() || r.field.Kind() != reflect.Pointer || r.field.IsNil() {
 		return boundField{}, fmt.Errorf("ui: for={…} takes a form or a field of one, not %v", r.field)
 	}

@@ -78,8 +78,9 @@ type (
 // both is a compile error, as one given by a tag and an attribute is.
 type Spec struct {
 	Label, Help, Placeholder string
-	// Widget is the field's control, by name for now: "textarea",
-	// "radio", "password", … (any, so widget values can join the names).
+	// Widget is the field's control: a widget, its props its options
+	// (widget.Textarea{Rows: 4}, widget.RelatedSearch{Limit: 20}), or a
+	// control's name ("textarea", "radio", "password", …).
 	Widget       any
 	Autocomplete string
 	// Required is the message a required field shows when left empty.
@@ -169,8 +170,11 @@ func (x Spec) fits(s vfield.Spec) error {
 	switch {
 	case x.Required != "" && x.Optional:
 		return fmt.Errorf("ui.Spec: Required and Optional: a field is one or the other")
-	case x.Widget != nil && reflect.TypeOf(x.Widget).Kind() != reflect.String:
-		return fmt.Errorf("ui.Spec: Widget is a control's name (\"textarea\", \"radio\", …), not a %T", x.Widget)
+	case x.Widget != nil && reflect.TypeOf(x.Widget).Kind() != reflect.String && !IsWidget(x.Widget):
+		if w := widgetInfoOf(reflect.TypeOf(x.Widget)); w != nil && w.err != nil {
+			return w.err
+		}
+		return fmt.Errorf("ui.Spec: Widget is a widget (widget.Textarea{Rows: 4}) or a control's name (\"textarea\", \"radio\", …), not a %T", x.Widget)
 	case x.Min < 0 || x.Max < 0:
 		return fmt.Errorf("ui.Spec: Min and Max are 0 or more")
 	case x.Max > 0 && s.Max != nil && float64(x.Max) > *s.Max:
@@ -293,6 +297,16 @@ func (ft *formType) describe(f *formField, sf reflect.StructField, attrs, form [
 				return err
 			}
 			f.disabled, f.readOnly = f.disabled || x.Disabled, f.readOnly || x.ReadOnly
+			switch {
+			case x.Widget == nil:
+			case IsWidget(x.Widget):
+				f.widget = reflect.ValueOf(x.Widget)
+			default:
+				f.widget = reflect.Value{} // a control's name, over an earlier widget
+			}
+		}
+		if _, ok := a.(Widget); ok {
+			f.widget = reflect.Value{}
 		}
 		if d, ok := a.(vfield.Describer); ok {
 			d.Describe(&s)

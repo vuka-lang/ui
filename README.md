@@ -16,6 +16,11 @@ declares `const VukaJSX = 3`, Vuka's markup target contract).
   markup reads (`State`, `Derived`, `Class`, `Show`, `Bind`, `BindAttr`);
   islands — client components hydrated in a server-rendered page
   (`Island`, `MountIsland`), and pages backed by one (`IslandPage`).
+- `ui/widget` — a form field's control as a component: the built-in
+  widgets (`Text`, `Textarea`, `Select`, `Radios`, `Checkbox`, `Switch`,
+  `Date`, `File`, `Related` and `RelatedSearch` for an `orm.FK`, …), the
+  contract an app's own widget follows (`Props`, `Choice[T]`), and `Use[T]`,
+  the app's widget for a type.
 - `ui/live` — sessions that keep stateful components alive for a connected
   browser, and the wire protocol transports speak.
 - `ui/term` — renders a node tree as terminal text.
