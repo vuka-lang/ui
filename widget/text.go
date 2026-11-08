@@ -54,20 +54,26 @@ func input(p Props, typ, class string, extra ...ui.Attr) ui.Node {
 	return ui.El("input", p.control("input", typ, cls("vk-input", class), extra...))
 }
 
-func (w Text) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node { return input(w.Props, "text", w.Class) })
+func (w Text) View() ui.Node {
+	return view(w, func(w Text, _ context.Context) ui.Node { return input(w.Props, "text", w.Class) })
 }
 
-func (w Email) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node { return input(w.Props, "email", w.Class) })
+func (w Email) View() ui.Node {
+	return view(w, func(w Email, _ context.Context) ui.Node { return input(w.Props, "email", w.Class) })
 }
 
-func (w Password) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node { return input(w.Props, "password", w.Class) })
+func (w Email) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w Password) View() ui.Node {
+	return view(w, func(w Password, _ context.Context) ui.Node { return input(w.Props, "password", w.Class) })
 }
 
-func (w Number) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node {
+func (w Password) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w Number) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w Number) View() ui.Node {
+	return view(w, func(w Number, _ context.Context) ui.Node {
 		var extra []ui.Attr
 		for _, a := range []ui.Attr{{Name: "min", Value: w.Min}, {Name: "max", Value: w.Max}, {Name: "step", Value: w.Step}} {
 			if a.Value != "" {
@@ -78,14 +84,22 @@ func (w Number) Render(ctx context.Context, out io.Writer) error {
 	})
 }
 
-func (w Tel) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node { return input(w.Props, "tel", w.Class) })
+func (w Text) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w Tel) View() ui.Node {
+	return view(w, func(w Tel, _ context.Context) ui.Node { return input(w.Props, "tel", w.Class) })
 }
 
-func (w URL) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node { return input(w.Props, "url", w.Class) })
+func (w Tel) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w URL) View() ui.Node {
+	return view(w, func(w URL, _ context.Context) ui.Node { return input(w.Props, "url", w.Class) })
 }
 
-func (w Search) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node { return input(w.Props, "search", w.Class) })
+func (w URL) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w Search) View() ui.Node {
+	return view(w, func(w Search, _ context.Context) ui.Node { return input(w.Props, "search", w.Class) })
 }
+
+func (w Search) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }

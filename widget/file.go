@@ -15,8 +15,8 @@ type File struct {
 	Class  string
 }
 
-func (w File) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node {
+func (w File) View() ui.Node {
+	return view(w, func(w File, _ context.Context) ui.Node {
 		var extra []ui.Attr
 		if w.Accept != "" {
 			extra = append(extra, ui.Attr{Name: "accept", Value: w.Accept})
@@ -24,3 +24,5 @@ func (w File) Render(ctx context.Context, out io.Writer) error {
 		return ui.El("input", w.control("input", "file", cls("vk-input", w.Class), extra...))
 	})
 }
+
+func (w File) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }

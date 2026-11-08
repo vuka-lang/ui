@@ -38,20 +38,26 @@ func bounds(attrs ...ui.Attr) []ui.Attr {
 	return out
 }
 
-func (w Date) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node {
+func (w Date) View() ui.Node {
+	return view(w, func(w Date, _ context.Context) ui.Node {
 		return input(w.Props, "date", w.Class, bounds(ui.Attr{Name: "min", Value: w.Min}, ui.Attr{Name: "max", Value: w.Max})...)
 	})
 }
 
-func (w DateTime) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node {
+func (w Date) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w DateTime) View() ui.Node {
+	return view(w, func(w DateTime, _ context.Context) ui.Node {
 		return input(w.Props, "datetime-local", w.Class, bounds(ui.Attr{Name: "min", Value: w.Min}, ui.Attr{Name: "max", Value: w.Max})...)
 	})
 }
 
-func (w Time) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(context.Context) ui.Node {
+func (w DateTime) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
+
+func (w Time) View() ui.Node {
+	return view(w, func(w Time, _ context.Context) ui.Node {
 		return input(w.Props, "time", w.Class, bounds(ui.Attr{Name: "min", Value: w.Min}, ui.Attr{Name: "max", Value: w.Max}, ui.Attr{Name: "step", Value: w.Step})...)
 	})
 }
+
+func (w Time) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }

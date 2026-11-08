@@ -18,11 +18,13 @@ type Related struct {
 	Class   string
 }
 
-func (w Related) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, func(ctx context.Context) ui.Node {
+func (w Related) View() ui.Node {
+	return view(w, func(w Related, ctx context.Context) ui.Node {
 		return ui.El("select", w.control("select", "", cls("vk-select", w.Class)), options(ctx, w.Props, w.Choices, false)...)
 	})
 }
+
+func (w Related) Render(ctx context.Context, out io.Writer) error { return w.View().Render(ctx, out) }
 
 // RelatedSearch is the control of an orm.FK field whose model has too
 // many rows to list: a search box, and the rows whose label holds what
@@ -43,8 +45,10 @@ type RelatedSearch struct {
 func (RelatedSearch) FieldLayout() string { return "fieldset" }
 
 func (w RelatedSearch) Render(ctx context.Context, out io.Writer) error {
-	return render(ctx, out, &w, w.view)
+	return w.View().Render(ctx, out)
 }
+
+func (w RelatedSearch) View() ui.Node { return view(w, RelatedSearch.view) }
 
 func (w RelatedSearch) view(ctx context.Context) ui.Node {
 	q := w.Model.PartValue("search")
