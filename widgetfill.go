@@ -455,7 +455,7 @@ func (r FieldRef) Part(name string) string {
 		return name
 	}
 	b.st.renderField(b.f.path, "")
-	return b.f.path + partSep + name
+	return b.st.prefix + b.f.path + partSep + name
 }
 
 // partSep joins a field's path and one of its parts in an input's name.
@@ -505,7 +505,7 @@ func (r FieldRef) Path() string {
 		return ""
 	}
 	b.st.renderField(b.f.path, "")
-	return b.f.path
+	return b.st.prefix + b.f.path
 }
 
 // Chosen is the field's current choice: its value as text and its label,
@@ -555,9 +555,13 @@ func partInput(fv reflect.Value, t reflect.Type) (reflect.Value, bool) {
 
 // sentParts are the values sent for the parts of the form's fields, by
 // field path and part name.
-func sentParts(vals url.Values) map[string]map[string]string {
+func sentParts(vals url.Values, prefix string) map[string]map[string]string {
 	var out map[string]map[string]string
 	for k, vs := range vals {
+		k, ok := strings.CutPrefix(k, prefix)
+		if !ok {
+			continue
+		}
 		path, name, ok := strings.Cut(k, partSep)
 		if !ok || len(vs) == 0 {
 			continue

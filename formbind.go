@@ -37,7 +37,7 @@ const (
 // until it changes.
 func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Values, rendered map[string]string) {
 	st.raw, st.parsed, st.memo, st.results, st.blank = nil, nil, nil, nil, nil
-	st.parts = sentParts(vals)
+	st.parts = sentParts(vals, st.prefix)
 	st.bound = rendered
 	for _, f := range st.ft.fields {
 		if f.group || f.disabled || f.readOnly {
@@ -48,7 +48,7 @@ func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Valu
 			continue
 		}
 		mods, shown := rendered[f.path]
-		vs, sent := lookupValues(vals, f.path)
+		vs, sent := lookupValues(vals, st.prefix+f.path)
 		if pw, ok := st.ft.parts.Load(f.path); ok {
 			// a widget of several inputs: its Parse sets the field
 			if in, sent := st.parts[f.path]; sent {
@@ -88,6 +88,7 @@ func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Valu
 			lowerText(fv)
 		}
 	}
+	st.eachRows(form, func(_ rowField, rs rowSet) { rs.rowsBind(ctx, vals) })
 }
 
 // parseErr records a value that didn't parse as the field's error.

@@ -339,6 +339,12 @@ func (st *formState) usedFrom(vals url.Values) {
 	for _, list := range vals[FormUsedField] {
 		for _, p := range strings.Split(list, ",") {
 			p = strings.TrimSpace(p)
+			if st.prefix != "" {
+				var ok bool
+				if p, ok = strings.CutPrefix(p, st.prefix); !ok {
+					continue // another form's, or a row's
+				}
+			}
 			if path, _, ok := strings.Cut(p, partSep); ok {
 				p = path // a part of a widget of several inputs: its field
 			}

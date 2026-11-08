@@ -37,6 +37,7 @@ type formType struct {
 	init    *reflect.Method            // the form type's Init(ctx, deps…) error: run as the form is created, and by Load
 	own     map[*reflect.Method]bool   // the methods declared by the form type, called on it rather than on T
 	meta    map[string][]any           // a form type's: the attributes of its ui.Meta members, by the name of T's field each describes
+	rows    []rowField                 // a form type's ui.Rows fields
 	parts   sync.Map                   // path → *widgetInfo: the fields a widget of several inputs (Format, Parse) rendered
 	err     error
 }
@@ -127,6 +128,7 @@ func buildFormType(t reflect.Type) *formType {
 		vfAt, direct := offsetOf(t, vf.Index)
 		if ft.typed && len(vf.Index) > 1 {
 			ft.formHooks(t, vf.Index[:len(vf.Index)-1], direct)
+			ft.rowFields(t)
 			ft.metaOf(t, vf.Type)
 		}
 		ft.addFields(vf.Type, vf.Index, vfAt, "", "")
