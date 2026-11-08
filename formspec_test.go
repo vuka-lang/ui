@@ -203,3 +203,21 @@ func TestFormSpecDefaults(t *testing.T) {
 		t.Errorf("a loaded record: %+v, dirty %v", f.Value, f.Dirty())
 	}
 }
+
+type widgetValue struct{ Rows int }
+type looseWidget struct {
+	ui.FormFor[loose]
+	Name ui.Meta
+}
+
+func init() {
+	vuka.RegisterFields[looseWidget](map[string][]any{"Name": {ui.Spec{Widget: widgetValue{4}}}})
+}
+
+// TestFormSpecWidget: Widget takes a control's name today; another value
+// is the form's error, not ignored.
+func TestFormSpecWidget(t *testing.T) {
+	if err := ui.Attach(&looseWidget{}).Load(context.Background(), loose{}); err == nil || !strings.Contains(err.Error(), "Widget is a control's name") {
+		t.Errorf("a widget value: %v", err)
+	}
+}
