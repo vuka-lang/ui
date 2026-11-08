@@ -122,7 +122,10 @@ type Meta struct{}
 var msgRules = []string{"required", "min", "max", "len", "pattern", "oneof", "choice", "email", "unique", "number", "whole", "format", "digits", "file"}
 
 func (x Spec) Describe(s *vfield.Spec) {
-	w, _ := x.Widget.(string)
+	w := ""
+	if v := reflect.ValueOf(x.Widget); v.Kind() == reflect.String {
+		w = v.String()
+	}
 	for dst, v := range map[*string]string{&s.Label: x.Label, &s.Help: x.Help, &s.Placeholder: x.Placeholder, &s.Widget: w, &s.Autocomplete: x.Autocomplete} {
 		if v != "" {
 			*dst = v
