@@ -370,3 +370,50 @@ func TestCustomWidgets(t *testing.T) {
 }
 
 func reflectType[T any]() reflect.Type { return reflect.TypeFor[T]() }
+
+// fieldError and summary are an app's own error message and summary.
+type fieldError struct{ widget.ErrorProps }
+
+func (e fieldError) Render(ctx context.Context, out io.Writer) error {
+	return ui.El("em", e.Attrs, ui.Text(e.Model.Path()+": "+e.Message)).Render(ctx, out)
+}
+
+type summary struct{ widget.SummaryProps }
+
+func (s summary) Render(ctx context.Context, out io.Writer) error {
+	var kids []ui.Node
+	for _, it := range s.Items {
+		kids = append(kids, ui.El("a", []ui.Attr{{Name: "href", Value: it.Href}}, ui.Text(it.Text)))
+	}
+	return ui.El("section", append(s.Attrs, ui.Attr{Name: "role", Value: "alert"}), append([]ui.Node{ui.Text(s.Title)}, kids...)...).Render(ctx, out)
+}
+
+type signupPage struct {
+	ui.Live
+	Form ui.FormFor[shelving]
+}
+
+func (p *signupPage) Render() ui.Node {
+	return ui.Form{For: ui.For(&p.Form), Children: ui.Fragment(
+		widget.Summary{},
+		widget.Field{For: ui.For(&p.Form.Value.Name, &p.Form)},
+		widget.Error{For: ui.For(&p.Form.Value.Main, &p.Form)},
+		widget.Select{Props: widget.Props{Model: ui.For(&p.Form.Value.Main, &p.Form)}},
+	)}
+}
+
+// TestFormWidgets: the form's components from package widget, the app's
+// own error message and summary in their place.
+func TestFormWidgets(t *testing.T) {
+	widget.UseError(fieldError{})
+	widget.UseSummary(summary{})
+	t.Cleanup(func() { widget.UseError(nil); widget.UseSummary(nil) })
+	c := join(t, &signupPage{})
+	send(t, c, submitTarget, "submit", values(c.HTML(), map[string]string{"name": "", "main": ""}))
+	contains(t, c.HTML(),
+		`<section class="vk-summary" id="shelving-summary" tabindex="-1" autofocus data-vk-summary role="alert">There is a problem<a href="#shelving-name">Enter name</a>`,
+		`<em class="vk-field__error" id="shelving-name-error" data-vk-error="validate.required">name: Enter name</em>`,
+		`<em class="vk-field__error" id="shelving-main-error" data-vk-error="validate.required.choice">main: Select main</em>`,
+		`aria-describedby="shelving-main-error"`,
+	)
+}

@@ -20,6 +20,9 @@ import (
 //	<ui.Field name="age" label="Age" type="number" min="18"/>
 //	<ui.Input name="email" label="Email" type="email" required/>
 //
+// Deprecated: use widget.Field (github.com/vuka-lang/ui/v2/widget), the
+// same component: a form's components come from package widget.
+//
 //line field.vuka.html:15
 type Field struct {
 	// For is a field of a struct form (see Form.For): for={Form.Email}. The
