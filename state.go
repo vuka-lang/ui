@@ -609,7 +609,7 @@ type ShowProps struct {
 // A child with the popover attribute is shown with showPopover, in the top
 // layer, and hidden with hidePopover, with the same phases.
 func Show(p ShowProps) Node {
-	open, attr, err := whenOf(p.When)
+	open, attr, err := whenOf("Show", p.When)
 	if err != nil {
 		return Try(nil, err)
 	}
@@ -625,7 +625,7 @@ func Show(p ShowProps) Node {
 	return El("vk-show", attrs, p.Children)
 }
 
-func whenOf(w any) (open bool, attr Node, err error) {
+func whenOf(comp string, w any) (open bool, attr Node, err error) {
 	switch w := w.(type) {
 	case nil:
 		return false, nil, nil
@@ -637,12 +637,12 @@ func whenOf(w any) (open bool, attr Node, err error) {
 	case AnyState:
 		sv := w.stateOf()
 		if sv.t.Kind() != reflect.Bool {
-			return false, nil, fmt.Errorf("ui: Show's when is a ui.State[%s], not a bool", sv.t)
+			return false, nil, fmt.Errorf("ui: %s's when is a ui.State[%s], not a bool", comp, sv.t)
 		}
 		b, _ := sv.v.(bool)
 		return b, bindJSON{BindExpr(b, `{"$":0}`, w)}, nil
 	}
-	return false, nil, fmt.Errorf("ui: Show's when is %T; it takes a bool, a ui.State[bool] or an expression of states", w)
+	return false, nil, fmt.Errorf("ui: %s's when is %T; it takes a bool, a ui.State[bool] or an expression of states", comp, w)
 }
 
 // KeyStates keys the states among a stateful component's props in the

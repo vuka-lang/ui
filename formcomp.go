@@ -45,11 +45,18 @@ func (f Form) formView(plain bool) Node {
 		if st.ft.err != nil {
 			return Try(nil, st.ft.err)
 		}
-		_, overHTTP := liveHost(ctx).(*pageProbe)
+		probe, overHTTP := liveHost(ctx).(*pageProbe)
 		// A form type's Init runs before the form's first render; inside an
-		// element the page renders hidden, on a live page, once the browser
-		// first shows the form (data-vk-init: its vkinit event).
-		deferred := st.ft.init != nil && !st.inited && !f.Eager && browserHidden(ctx) && !overHTTP && liveHost(ctx) != nil && inStreamRow(ctx) == nil
+		// element the page renders hidden, once the browser first shows the
+		// form (data-vk-init): its vkinit event on a live page, a request for
+		// it as a lazy region (data-vk-region, RenderRegion) on one that isn't.
+		hiddenNew := st.ft.init != nil && !st.inited && !f.Eager && browserHidden(ctx) && inStreamRow(ctx) == nil && !eager(ctx) && liveHost(ctx) != nil
+		region, capture := "", false
+		if hiddenNew && overHTTP {
+			region = nextRegion(ctx)
+			capture = probe.want == region
+		}
+		deferred := hiddenNew && !capture
 		if deferred {
 			st.applyDefaults(b.value()) // a new record's starting values show at once
 		} else {
@@ -139,8 +146,14 @@ func (f Form) formView(plain bool) Node {
 		if f.ConfirmLeave {
 			attrs = append(attrs, Attr{"data-vk-confirm-leave", tr(ctx, "form.leave")}, Attr{"data-vk-dirty", st.dirty(b.value())})
 		}
-		if deferred {
-			attrs = append(attrs, Attr{"data-vk-init", true}, Attr{"aria-busy", "true"}, Attr{"onVkInit", On(ctl.init)})
+		switch {
+		case deferred && overHTTP:
+			attrs = append(attrs, Attr{"data-vk-init", true}, Attr{"aria-busy", "true"}, Attr{"data-vk-region", region})
+			probe.info.JS = true
+		case deferred:
+			attrs = append(attrs, Attr{"data-vk-init", true}, Attr{"aria-busy", "true"}, Attr{"onVkInit", On(InitHandler(ctl.init))})
+		case capture:
+			attrs = append(attrs, Attr{"data-vk-region", region})
 		}
 		if left := time.Until(st.savedUntil); left > 0 && !overHTTP && row == nil {
 			// Saved is true: the browser asks again once it isn't
@@ -207,6 +220,9 @@ func (f Form) formView(plain bool) Node {
 			}
 			return signFields(formKeyOf(ctx), identity, fieldList(st.rendering, st.ft))
 		}}}}))
+		if capture {
+			return probe.capture(ctx, El("form", attrs, kids...))
+		}
 		return El("form", attrs, kids...)
 	})
 }

@@ -252,7 +252,19 @@ type Event struct {
 	// (JSON values; a read's text); Form then carries the enclosing
 	// form's fields when the handler's struct takes them.
 	Args []json.RawMessage `json:"args,omitempty"`
+	// Shown are the InitHandlers of hidden forms and lazy regions the
+	// browser showed as it sent the event (an event whose chain opened a
+	// dialog): the session runs them after the event's handler, in the same
+	// render, so no vkinit event of their own follows.
+	Shown []string `json:"shown,omitempty"`
 }
+
+// InitHandler is the handler of an element's vkinit event, which the
+// browser sends once it first shows an element the page rendered hidden: a
+// form type's form waiting for its Init, a lazy region waiting for its
+// content. Sent while another event's reply is due, it rides on that event
+// (Event.Shown).
+type InitHandler func(context.Context) error
 
 // LiveHost renders stateful components and registers event handlers for a
 // live session. Package live implements it; ctx carries it.

@@ -78,6 +78,7 @@ type ftPlan struct {
 	slots   []ftSlot
 	fast    bool
 	keyed   bool     // a key attribute: data-vk-key, which only a live render writes
+	hides   bool     // an element that may render its children hidden (hidesChildren), which a page's probe sees in the tree
 	sites   []string // a template's slots' sites, where a block in one places its items
 	sets    []bool   // a template's attribute set slots, a []Attr in one its attributes
 }
@@ -110,7 +111,8 @@ func isTreeHost(h LiveHost) bool {
 func (n *lazyFrame) walk(ctx context.Context, r Renderer) error {
 	h, isHTML := r.(*HTMLRenderer)
 	p := n.plan()
-	if !isHTML || !p.fast || p.keyed && liveHost(ctx) != nil || isTreeHost(liveHost(ctx)) {
+	_, probe := liveHost(ctx).(*pageProbe)
+	if !isHTML || !p.fast || p.keyed && liveHost(ctx) != nil || isTreeHost(liveHost(ctx)) || p.hides && probe && !browserHidden(ctx) {
 		return Walk(ctx, n.frame(), r)
 	}
 	return n.fastHTML(ctx, h, p)
@@ -184,7 +186,7 @@ func compilePlan(f *Frame, shapeStr string) *ftPlan {
 		return notFast
 	}
 	c.statics = append(c.statics, c.sb.String())
-	return &ftPlan{statics: c.statics, slots: c.slots, fast: c.fast, keyed: c.keyed}
+	return &ftPlan{statics: c.statics, slots: c.slots, fast: c.fast, keyed: c.keyed, hides: c.hides}
 }
 
 // ftCompiler walks a sample frame once, writing its static markup into sb and
@@ -198,6 +200,7 @@ type ftCompiler struct {
 	slots   []ftSlot
 	fast    bool
 	keyed   bool
+	hides   bool
 }
 
 // dyn closes the current static piece and records a dynamic; a dynamic reached
@@ -245,6 +248,9 @@ func (c *ftCompiler) elem(sh *shape, el *Element) error {
 	if err := c.h.openTag(el); err != nil {
 		return err
 	}
+	if len(el.Children) > 0 && mayHide(el) {
+		c.hides = true
+	}
 	for i, a := range el.Attrs[:len(flags)] {
 		if a.Name == "key" {
 			c.keyed = true // data-vk-key depends on the render, not the statics
@@ -269,4 +275,20 @@ func (c *ftCompiler) elem(sh *shape, el *Element) error {
 		return nil
 	}
 	return c.h.Close(el)
+}
+
+// mayHide reports whether e may render its children hidden, whatever its
+// attributes' values: a <dialog>, or one of the attributes hidesChildren
+// reads.
+func mayHide(e *Element) bool {
+	if e.Tag == "dialog" {
+		return true
+	}
+	for _, a := range e.Attrs {
+		switch a.Name {
+		case "hidden", "show", "style", "popover":
+			return true
+		}
+	}
+	return false
 }

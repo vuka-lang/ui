@@ -40,9 +40,13 @@ func RenderPage(ctx context.Context, n Node, w io.Writer) (info PageInfo, err er
 // pageProbe is RenderPage's LiveHost: it renders nothing live, noting
 // what it meets.
 type pageProbe struct {
-	info   PageInfo
-	states map[string]int
-	forms  map[string]uintptr // the forms it met, by identity (ClaimForm)
+	info    PageInfo
+	states  map[string]int
+	forms   map[string]uintptr // the forms it met, by identity (ClaimForm)
+	regions regionScope        // the page's lazy regions outside any (lazyregion.go)
+	want    string             // RenderRegion's: the region it renders
+	found   bool               // the render met it
+	region  string             // its HTML
 }
 
 // ClaimForm notes a form the page shows, reporting false when another form
