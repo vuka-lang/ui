@@ -36,6 +36,7 @@ type formType struct {
 	forAt   uintptr                    // and its offset in the form type
 	init    *reflect.Method            // the form type's Init(ctx, deps…) error: run as the form is created, and by Load
 	own     map[*reflect.Method]bool   // the methods declared by the form type, called on it rather than on T
+	meta    map[string][]any           // a form type's: the attributes of its ui.Meta members, by the name of T's field each describes
 	err     error
 }
 
@@ -70,6 +71,8 @@ type formField struct {
 	checkers                 []vfield.Checker  // its attributes' checks needing the server, run on submit
 	fixed                    string            // why it is never a FormFor's field: "the record's primary key", …
 	key                      bool              // the record's primary key
+	disabled, readOnly       bool              // shown but never set by a submit (ui.Spec)
+	dflt                     reflect.Value     // a new record's starting value (a column's default); invalid for none
 }
 
 var (
@@ -121,8 +124,14 @@ func buildFormType(t reflect.Type) *formType {
 		vfAt, direct := offsetOf(t, vf.Index)
 		if ft.typed && len(vf.Index) > 1 {
 			ft.formHooks(t, vf.Index[:len(vf.Index)-1], direct)
+			ft.metaOf(t, vf.Type)
 		}
 		ft.addFields(vf.Type, vf.Index, vfAt, "", "")
+		for name := range ft.meta {
+			if ft.err == nil {
+				ft.err = fmt.Errorf("ui: %s.%s is a ui.Meta, which describes %s's field of the same name, and %[3]s has no field %[2]s", t.Name(), name, vf.Type.Name())
+			}
+		}
 		for _, f := range ft.fields {
 			if f.key && ft.key == nil {
 				ft.key = f.index[len(vf.Index):]
@@ -146,6 +155,22 @@ func buildFormType(t reflect.Type) *formType {
 		}
 	}
 	return ft
+}
+
+var metaType = reflect.TypeFor[Meta]()
+
+// metaOf records the attributes of a form type's ui.Meta members: each
+// describes T's (vt's) field of its name in this form.
+func (ft *formType) metaOf(t, vt reflect.Type) {
+	attrs := vuka.FieldAttrsOf(t)
+	for i := range t.NumField() {
+		if sf := t.Field(i); sf.Type == metaType {
+			if ft.meta == nil {
+				ft.meta = map[string][]any{}
+			}
+			ft.meta[sf.Name] = attrs[sf.Name]
+		}
+	}
 }
 
 // offsetOf is the offset of the field at index in t, and whether it is in
@@ -319,7 +344,14 @@ func (ft *formType) addFields(t reflect.Type, index []int, offset uintptr, path,
 		if m := sf.Tag.Get("msg"); m != "" {
 			f.msgs = parseMsgs(m)
 		}
-		if err := ft.describe(f, sf, attrs[sf.Name]); err != nil && ft.err == nil {
+		var form []any
+		if goPath == "" && ft.meta != nil {
+			var ok bool
+			if form, ok = ft.meta[sf.Name]; ok {
+				delete(ft.meta, sf.Name)
+			}
+		}
+		if err := ft.describe(f, sf, attrs[sf.Name], form); err != nil && ft.err == nil {
 			ft.err = within(t.Name()+"."+sf.Name, err)
 		}
 		if base := derefType(sf.Type); base.Kind() == reflect.Struct && !isLeaf(base) {

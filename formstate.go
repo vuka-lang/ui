@@ -73,6 +73,7 @@ type formState struct {
 	blank        map[string]bool     // the number fields the last bind left empty
 	saved        bool                // a FormFor's Save ran in the submit under way
 	inited       bool                // a form type's Init ran for this instance of the form: since it was made, loaded, reset or emptied
+	defaulted    bool                // and the fields' defaults were set, a new record's
 }
 
 // pinnedErrors are errors that stay until what they were about changes: the
@@ -133,6 +134,7 @@ func attachForm(ptr reflect.Value) *formState {
 // it sets is the form's baseline, not a change. Its error leaves the form
 // uninitialised, for the next trigger to try again.
 func (st *formState) runInit(ctx context.Context, form reflect.Value) error {
+	st.applyDefaults(form)
 	if st.ft == nil || st.ft.init == nil || st.inited {
 		return nil
 	}
@@ -143,6 +145,66 @@ func (st *formState) runInit(ctx context.Context, form reflect.Value) error {
 	st.base = cloneValue(form)
 	st.gen++ // the browser's fields take what Init set
 	return nil
+}
+
+// applyDefaults sets a new record's empty fields to their defaults (a
+// column's, orm.Char{Default: "draft"}) once for this instance of the
+// form, before Init: its starting values, not a change.
+func (st *formState) applyDefaults(form reflect.Value) {
+	if st.ft == nil || !st.ft.typed || st.defaulted {
+		return
+	}
+	st.defaulted = true
+	if !st.isNew() {
+		return
+	}
+	set := false
+	for _, f := range st.ft.fields {
+		if !f.dflt.IsValid() || f.group {
+			continue
+		}
+		if dst, err := form.FieldByIndexErr(f.index); err == nil && dst.CanSet() && dst.IsZero() {
+			set = setDefault(dst, f.dflt) || set
+		}
+	}
+	if set {
+		st.base = cloneValue(form)
+		st.gen++
+	}
+}
+
+// setDefault sets dst, a field holding a value (through an Option or a
+// pointer), to v when v is of its value's kind: text to text, a number to
+// a number.
+func setDefault(dst, v reflect.Value) bool {
+	switch {
+	case isOption(dst.Type()):
+		val, ok := optionParts(dst)
+		if !setDefault(val, v) {
+			return false
+		}
+		ok.SetBool(true)
+		return true
+	case dst.Kind() == reflect.Pointer:
+		p := reflect.New(dst.Type().Elem())
+		if !setDefault(p.Elem(), v) {
+			return false
+		}
+		dst.Set(p)
+		return true
+	case v.Type().AssignableTo(dst.Type()):
+		dst.Set(v)
+	case v.Kind() == reflect.String && dst.Kind() == reflect.String,
+		isNumber(v.Kind()) && isNumber(dst.Kind()),
+		v.Kind() == reflect.Bool && dst.Kind() == reflect.Bool:
+		if !v.CanConvert(dst.Type()) {
+			return false
+		}
+		dst.Set(v.Convert(dst.Type()))
+	default:
+		return false
+	}
+	return true
 }
 
 // ownerForm is the form type ptr's FormFor is embedded in, once its state

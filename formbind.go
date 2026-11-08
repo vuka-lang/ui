@@ -39,8 +39,8 @@ func (st *formState) bind(ctx context.Context, form reflect.Value, vals url.Valu
 	st.raw, st.parsed, st.memo, st.blank = nil, nil, nil, nil
 	st.bound = rendered
 	for _, f := range st.ft.fields {
-		if f.group {
-			continue
+		if f.group || f.disabled || f.readOnly {
+			continue // a disabled or read-only field keeps the server's value
 		}
 		fv, err := form.FieldByIndexErr(f.index)
 		if err != nil || !fv.CanSet() {
