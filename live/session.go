@@ -1126,6 +1126,21 @@ func (s *Session) renderAll() error {
 			return err
 		}
 	}
+	s.sweep()
+	if s.dropOrphans() {
+		// a component opened Into a region whose instance this render
+		// unmounted goes with it, in this render
+		s.pass++
+		if err := s.renderInst(s.root); err != nil {
+			return err
+		}
+		s.sweep()
+	}
+	return nil
+}
+
+// sweep unmounts the instances the pass didn't render.
+func (s *Session) sweep() {
 	for id, in := range s.byID {
 		if in.seen != s.pass {
 			unmount(in)
@@ -1139,7 +1154,6 @@ func (s *Session) renderAll() error {
 			}
 		}
 	}
-	return nil
 }
 
 // visit renders an instance, or keeps its last render when its state is all
@@ -1229,7 +1243,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 	} else {
 		n := ui.ResolveContext(ctx, in.comp.Render())
 		if c := in.call; c != nil {
-			n = ui.ResolveContext(ctx, ui.CallView(c.key, n, func() { s.dropCall(c.key) }, nil))
+			n = ui.ResolveContext(ctx, ui.CallView(c.key, n, func() { s.dropCall(c.key) }, nil, c.opts...))
 		}
 		node = rooted(n, in.id, in.key)
 	}

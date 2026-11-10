@@ -30,7 +30,10 @@ func (c *Client) openEvent(this *node, a *opArgs) (ui.Event, string, error) {
 		reads[name] = v
 	}
 	c.calls++
-	key := "t" + strconv.Itoa(c.calls)
+	key := a.CallKey
+	if key == "" {
+		key = "t" + strconv.Itoa(c.calls)
+	}
 	data, err := json.Marshal(map[string]any{"key": key, "reads": reads})
 	if err != nil {
 		return ui.Event{}, "", err

@@ -100,10 +100,9 @@ func callTypeOf(v any) (*callType, reflect.Value, error) {
 }
 
 // A CallOption is how a component opened with Call shows: given with the
-// component, JS.Call(component, opts...).
+// component, JS.Call(component, opts...): As, Into, CallKey; a Size
+// among them is one too.
 type CallOption func(*callOpts)
-
-type callOpts struct{}
 
 // callStep is a Call step's component and options.
 type callStep struct {
@@ -114,6 +113,9 @@ type callStep struct {
 func newCallStep(comp any, args []any) *push {
 	st := &callStep{comp: comp}
 	for _, a := range args {
+		if sz, ok := a.(Size); ok {
+			a = sizeOption(sz)
+		}
 		o, ok := a.(CallOption)
 		if !ok {
 			panic(fmt.Sprintf("ui: JS Call of %T takes CallOptions after the component, not %T: its props go in the component's value", comp, a))
@@ -135,6 +137,9 @@ type CallHost interface {
 	// CallAction keeps fn, an Action prop of a Call the render under way
 	// shows, and returns its id, which the opened component's prop takes.
 	CallAction(ctx context.Context, fn any) string
+	// CallOwner is the instance whose render shows the Call: what a
+	// component opened Into a region of the page belongs to.
+	CallOwner() string
 }
 
 const callPurpose = "vk-call"
@@ -188,9 +193,24 @@ func encodeCall(ctx context.Context, host LiveHost, st *callStep) ([]jsArg, erro
 		names = append(names, n)
 	}
 	slices.Sort(names)
-	kvs := []jsArg{{"t", seal(formKeyOf(ctx), callPurpose, bindingTag(binding), ct.id, string(props), strings.Join(names, ","), callExpiry())}}
+	var o callOpts
+	o.apply(st.opts)
+	if o.Into != "" && ch != nil {
+		o.Owner = ch.CallOwner()
+	}
+	oj, err := marshal(o)
+	if err != nil {
+		return nil, err
+	}
+	kvs := []jsArg{{"t", seal(formKeyOf(ctx), callPurpose, bindingTag(binding), ct.id, string(props), strings.Join(names, ","), string(oj), callExpiry())}}
 	if len(reads) > 0 {
 		kvs = append(kvs, jsArg{"reads", reads})
+	}
+	if o.Key != "" {
+		kvs = append(kvs, jsArg{"key", o.Key})
+	}
+	if o.Into != "" {
+		kvs = append(kvs, jsArg{"into", o.Into})
 	}
 	if ch != nil {
 		kvs = append(kvs, jsArg{"h", ch.CallTarget()})
@@ -323,6 +343,26 @@ type CallOpen struct {
 	ct    *callType
 	props map[string]json.RawMessage
 	reads map[string]json.RawMessage
+	opts  callOpts
+}
+
+// Options are the Call's options, As, Into, Key and Size, as the token
+// carries them: what CallView takes.
+func (c *CallOpen) Options() []CallOption { return c.opts.options() }
+
+// Key is the Call's Key, "" without one.
+func (c *CallOpen) Key() string { return c.opts.Key }
+
+// Into is the element the Call opens its component in ("#side"), and the
+// instance that component belongs to (a live page's): "" for the overlay
+// host.
+func (c *CallOpen) Into() (sel, owner string) { return c.opts.Into, c.opts.Owner }
+
+// CallOptions reads opts: the Key, Into and owner they give.
+func CallOptions(opts []CallOption) (key, into string) {
+	var o callOpts
+	o.apply(opts)
+	return o.Key, o.Into
 }
 
 // ParseCall reads an open: token, the step's; reads, the JSON object of
@@ -332,7 +372,7 @@ type CallOpen struct {
 // name a registered component (ErrCallToken); reads may fill only the
 // props the token names as reads.
 func ParseCall(ctx context.Context, binding, token string, reads json.RawMessage) (*CallOpen, error) {
-	parts, ok := unseal(formKeyOf(ctx), callPurpose, token, 5)
+	parts, ok := unseal(formKeyOf(ctx), callPurpose, token, 6)
 	if !ok || !hmac.Equal([]byte(parts[0]), []byte(bindingTag(binding))) {
 		return nil, ErrCallToken
 	}
@@ -343,7 +383,7 @@ func ParseCall(ctx context.Context, binding, token string, reads json.RawMessage
 		return nil, ErrCallToken
 	}
 	c := &CallOpen{ct: ct}
-	if err := json.Unmarshal([]byte(parts[2]), &c.props); err != nil {
+	if json.Unmarshal([]byte(parts[2]), &c.props) != nil || json.Unmarshal([]byte(parts[4]), &c.opts) != nil {
 		return nil, ErrCallToken
 	}
 	if len(reads) > 0 && string(reads) != "null" {
@@ -492,7 +532,7 @@ func InjectFields(ctx context.Context, comp any) error {
 // a page that isn't live, in its presentation (CallView) as key's: its
 // dependencies injected (InjectFields), a stateful one mounted first. failed is its Mount's error, or its
 // render's, and the HTML then the frame's error state.
-func RenderCall(ctx context.Context, key string, comp any) (html string, failed error) {
+func RenderCall(ctx context.Context, key string, comp any, opts ...CallOption) (html string, failed error) {
 	var view Node
 	failed = InjectFields(ctx, comp)
 	s, live := comp.(Stateful)
@@ -512,12 +552,12 @@ func RenderCall(ctx context.Context, key string, comp any) (html string, failed 
 	ctx = WithEager(ctx)
 	var b bytes.Buffer
 	if failed == nil {
-		if failed = renderHTML(ctx, &b, CallView(key, view, nil, nil)); failed == nil {
+		if failed = renderHTML(ctx, &b, CallView(key, view, nil, nil, opts...)); failed == nil {
 			return b.String(), nil
 		}
 		b.Reset()
 	}
-	if err := renderHTML(ctx, &b, CallView(key, nil, nil, failed)); err != nil {
+	if err := renderHTML(ctx, &b, CallView(key, nil, nil, failed, opts...)); err != nil {
 		return "", errors.Join(failed, err)
 	}
 	return b.String(), failed
@@ -525,61 +565,64 @@ func RenderCall(ctx context.Context, key string, comp any) (html string, failed 
 
 type callRootKey struct{}
 
-// CallView is an opened component's view in its presentation: the
-// component's root element's, when it is a <ui.Dialog>, else a dialog frame
-// around it; the frame's error state when failed (its Mount's error). Its
-// root is the <dialog> the runtime shows, data-vk-call naming it key, and
-// close, when not nil, the handler its closing calls (a live page's).
-func CallView(key string, view Node, close any, failed error) Node {
+// CallView is an opened component's view in its presentation: opts' As,
+// else the component's root's when it is a Presentation (a Dialog, a
+// Drawer…), else a dialog frame around it; in place, without one, Into a
+// region; the frame's error state when failed (its Mount's error). Its
+// root carries data-vk-call naming it key, data-vk-present the kind of
+// presentation the runtime shows (modal, popover, toast, inline), and
+// close, when not nil, is the handler its closing calls (a live page's).
+func CallView(key string, view Node, close any, failed error, opts ...CallOption) Node {
+	var o callOpts
+	o.apply(opts)
 	return ctxNode(func(ctx context.Context) Node {
+		if v, ok := view.(interface{ View() Node }); ok {
+			if _, own := view.(Presentation); !own {
+				view = v.View()
+			}
+		}
 		attrs := []Attr{{"data-vk-call", key}}
 		if close != nil {
 			attrs = append(attrs, Attr{"onVkclose", On(close)})
 		}
+		if o.Size != "" {
+			attrs = append(attrs, Attr{"data-vk-size", o.Size})
+		}
+		root, own := rootPresentation(view)
+		parts := presentParts{Children: view}
+		if own {
+			parts = root.parts()
+		}
+		as, err := o.as()
+		if err != nil {
+			return Try(nil, err)
+		}
 		switch {
 		case failed != nil:
-			return El("dialog", append(attrs, Attr{"class", "vk-call vk-call--failed"}),
+			parts = presentParts{Children: El("p", []Attr{{"class", "vk-call__error"}, {"role", "alert"}}, Text(tr(ctx, "call.failed")))}
+			if o.Into != "" {
+				return presentation("section", "vk-call-inline vk-call--failed", append(attrs, Attr{"data-vk-present", "inline"}), ctx, parts, true)
+			}
+			return El("dialog", append(attrs, Attr{"class", "vk-call vk-call--failed"}, Attr{"data-vk-present", "modal"}),
+				callClose(ctx, "vk-call__close"), parts.Children)
+		case o.Into != "":
+			return presentation("section", "vk-call-inline", append(attrs, Attr{"data-vk-present", "inline"}), ctx, parts, true)
+		case as != nil:
+			view = as.withParts(parts)
+		case !own:
+			return El("dialog", append(attrs, Attr{"class", "vk-call"}, Attr{"data-vk-present", "modal"}),
 				callClose(ctx, "vk-call__close"),
-				El("p", []Attr{{"class", "vk-call__error"}, {"role", "alert"}}, Text(tr(ctx, "call.failed"))))
-		case presents(view):
-			return withContext(func(ctx context.Context) context.Context {
-				return context.WithValue(ctx, callRootKey{}, attrs)
-			}, view)
+				El("div", []Attr{{"class", "vk-call__body"}}, view))
 		}
-		return El("dialog", append(attrs, Attr{"class", "vk-call"}),
-			callClose(ctx, "vk-call__close"),
-			El("div", []Attr{{"class", "vk-call__body"}}, view))
+		return withContext(func(ctx context.Context) context.Context {
+			return context.WithValue(ctx, callRootKey{}, attrs)
+		}, view)
 	})
 }
 
 // callClose is a close button.
 func callClose(ctx context.Context, class string) Node {
 	return El("button", []Attr{{"type", "button"}, {"class", class}, {"aria-label", tr(ctx, "call.close")}, {"onClick", JS.Close()}}, Text("×"))
-}
-
-// presents reports whether a component's view has a presentation of its
-// own: its root, all of it, is a <ui.Dialog>.
-func presents(n Node) bool {
-	for range 8 {
-		switch x := n.(type) {
-		case Dialog, *Dialog:
-			return true
-		case *lazyFrame:
-			if x == nil || x.shape != "h" || len(x.dyns) != 1 {
-				return false
-			}
-			d, ok := x.dyns[0].(Node)
-			if !ok {
-				return false
-			}
-			n = d
-		case keyedNode:
-			n = x.n
-		default:
-			return false
-		}
-	}
-	return false
 }
 
 // callRootAttrs takes the attributes a Call's presentation puts on the

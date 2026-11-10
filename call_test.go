@@ -133,7 +133,7 @@ func TestCallEncode(t *testing.T) {
 		t.Errorf("the Action prop pushes the page's method over HTTP: %s %v", ops, err)
 	}
 	html, failed := ui.RenderCall(ctx, "k1", v)
-	if failed != nil || !strings.HasPrefix(html, `<dialog data-vk-call="k1" class="vk-call">`) || !strings.Contains(html, "7 Lamp red") {
+	if failed != nil || !strings.HasPrefix(html, `<dialog data-vk-call="k1" class="vk-call" data-vk-present="modal">`) || !strings.Contains(html, "7 Lamp red") {
 		t.Errorf("the default frame: %s %v", html, failed)
 	}
 }
@@ -146,7 +146,7 @@ func TestCallPresentation(t *testing.T) {
 	}
 	v, _ := c.Value(nil)
 	html, err := ui.RenderCall(ctx, "k2", v)
-	if err != nil || !strings.HasPrefix(html, `<dialog class="vk-dialog" data-vk-call="k2">`) || strings.Contains(html, "vk-call\"") || strings.Count(html, "<dialog") != 1 {
+	if err != nil || !strings.HasPrefix(html, `<dialog class="vk-dialog" data-vk-call="k2" data-vk-present="modal">`) || strings.Contains(html, "vk-call\"") || strings.Count(html, "<dialog") != 1 {
 		t.Errorf("a ui.Dialog root is the presentation: %s %v", html, err)
 	}
 	out, err := ui.String(ctx, ui.Dialog{Title: ui.Text("Plain"), Open: true})
@@ -246,5 +246,50 @@ func TestCallFromPush(t *testing.T) {
 	}
 	if err := ui.Call(context.Background(), productCard{}); !errors.Is(err, ui.ErrNoCaller) {
 		t.Errorf("ui.Call outside a handler: %v", err)
+	}
+}
+
+// TestCallOptions: a Call's options travel in its token, and the
+// component renders as they say.
+func TestCallOptions(t *testing.T) {
+	ctx := callCtx("v")
+	a := openStep(t, ctx, ui.JS.Call(productCard{ID: 5}, ui.Into("#side"), ui.CallKey("product 5"), ui.SizeXl))
+	var key, into string
+	json.Unmarshal(a["key"], &key)
+	json.Unmarshal(a["into"], &into)
+	if into != "#side" || !strings.HasPrefix(key, "k") || len(key) > 40 {
+		t.Errorf("the step's key and into: %q %q", key, into)
+	}
+	c, err := ui.ParseCall(ctx, "v", tokenOf(t, a), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel, _ := c.Into(); sel != "#side" || c.Key() != key {
+		t.Errorf("the token's options: %q %q", sel, c.Key())
+	}
+	v, _ := c.Value(nil)
+	html, _ := ui.RenderCall(ctx, key, v, c.Options()...)
+	if !strings.HasPrefix(html, `<section class="vk-call-inline" data-vk-call="`+key+`" data-vk-size="xl" data-vk-present="inline">`) {
+		t.Errorf("Into renders in place: %s", html)
+	}
+	c, _ = ui.ParseCall(ctx, "v", tokenOf(t, openStep(t, ctx, ui.JS.Call(productDialog{ID: 4}, ui.As(ui.Drawer{})))), nil)
+	v, _ = c.Value(nil)
+	html, _ = ui.RenderCall(ctx, "k", v, c.Options()...)
+	if !strings.HasPrefix(html, `<dialog class="vk-drawer vk-drawer--right" data-vk-call="k" data-vk-present="modal"><div class="vk-dialog__header"><h2 class="vk-dialog__title">Product</h2>`) || strings.Count(html, "<dialog") != 1 {
+		t.Errorf("As takes the root's title and content: %s", html)
+	}
+	for name, f := range map[string]func(){
+		"As with a title": func() { ui.As(ui.Drawer{Title: ui.Text("x")}) },
+		"Into a class":    func() { ui.Into(".side") },
+		"a Size":          func() { ui.JS.Call(productCard{}, ui.Size("huge")) },
+	} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("%s doesn't panic", name)
+				}
+			}()
+			f()
+		}()
 	}
 }

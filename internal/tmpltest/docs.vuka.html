@@ -35,6 +35,8 @@ func (c *Docs) SelectAll()      {}
 func (c *Docs) DeleteTodo()     {}
 func (c *Docs) Remove()         {}
 func (c *Docs) Archive()        {}
+func (c *Docs) Create() (int, error) { return 1, nil }
+func (c *Docs) Created(id int)  {}
 
 func (c *Docs) RegionsOf(country string) []ui.Option {
 	return []ui.Option{{Value: country + "-r", Label: "Region of " + country}}
@@ -109,6 +111,7 @@ func (c *Docs) CitiesOf(country string) []ui.Option {
     <button onClick={ui.JS.Call(PetEditor{ID: pet.ID, OnSave: ui.JS.Show(ui.Ref("saved"))})}>Edit</button>
     <button onClick={ui.JS.Call(PetEditor{ID: pet.ID}).Success(ui.JS.Hide(ui.Ref("saved"))).Closed(ui.JS.Focus(ui.This))}>Edit</button>
     <button onClick={ui.JS.Close()}>Cancel</button>
+    <form onSubmit={ui.JS.Push(c.Create).Success(c.Created)}>…</form>
     <button onClick={ui.JS.On(ui.This).Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show()}>Done</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst()}>Edit</button>
