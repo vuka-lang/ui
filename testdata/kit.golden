@@ -261,6 +261,20 @@
 .vk-modal__close{appearance:none;border:0;background:transparent;color:var(--ui-muted);font-size:1.25rem;line-height:1;cursor:pointer;padding:.25rem}
 .vk-modal__close:hover{color:var(--ui-fg)}
 
+/* Dialog: a native <dialog>, and the frame a component opened with Call shows in */
+dialog.vk-dialog,dialog.vk-call{box-sizing:border-box;width:min(32rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;overflow:auto;
+  background:var(--ui-bg);color:var(--ui-fg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
+dialog.vk-dialog::backdrop,dialog.vk-call::backdrop{background:var(--ui-overlay)}
+.vk-dialog--sm{width:min(24rem,calc(100vw - 2rem))} .vk-dialog--lg{width:min(48rem,calc(100vw - 2rem))}
+.vk-dialog__header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid var(--ui-border)}
+.vk-dialog__title{margin:0;font-size:1.05rem;font-weight:600}
+.vk-dialog__body,.vk-call__body{padding:1.25rem}
+.vk-dialog__footer{display:flex;gap:.5rem;justify-content:flex-end;padding:1rem 1.25rem;border-top:1px solid var(--ui-border)}
+.vk-dialog__close,.vk-call__close{appearance:none;border:0;background:transparent;color:var(--ui-muted);font-size:1.25rem;line-height:1;cursor:pointer;padding:.25rem}
+.vk-dialog__close:hover,.vk-call__close:hover{color:var(--ui-fg)}
+dialog.vk-call{position:fixed} .vk-call>.vk-call__close{position:absolute;top:.5rem;right:.5rem}
+.vk-call__error{margin:0;padding:2.25rem 1.25rem 1.25rem;color:var(--ui-danger)}
+
 /* Alert */
 .vk-alert{display:flex;gap:.75rem;align-items:flex-start;padding:.75rem 1rem;border:1px solid var(--ui-border);
   border-left-width:4px;border-radius:var(--ui-radius);background:var(--ui-subtle);color:var(--ui-fg)}
@@ -517,6 +531,20 @@
 .vk-modal__footer{display:flex;gap:.5rem;justify-content:flex-end;padding:1rem 1.25rem;border-top:1px solid var(--ui-border)}
 .vk-modal__close{appearance:none;border:0;background:transparent;color:var(--ui-muted);font-size:1.25rem;line-height:1;cursor:pointer;padding:.25rem}
 .vk-modal__close:hover{color:var(--ui-fg)}
+
+/* Dialog: a native <dialog>, and the frame a component opened with Call shows in */
+dialog.vk-dialog,dialog.vk-call{box-sizing:border-box;width:min(32rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;overflow:auto;
+  background:var(--ui-bg);color:var(--ui-fg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
+dialog.vk-dialog::backdrop,dialog.vk-call::backdrop{background:var(--ui-overlay)}
+.vk-dialog--sm{width:min(24rem,calc(100vw - 2rem))} .vk-dialog--lg{width:min(48rem,calc(100vw - 2rem))}
+.vk-dialog__header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid var(--ui-border)}
+.vk-dialog__title{margin:0;font-size:1.05rem;font-weight:600}
+.vk-dialog__body,.vk-call__body{padding:1.25rem}
+.vk-dialog__footer{display:flex;gap:.5rem;justify-content:flex-end;padding:1rem 1.25rem;border-top:1px solid var(--ui-border)}
+.vk-dialog__close,.vk-call__close{appearance:none;border:0;background:transparent;color:var(--ui-muted);font-size:1.25rem;line-height:1;cursor:pointer;padding:.25rem}
+.vk-dialog__close:hover,.vk-call__close:hover{color:var(--ui-fg)}
+dialog.vk-call{position:fixed} .vk-call>.vk-call__close{position:absolute;top:.5rem;right:.5rem}
+.vk-call__error{margin:0;padding:2.25rem 1.25rem 1.25rem;color:var(--ui-danger)}
 
 /* Alert */
 .vk-alert{display:flex;gap:.75rem;align-items:flex-start;padding:.75rem 1rem;border:1px solid var(--ui-border);

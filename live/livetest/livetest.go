@@ -14,6 +14,7 @@ package livetest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"net/url"
@@ -67,6 +68,8 @@ type Client struct {
 	funcs   map[string]Func
 	busy    []*busyState            // what Busy commands marked, not yet undone
 	streams map[string]*streamState // each stream container's rows, by instance and name (stream.go)
+	frames  []*openFrame            // the components Calls opened, still open (call.go)
+	calls   int                     // the Calls opened so far, naming them
 }
 
 type frame struct {
@@ -139,13 +142,14 @@ func (c *Client) send(m live.ClientMessage, p *pending) (live.ServerMessage, err
 	if err := c.runPushed(reply.JS); err != nil {
 		return reply, err
 	}
+	var err error
 	if p != nil {
 		if failed {
 			p.msg = reply.Error
 		}
-		return reply, c.settle(p, !failed)
+		err = c.settle(p, !failed)
 	}
-	return reply, nil
+	return reply, errors.Join(err, c.closedGone())
 }
 
 // Event sends an event.
@@ -193,7 +197,7 @@ func (c *Client) Apply(data []byte) error {
 	if err := json.Unmarshal(data, &m); err != nil {
 		return err
 	}
-	return c.runPushed(m.JS)
+	return errors.Join(c.runPushed(m.JS), c.closedGone())
 }
 
 // Info delivers a broadcast to the session (Session.Info) and applies what

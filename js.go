@@ -78,8 +78,10 @@ type push struct {
 	onOK    *Commands
 	onErr   *Commands
 	after   *Commands
+	closed  *Commands // a Call's: once the instance it opened closes
 	timeout time.Duration
 	keep    bool
+	call    *callStep // a Call step's component: an open, not a push
 }
 
 // callArgs is a Call step's arguments, element reads among them.
@@ -98,6 +100,16 @@ func (a callArgs) MarshalJSON() ([]byte, error) {
 
 func (c Commands) add(name string, args ...jsArg) Commands {
 	return Commands{append(slices.Clip(c.ops), jsOp{name: name, args: args})}
+}
+
+// rawOp is the name of an op holding commands already encoded, the JSON
+// array in its one argument: an Action prop of a component Call opened,
+// as the page that rendered the Call encoded it.
+const rawOp = "\x00raw"
+
+// rawCommands is a chain of the commands ops, a JSON array, encoded.
+func rawCommands(ops json.RawMessage) Commands {
+	return Commands{[]jsOp{{name: rawOp, args: []jsArg{{"ops", ops}}}}}
 }
 
 func to(t Target) jsArg { return jsArg{"to", t} }
@@ -1048,8 +1060,11 @@ func (c Commands) Timeout(d time.Duration) Commands {
 // copy of it.
 func (c Commands) withPush(step string, f func(*push)) Commands {
 	for i := len(c.ops) - 1; i >= 0; i-- {
-		if c.ops[i].name != "push" {
+		if c.ops[i].name != "push" && c.ops[i].name != "open" {
 			continue
+		}
+		if c.ops[i].name == "open" && (step == "Into" || step == "KeepOnError") {
+			panic("ui: JS " + step + " after a Call: it applies to a Push; a Call opens its component in the overlay host")
 		}
 		args := slices.Clone(c.ops[i].args)
 		for j, a := range args {
@@ -1063,7 +1078,7 @@ func (c Commands) withPush(step string, f func(*push)) Commands {
 		ops[i] = jsOp{name: c.ops[i].name, args: args}
 		return Commands{ops}
 	}
-	panic("ui: JS " + step + " without a Push before it")
+	panic("ui: JS " + step + " without a Push or Call before it")
 }
 
 // Options loads the options of target, a select, from handler: a method
@@ -1099,27 +1114,53 @@ func (c Commands) Options(target Target, handler any, args ...any) Commands {
 	return c.add("push", jsArg{"h", p})
 }
 
-// Call runs a JavaScript function of the page: one registered with
+// Call runs a JavaScript function of the page, or opens a component.
+//
+// Given a name, it calls a function: one registered with
 // vuka.register(name, fn), else a dotted path on window ("Chart.refresh").
 // The function gets a context (ctx.el, ctx.event, ctx.root), then args:
 // JSON values, or element reads such as ui.Ref("q").Value(), made when the
-// step runs.
+// step runs. The chain waits for a returned promise. Returning false stops
+// the chain; a throw stops it too, and fails the Push it predicts for. Call
+// panics unless name is an identifier or a dotted path of them.
 //
-// The chain waits for a returned promise. Returning false stops the chain;
-// a throw stops it too, and fails the Push it predicts for. Call panics
-// unless name is an identifier or a dotted path of them.
+// Given a component — a value of a type vuka's compiler registered because
+// a Call names it (RegisterCall) — it opens the component in the page's
+// overlay host: the step carries the component's name and props, signed
+// for the page's session, and the server mounts and renders it there. Its
+// presentation is its root element's (a <ui.Dialog>), else a dialog frame.
+// Its props are JSON values, element reads (in a prop of type any) made
+// when the step runs, and ui.Action props, which run where the page that
+// opened it runs them; a ui.Node prop can't be sent. args are CallOptions.
+// Before, Success, Error and After after it apply to it as to a Push:
+// Success runs once the component is on screen, Error when its Mount
+// fails or the call is refused; Closed once it closes. The component's
+// Mount must still check that the visitor may see what it shows.
 //
 // Example:
 //
 //	<button onClick={ui.JS.Call("confetti", 120)}>Celebrate</button>
 //	<input ref="q" onInput={ui.JS.Debounce(200*time.Millisecond).Call("Search.preview", ui.Ref("q").Value())} />
-func (c Commands) Call(name string, args ...any) Commands {
-	return c.callOn(This, name, args)
+//	<button onClick={ui.JS.Call(PetEditor{ID: pet.ID, OnSave: ui.JS.Show(ui.Ref("saved"))})}>Edit</button>
+func (c Commands) Call(target any, args ...any) Commands {
+	return c.callOn(This, target, args)
 }
 
-func (c Commands) callOn(t Target, name string, args []any) Commands {
+func (c Commands) callOn(t Target, target any, args []any) Commands {
+	name, ok := target.(string)
+	if !ok {
+		if t != This {
+			panic("ui: JS On(…).Call takes a function's name: a component opens in the overlay host, not on a target")
+		}
+		return c.add("open", jsArg{"h", newCallStep(target, args)})
+	}
 	if !fnName.MatchString(name) {
 		panic(fmt.Sprintf("ui: JS Call %q: not a function name or a dotted path of them", name))
+	}
+	for _, a := range args {
+		if _, ok := a.(CallOption); ok {
+			panic(fmt.Sprintf("ui: JS Call %q: a CallOption goes with a component, not a function's name", name))
+		}
 	}
 	op := []jsArg{{"fn", name}, to(t)}
 	if len(args) > 0 {
@@ -1127,6 +1168,34 @@ func (c Commands) callOn(t Target, name string, args []any) Commands {
 	}
 	return c.add("call", op...)
 }
+
+// Closed runs a once the component the last Call before it opened has
+// closed: by ui.Close or JS.Close, the dialog's own close, Escape, or the
+// page leaving. It runs in the page, where the Call ran. Panics unless the
+// last Push or Call before it is a component's Call.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Call(PetEditor{ID: pet.ID}).Success(ui.JS.Hide(ui.Ref("saved"))).Closed(ui.JS.Focus(ui.This))}>Edit</button>
+func (c Commands) Closed(a Action) Commands {
+	ch := actionChain("Closed", a)
+	return c.withPush("Closed", func(p *push) {
+		if p.call == nil {
+			panic("ui: JS Closed after a Push: it applies to a component's Call")
+		}
+		p.closed = joinHook(p.closed, ch)
+	})
+}
+
+// Close closes the component opened with Call that the element the event
+// is on belongs to, the nearest around it (or, outside one, the <dialog>
+// around it). Closing a component destroys its instance. ui.Close closes
+// it from the server.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Close()}>Cancel</button>
+func (c Commands) Close() Commands { return c.add("close") }
 
 var fnName = regexp.MustCompile(`^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*$`)
 
@@ -1895,14 +1964,26 @@ func (o CommandsOn) Patch(href string) CommandsOn { return o.with(o.c.Patch(href
 func (o CommandsOn) Navigate(href string) CommandsOn { return o.with(o.c.Navigate(href)) }
 
 // Call runs a JavaScript function of the page (see Commands.Call), with the
-// target as its context's element, ctx.el.
+// target as its context's element, ctx.el. It takes a function's name: a
+// component opens with Commands.Call.
 //
 // Example:
 //
 //	<button onClick={ui.JS.On(ui.Ref("chart")).Call("Chart.refresh")}>Refresh</button>
-func (o CommandsOn) Call(name string, args ...any) CommandsOn {
-	return o.with(o.c.callOn(o.to, name, args))
+func (o CommandsOn) Call(target any, args ...any) CommandsOn {
+	if _, ok := target.(string); !ok {
+		return o.with(o.c.callOn(This, target, args))
+	}
+	return o.with(o.c.callOn(o.to, target, args))
 }
+
+// Closed runs a once the component the last Call before it opened has
+// closed (see Commands.Closed).
+func (o CommandsOn) Closed(a Action) CommandsOn { return o.with(o.c.Closed(a)) }
+
+// Close closes the component opened with Call that the event's element
+// belongs to (see Commands.Close).
+func (o CommandsOn) Close() CommandsOn { return o.with(o.c.Close()) }
 
 // EncodeJS is a chain's JSON, the value of its data-vk-js-<event> attribute:
 // each Push's handler registered with ctx's live host, which gives its id;
@@ -1913,10 +1994,24 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 	host := liveHost(ctx)
 	var b bytes.Buffer
 	b.WriteByte('[')
-	for i, o := range ch.jsChain().ops {
-		if i > 0 {
+	first := true
+	for _, o := range ch.jsChain().ops {
+		if o.name == rawOp {
+			inner := bytes.TrimSpace(o.args[0].val.(json.RawMessage))
+			inner = bytes.TrimSpace(inner[1 : len(inner)-1])
+			if len(inner) > 0 {
+				if !first {
+					b.WriteByte(',')
+				}
+				b.Write(inner)
+				first = false
+			}
+			continue
+		}
+		if !first {
 			b.WriteByte(',')
 		}
+		first = false
 		b.WriteString(`["` + o.name + `",{`)
 		sep := ""
 		for _, a := range o.args {
@@ -1943,7 +2038,12 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 				}
 			case *push:
 				var err error
-				if kvs, err = encodePush(ctx, host, x); err != nil {
+				if x.call != nil {
+					kvs, err = encodeCall(ctx, host, x.call)
+				} else {
+					kvs, err = encodePush(ctx, host, x)
+				}
+				if err != nil {
 					return nil, err
 				}
 				if kvs == nil {
@@ -1952,7 +2052,7 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 				for _, h := range [...]struct {
 					key string
 					ch  *Commands
-				}{{"before", x.before}, {"on_ok", x.onOK}, {"on_error", x.onErr}, {"after", x.after}} {
+				}{{"before", x.before}, {"on_ok", x.onOK}, {"on_error", x.onErr}, {"after", x.after}, {"closed", x.closed}} {
 					if h.ch != nil {
 						j, err := EncodeJS(ctx, *h.ch)
 						if err != nil {

@@ -302,6 +302,9 @@ var defaults = map[string]string{
 	"form.choose":        "Choose…",
 
 	"lazy.loading": "Loading…",
+
+	"call.close":  "Close",
+	"call.failed": "This couldn't open.",
 }
 
 // DefaultMessages is a copy of the default wording, by key: what an app's

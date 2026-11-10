@@ -43,6 +43,7 @@ type pending struct {
 	deadline    time.Duration
 	settled     bool
 	busy        []*busyState // what Busy marked for it, undone when it settles
+	call        *openFrame   // a Call's open: the component it opens
 }
 
 // sending is an event waiting to be sent, and the push it is the event of.
@@ -130,6 +131,9 @@ func (c *Client) settle(p *pending, ok bool) error {
 	hook := p.onErr
 	if ok {
 		hook = p.onOK
+		if p.call != nil {
+			c.frames = append(c.frames, p.call)
+		}
 	}
 	this := c.at(p.this)
 	defer func(was *string) { c.loadErr = was }(c.loadErr)

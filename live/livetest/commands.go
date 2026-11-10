@@ -317,32 +317,35 @@ type op struct {
 }
 
 type opArgs struct {
-	To         json.RawMessage   `json:"to"`
-	Names      []string          `json:"names"`
-	Name       string            `json:"name"`
-	Value      json.RawMessage   `json:"value"`
-	Values     []string          `json:"values"`
-	Display    string            `json:"display"`
-	Event      string            `json:"event"`
-	Bubbles    bool              `json:"bubbles"`
-	Attr       string            `json:"attr"`
-	H          string            `json:"h"`
-	Keys       []string          `json:"keys"`
-	Msg        string            `json:"msg"`
-	Cond       *cond             `json:"cond"`
-	Text       json.RawMessage   `json:"text"`
-	Transition []string          `json:"transition"`
-	Before     json.RawMessage   `json:"before"`
-	OnOK       json.RawMessage   `json:"on_ok"`
-	OnError    json.RawMessage   `json:"on_error"`
-	After      json.RawMessage   `json:"after"`
-	Go         bool              `json:"vk_go"` // the push a Before chain ends in
-	Timeout    int64             `json:"timeout"`
-	Keep       bool              `json:"keep"`
-	Fn         string            `json:"fn"`
-	Href       string            `json:"href"`
-	Replace    bool              `json:"replace"`
-	Args       []json.RawMessage `json:"args"`
+	To         json.RawMessage            `json:"to"`
+	Names      []string                   `json:"names"`
+	Name       string                     `json:"name"`
+	Value      json.RawMessage            `json:"value"`
+	Values     []string                   `json:"values"`
+	Display    string                     `json:"display"`
+	Event      string                     `json:"event"`
+	Bubbles    bool                       `json:"bubbles"`
+	Attr       string                     `json:"attr"`
+	H          string                     `json:"h"`
+	Keys       []string                   `json:"keys"`
+	Msg        string                     `json:"msg"`
+	Cond       *cond                      `json:"cond"`
+	Text       json.RawMessage            `json:"text"`
+	Transition []string                   `json:"transition"`
+	Before     json.RawMessage            `json:"before"`
+	OnOK       json.RawMessage            `json:"on_ok"`
+	OnError    json.RawMessage            `json:"on_error"`
+	After      json.RawMessage            `json:"after"`
+	Closed     json.RawMessage            `json:"closed"`
+	T          string                     `json:"t"`     // a Call's token
+	Reads      map[string]json.RawMessage `json:"reads"` // a Call's props the browser reads
+	Go         bool                       `json:"vk_go"` // the push a Before chain ends in
+	Timeout    int64                      `json:"timeout"`
+	Keep       bool                       `json:"keep"`
+	Fn         string                     `json:"fn"`
+	Href       string                     `json:"href"`
+	Replace    bool                       `json:"replace"`
+	Args       []json.RawMessage          `json:"args"`
 }
 
 type cond struct {
@@ -637,7 +640,7 @@ func (c *Client) runWaiting(this *node, data []byte, ev ui.Event, acc *[]change,
 			continue
 		}
 		if !running() {
-			if o.name == "push" {
+			if o.name == "push" || o.name == "open" {
 				*acc = nil // a push that doesn't run predicts nothing
 			}
 			continue
@@ -656,7 +659,7 @@ func (c *Client) runWaiting(this *node, data []byte, ev ui.Event, acc *[]change,
 		case "copy_text":
 			c.Clipboard = c.text0(a.Text)
 			continue
-		case "push":
+		case "push", "open":
 			if len(a.Before) > 0 {
 				sent, err := c.before(this, o, ev, acc, waiting)
 				if err != nil {
@@ -674,6 +677,20 @@ func (c *Client) runWaiting(this *node, data []byte, ev ui.Event, acc *[]change,
 			seg := *acc
 			*acc = nil
 			if a.H == "" {
+				continue
+			}
+			if o.name == "open" {
+				p, key, err := c.openEvent(this, a)
+				if err != nil {
+					return err
+				}
+				pd := c.predict(this, a, seg)
+				pd.call = &openFrame{key: key, opener: this.path, closed: a.Closed}
+				pd.busy, waiting, last = waiting, nil, pd
+				c.queue = append(c.queue, sending{ev: p, p: pd})
+				if a.Go {
+					c.sent = pd
+				}
 				continue
 			}
 			p := ev
@@ -729,6 +746,13 @@ func (c *Client) runWaiting(this *node, data []byte, ev ui.Event, acc *[]change,
 			continue
 		case "pop_focus", "debounce", "throttle":
 			continue
+		case "close":
+			if f := frameOf(this); f != nil {
+				if err := c.fire(f, ui.Event{Type: "vkclose"}, false); err != nil {
+					return err
+				}
+			}
+			continue
 		case "patch", "navigate":
 			if ui.LoadableURL(a.Href) { // the runtime refuses any other
 				c.queue = append(c.queue, sending{nav: &navigation{href: a.Href, patch: o.name == "patch", replace: a.Replace}})
@@ -758,7 +782,7 @@ func (c *Client) before(this *node, o op, ev ui.Event, acc *[]change, waiting []
 	}
 	delete(rest, "before")
 	rest["vk_go"] = json.RawMessage("true")
-	push, err := json.Marshal([]any{"push", rest})
+	push, err := json.Marshal([]any{o.name, rest})
 	if err != nil {
 		return nil, err
 	}
