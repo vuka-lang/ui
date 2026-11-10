@@ -40,7 +40,7 @@ type Commands struct{ ops []jsOp }
 var JS Commands
 
 // JSChain is either kind of chain, Commands or CommandsOn: what an on…
-// attribute, OnError and OnSuccess take.
+// attribute, Then and When take.
 type JSChain interface{ jsChain() Commands }
 
 // Action is what an event does, in any form an on… attribute takes: a
@@ -74,8 +74,10 @@ type push struct {
 	cache   time.Duration
 	into    *Target
 	mode    string // "append", "prepend", or "" to replace the target's content
+	before  *Commands
 	onOK    *Commands
 	onErr   *Commands
+	after   *Commands
 	timeout time.Duration
 	keep    bool
 }
@@ -896,7 +898,8 @@ func (c Commands) Exec(target Target, attr string) Commands {
 //
 // The steps before it, since the chain's start or the previous Push, are
 // its predictions: they show at once and are taken back if the push fails.
-// OnError, OnSuccess and Timeout after it apply to it. A later push into
+// Before, Success, Error, After and Timeout after it apply to it; steps
+// after it run at once, not after its reply. A later push into
 // a target wins over an earlier one still on its way.
 //
 // Example:
@@ -936,31 +939,98 @@ func (c Commands) Into(target Target, opts ...IntoOption) Commands {
 	})
 }
 
-// OnError runs chain when the last Push before it fails: its handler
-// returns an error, the server refuses the event, or no reply comes in time
-// (see Timeout). That Push's predictions are taken back first, unless
-// KeepOnError, except where the server has rendered a new value since.
-// Panics with no Push before it.
+// Before runs a in the browser before the last Push before it is sent;
+// when a stops — a declined Confirm, an If whose branch doesn't reach its
+// end — the push isn't sent and none of its hooks run. What a changes is
+// the push's prediction, as the steps written before the Push are. Panics
+// with no Push before it.
 //
-// Example: a like shown at once, taken back if it fails.
-//
-//	<button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like).OnError(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
-//	<p ref="like-error" style="display: none">Couldn't like</p>
-func (c Commands) OnError(chain JSChain) Commands {
-	ch := chain.jsChain()
-	return c.withPush("OnError", func(p *push) { p.onErr = &ch })
-}
-
-// OnSuccess runs chain when the last Push before it succeeds: the reply
-// carries no error. Its predictions stay, unless the server renders
-// something else. Panics with no Push before it.
+// A hook is a ui.Action: a chain of commands, or a method of the page or
+// a closure, pushed as Push(a) would push it. Given twice, a hook runs
+// both, in the order given.
 //
 // Example:
 //
-//	<button onClick={ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved")))}>Save</button>
-func (c Commands) OnSuccess(chain JSChain) Commands {
-	ch := chain.jsChain()
-	return c.withPush("OnSuccess", func(p *push) { p.onOK = &ch })
+//	<button onClick={ui.JS.Push(c.Remove).Before(ui.JS.Confirm("Delete this order?"))}>Delete</button>
+func (c Commands) Before(a Action) Commands {
+	ch := actionChain("Before", a)
+	return c.withPush("Before", func(p *push) { p.before = joinHook(p.before, ch) })
+}
+
+// Success runs a when the last Push before it succeeds: the reply carries
+// no error, and has been applied. Its predictions stay, unless the server
+// renders something else. OnSuccess is the same. Panics with no Push
+// before it.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Push(c.Save).Success(ui.JS.Show(ui.Ref("saved")))}>Save</button>
+func (c Commands) Success(a Action) Commands {
+	ch := actionChain("Success", a)
+	return c.withPush("Success", func(p *push) { p.onOK = joinHook(p.onOK, ch) })
+}
+
+// OnSuccess is Success.
+func (c Commands) OnSuccess(a Action) Commands {
+	ch := actionChain("OnSuccess", a)
+	return c.withPush("OnSuccess", func(p *push) { p.onOK = joinHook(p.onOK, ch) })
+}
+
+// Error runs a when the last Push before it fails: its handler returns an
+// error, the server refuses the event, or no reply comes in time (see
+// Timeout); ui.LoadError reads the message in it. That Push's predictions
+// are taken back first, unless KeepOnError, except where the server has
+// rendered a new value since. OnError is the same. Panics with no Push
+// before it.
+//
+// Example: a like shown at once, taken back if it fails.
+//
+//	<button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
+//	<p ref="like-error" style="display: none">Couldn't like</p>
+func (c Commands) Error(a Action) Commands {
+	ch := actionChain("Error", a)
+	return c.withPush("Error", func(p *push) { p.onErr = joinHook(p.onErr, ch) })
+}
+
+// OnError is Error.
+func (c Commands) OnError(a Action) Commands {
+	ch := actionChain("OnError", a)
+	return c.withPush("OnError", func(p *push) { p.onErr = joinHook(p.onErr, ch) })
+}
+
+// After runs a once the last Push before it has settled, after its
+// Success or Error: a finally. It runs when a hook before it fails too,
+// and not when Before stopped the push. Panics with no Push before it.
+//
+// Example:
+//
+//	<button onClick={ui.JS.PushFocus().Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
+func (c Commands) After(a Action) Commands {
+	ch := actionChain("After", a)
+	return c.withPush("After", func(p *push) { p.after = joinHook(p.after, ch) })
+}
+
+// actionChain is what a hook runs for a: its commands, or a push of a
+// method or closure.
+func actionChain(step string, a Action) Commands {
+	if eh, ok := a.(EventHandler); ok {
+		a = eh.Fn
+	}
+	if ch, ok := a.(JSChain); ok {
+		return ch.jsChain()
+	}
+	if v := reflect.ValueOf(a); v.Kind() == reflect.Func && !v.IsNil() {
+		return JS.Push(a)
+	}
+	panic(fmt.Sprintf("ui: JS %s takes a ui.Action — a chain of commands, a method or a closure — not %T", step, a))
+}
+
+// joinHook is a hook with ch's steps after its own.
+func joinHook(h *Commands, ch Commands) *Commands {
+	if h != nil {
+		ch = h.Then(ch)
+	}
+	return &ch
 }
 
 // Timeout is how long the last Push before it waits for its reply before
@@ -1764,20 +1834,43 @@ func (o CommandsOn) Options(handler any, args ...any) CommandsOn {
 //	<button onClick={ui.JS.On(ui.Ref("status")).SetText("Saving…").Push(c.Save)}>Save</button>
 func (o CommandsOn) SetText(text any) CommandsOn { return o.with(o.c.SetText(o.to, text)) }
 
-// OnError runs chain when the last Push before it fails, after its
-// predictions are taken back (see Commands.OnError).
+// Before runs a before the last Push before it is sent; a stops it
+// (see Commands.Before).
 //
 // Example:
 //
-//	<button onClick={ui.JS.On(ui.This).AddClass("liked").Push(c.Like).OnError(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
-func (o CommandsOn) OnError(chain JSChain) CommandsOn { return o.with(o.c.OnError(chain)) }
+//	<button onClick={ui.JS.On(ui.Closest("tr")).Push(c.Remove).Before(ui.JS.Confirm("Delete?"))}>Delete</button>
+func (o CommandsOn) Before(a Action) CommandsOn { return o.with(o.c.Before(a)) }
 
-// OnSuccess runs chain when the last Push before it succeeds.
+// Success runs a when the last Push before it succeeds (see
+// Commands.Success).
 //
 // Example:
 //
-//	<button onClick={ui.JS.On(ui.Ref("saved")).Hide().Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved")))}>Save</button>
-func (o CommandsOn) OnSuccess(chain JSChain) CommandsOn { return o.with(o.c.OnSuccess(chain)) }
+//	<button onClick={ui.JS.On(ui.Ref("saved")).Hide().Push(c.Save).Success(ui.JS.Show(ui.Ref("saved")))}>Save</button>
+func (o CommandsOn) Success(a Action) CommandsOn { return o.with(o.c.Success(a)) }
+
+// OnSuccess is Success.
+func (o CommandsOn) OnSuccess(a Action) CommandsOn { return o.with(o.c.OnSuccess(a)) }
+
+// Error runs a when the last Push before it fails, after its predictions
+// are taken back (see Commands.Error).
+//
+// Example:
+//
+//	<button onClick={ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
+func (o CommandsOn) Error(a Action) CommandsOn { return o.with(o.c.Error(a)) }
+
+// OnError is Error.
+func (o CommandsOn) OnError(a Action) CommandsOn { return o.with(o.c.OnError(a)) }
+
+// After runs a once the last Push before it has settled (see
+// Commands.After).
+//
+// Example:
+//
+//	<button onClick={ui.JS.On(ui.This).Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
+func (o CommandsOn) After(a Action) CommandsOn { return o.with(o.c.After(a)) }
 
 // Timeout is how long the last Push before it waits for its reply before
 // it fails; 10s unless set.
@@ -1859,7 +1952,7 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 				for _, h := range [...]struct {
 					key string
 					ch  *Commands
-				}{{"on_ok", x.onOK}, {"on_error", x.onErr}} {
+				}{{"before", x.before}, {"on_ok", x.onOK}, {"on_error", x.onErr}, {"after", x.after}} {
 					if h.ch != nil {
 						j, err := EncodeJS(ctx, *h.ch)
 						if err != nil {
