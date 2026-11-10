@@ -98,7 +98,7 @@ func TestTemplateDocExamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`"keep":true`, `"timeout":3000`, `"on_ok"`, `"on_error"`, `"value":0`} {
+	for _, want := range []string{`"keep":true`, `"timeout":3000`, `"on_ok"`, `"on_error"`, `"value":0`, `["reload",{}]`} {
 		if !strings.Contains(c.HTML(), want) && !strings.Contains(c.HTML(), html.EscapeString(want)) {
 			t.Errorf("no %s in the live page", want)
 		}

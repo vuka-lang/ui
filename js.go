@@ -1605,6 +1605,21 @@ func (c Commands) PatchReplace(href string) Commands {
 	return c.add("patch", jsArg{"href", navURL(href)}, jsArg{"replace", true})
 }
 
+// Reload renders the current page again, at its current URL (path and
+// query; the #hash stays): on a live page a patch of that URL over its
+// connection, which renders the page even when none of its state changed;
+// on a page that isn't live, a fetch of the URL whose body takes the
+// page's place, as a patch link's does. The history entry is replaced, and
+// scroll and focus stay. The route runs as for a patch: a live page whose
+// Update takes the URL stays mounted and its Update runs; any other mounts
+// again. In a push's Success it runs once the reply is applied; a handler
+// can return it.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Push(c.Remove).Success(ui.JS.Reload())}>Delete</button>
+func (c Commands) Reload() Commands { return c.add("reload") }
+
 // Navigate moves a live page to another page, href, over its connection:
 // the new page's components mount, and the address bar changes. On a page
 // with no connection, for another origin, or when href's route isn't a
@@ -1999,6 +2014,13 @@ func (o CommandsOn) Timeout(d time.Duration) CommandsOn { return o.with(o.c.Time
 //
 //	<button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Patch("/pets?page=2")}>Next</button>
 func (o CommandsOn) Patch(href string) CommandsOn { return o.with(o.c.Patch(href)) }
+
+// Reload renders the current page again (see Commands.Reload).
+//
+// Example:
+//
+//	<button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Reload()}>Refresh</button>
+func (o CommandsOn) Reload() CommandsOn { return o.with(o.c.Reload()) }
 
 // Navigate moves a live page to another page, href (see Commands.Navigate).
 //

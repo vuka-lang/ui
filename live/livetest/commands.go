@@ -767,6 +767,12 @@ func (c *Client) runWaiting(this *node, data []byte, ev ui.Event, acc *[]change,
 				c.queue = append(c.queue, sending{nav: &navigation{href: a.Href, patch: o.name == "patch", replace: a.Replace}})
 			}
 			continue
+		case "reload":
+			if c.url == "" {
+				return fmt.Errorf("livetest: a reload needs the page's URL (SetURL)")
+			}
+			c.queue = append(c.queue, sending{nav: &navigation{href: c.url, patch: true, replace: true}})
+			continue
 		}
 		ts, err := c.targets(this, a.To)
 		if err != nil {
