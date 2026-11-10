@@ -62,6 +62,10 @@ type Session struct {
 	q   url.Values // its query, parsed (query)
 
 	errText func(error) string // SetErrorText's
+
+	callNonce string      // what its Calls' tokens are bound to (call.go)
+	calls     []*openCall // the components the page opened, in order
+	callSeq   int         // the server's opens so far (ui.Call), naming them
 }
 
 // Patch is what an event or message changed: the HTML of each component whose
@@ -118,7 +122,7 @@ const RootID = "c0"
 // NewSession is a session rendering the page render returns. ctx is the
 // context of Mount, handlers and Update methods, and of every render.
 func NewSession(ctx context.Context, render func(ctx context.Context) ui.Node) *Session {
-	s := &Session{ctx: ctx, render: render, byID: map[string]*instance{}, verify: Verify, whole: wholeTrees}
+	s := &Session{ctx: ctx, render: render, byID: map[string]*instance{}, verify: Verify, whole: wholeTrees, callNonce: newNonce()}
 	s.root = &instance{s: s, id: RootID, children: map[string]*instance{}}
 	s.byID[RootID] = s.root
 	return s
@@ -243,6 +247,7 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 // Error; both are its Err.
 func (s *Session) run(fn any, ev ui.Event) (Patch, error) {
 	ctx, edit := s.beginURL(s.ctx)
+	ctx = ui.WithCaller(ctx, caller{s, ev.Target})
 	res, herr := callPush(ctx, fn, ev)
 	for _, t := range ev.Shown {
 		// the hidden forms and lazy regions the event's chain showed: theirs
@@ -330,6 +335,9 @@ func (s *Session) Component(target string) ui.Stateful {
 // allows it. A name is no number or method when it has a colon, so a
 // target with one only ever looks in the keyed handlers.
 func (s *Session) handler(target string) any {
+	if target == RootID+":"+callOpen {
+		return s.openEvent
+	}
 	id, n, ok := strings.Cut(target, ":")
 	in := s.byID[id]
 	if !ok || in == nil {
@@ -709,6 +717,7 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 		for _, in := range s.order()[1:] {
 			unmount(in)
 		}
+		s.calls = nil
 		s.byID = map[string]*instance{RootID: s.root}
 		s.root.children, s.root.kids = map[string]*instance{}, nil
 	}
@@ -730,6 +739,7 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 		for _, in := range s.order()[1:] {
 			unmount(in)
 		}
+		s.calls = nil
 		s.byID = map[string]*instance{RootID: s.root}
 		s.root.children, s.root.kids, s.root.handlers, s.root.keyed = map[string]*instance{}, nil, nil, nil
 		return Patch{}, err
@@ -787,6 +797,9 @@ type instance struct {
 	idn        int               // the random ids its render named so far (ids.go)
 	methods    []*methodProp     // its func props set to method values (methodprops.go)
 	called     atomic.Bool       // its last render called one of them
+
+	call *openCall      // a stateful component a Call opened: its render is in its presentation
+	acts map[string]any // the Action props of the Calls its render shows, by their place (CallAction)
 
 	dups     keyDups // the keys its render met more than once (keyedHandler)
 	pageKeys int     // the pages it stayed mounted across (keyPath)
@@ -1200,6 +1213,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 	defer in.dups.end(s)
 	clear(in.forms)
 	clear(in.claimed)
+	clear(in.acts)
 	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
 	in.contextual = false
 	clear(in.vars)
@@ -1209,8 +1223,15 @@ func (s *Session) renderInst(in *instance) (err error) {
 		// from the URL stays.
 		defer func() { s.adopting = false }()
 		node = s.render(ctx)
+		if len(s.calls) > 0 {
+			node = ui.Fragment(append([]ui.Node{node}, s.overlays()...)...)
+		}
 	} else {
-		node = rooted(ui.ResolveContext(ctx, in.comp.Render()), in.id, in.key)
+		n := ui.ResolveContext(ctx, in.comp.Render())
+		if c := in.call; c != nil {
+			n = ui.ResolveContext(ctx, ui.CallView(c.key, n, func() { s.dropCall(c.key) }, nil))
+		}
+		node = rooted(n, in.id, in.key)
 	}
 	if in.comp != nil {
 		defer ui.SettleState(in.comp)

@@ -403,12 +403,19 @@ func (c *PushCall) Cache() time.Duration { return c.cache }
 // URL parameter is; a struct from the form when the call passes none for
 // it), its dependencies from ctx's Injector. The result is the reply's
 // JSON, as the runtime applies it to the step's target: {"options"},
-// {"html"}, {"value"}, {"fields"}, {"js"}, or {} for none.
+// {"html"}, {"value"}, {"fields"}, {"js"}, or {} for none; with "run", the
+// commands of the components the method opened (ui.Call), and "close"
+// when it closed the one the push came from (ui.Close).
 func (c *PushCall) Call(ctx context.Context, recv reflect.Value) (any, error) {
 	if c.m.recv.Kind() != reflect.Pointer {
 		recv = recv.Elem()
 	}
-	return c.m.call(ctx, recv, c.args, c.form)
+	pc := &pushCaller{}
+	res, err := c.m.call(WithCaller(ctx, pc), recv, c.args, c.form)
+	if err != nil {
+		return res, err
+	}
+	return pc.reply(ctx, res)
 }
 
 // CallPush calls fn, a live handler, as a Push step with arguments does:

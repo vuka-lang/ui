@@ -59,7 +59,7 @@ func (c *Docs) Render() ui.Node {
 	value := ui.JS.Hide(ui.Closest("li"))
 //line docs.vuka.html:92
 	value2 := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
-//line docs.vuka.html:141
+//line docs.vuka.html:144
 	value3 := ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))
 //line docs.vuka.html:52
 	return ui.HTML(`
@@ -118,6 +118,9 @@ func (c *Docs) Render() ui.Node {
     <button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
     <button onClick={ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
     <button onClick={ui.JS.PushFocus().Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
+    <button onClick={ui.JS.Call(PetEditor{ID: c.pet.Get().ID, OnSave: ui.JS.Show(ui.Ref("saved"))})}>Edit</button>
+    <button onClick={ui.JS.Call(PetEditor{ID: c.pet.Get().ID}).Success(ui.JS.Hide(ui.Ref("saved"))).Closed(ui.JS.Focus(ui.This))}>Edit</button>
+    <button onClick={ui.JS.Close()}>Cancel</button>
     <button onClick={ui.JS.On(ui.This).Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show()}>Done</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst()}>Edit</button>
@@ -316,6 +319,9 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.AddClass(ui.This, "liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error"))),
 		ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error"))),
 		ui.JS.PushFocus().Push(c.Archive).After(ui.JS.PopFocus()),
+		ui.JS.Call(PetEditor{ID: c.pet.Get().ID, OnSave: ui.JS.Show(ui.Ref("saved"))}),
+		ui.JS.Call(PetEditor{ID: c.pet.Get().ID}).Success(ui.JS.Hide(ui.Ref("saved"))).Closed(ui.JS.Focus(ui.This)),
+		ui.JS.Close(),
 		ui.JS.On(ui.This).Push(c.Archive).After(ui.JS.PopFocus()),
 		ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show(),
 		ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst(),

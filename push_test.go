@@ -155,7 +155,7 @@ func TestPushStep(t *testing.T) {
 	}
 	func() {
 		defer func() {
-			if r := recover(); r == nil || !strings.Contains(r.(string), "Push before it") {
+			if r := recover(); r == nil || !strings.Contains(r.(string), "Push or Call before it") {
 				t.Errorf("Into without a Push: %v", r)
 			}
 		}()
