@@ -54,6 +54,7 @@ type Client struct {
 	dom     *node                           // the page parsed, for commands
 	domOf   string                          // the HTML dom is of
 	over    map[string]map[string]*override // what commands changed, by element and attribute
+	removed []*removal                      // the elements remove commands took off the page
 	queue   []sending                       // events to send
 	acc     *[]change                       // the running segment's changes, nil outside one
 	pending []*pending                      // optimistic pushes sent or waiting, not yet replied to

@@ -48,6 +48,8 @@ func TestJSEncoding(t *testing.T) {
 		{ui.JS.Push(noop), `[["push",{}]]`}, // no session: no handler id
 		{ui.JS.Patch("/books?page=2").On(ui.This).Navigate("/books/7"), `[["patch",{"href":"/books?page=2"}],["navigate",{"href":"/books/7"}]]`},
 		{ui.JS.Reload(), `[["reload",{}]]`},
+		{ui.JS.Remove(ui.Closest("tr")).Remove(ui.This).Remove(ui.Ref("row", "note")), `[["remove",{"to":{"closest":"tr"}}],["remove",{}],["remove",{"to":{"ref":["row","note"]}}]]`},
+		{ui.JS.On("#row-7").Remove().Commands().Remove(ui.Sel(".toast")), `[["remove",{"to":{"sel":"#row-7"}}],["remove",{"to":{"sel":".toast"}}]]`},
 		{ui.JS.Hide("#form").Reload().On(ui.Ref("list")).AddClass("dim").Reload(), `[["hide",{"to":{"sel":"#form"}}],["reload",{}],["add_class",{"to":{"ref":"list"},"names":["dim"]}],["reload",{}]]`},
 		{ui.JS.Debounce(300 * time.Millisecond).Throttle(time.Second), `[["debounce",{"ms":300}],["throttle",{"ms":1000}]]`},
 		{ui.JS.Key("Escape", "Enter").Confirm(`Delete "x" <now>?`), `[["key",{"keys":["Escape","Enter"]}],["confirm",{"msg":"Delete \"x\" <now>?","yes":"OK","no":"Cancel"}]]`},
@@ -129,7 +131,13 @@ func TestJSImmutable(t *testing.T) {
 	if a, b := encode(t, saved), encode(t, reload); a != `[["hide",{"to":{"sel":"#form"}}]]` || b != `[["hide",{"to":{"sel":"#form"}}],["reload",{}]]` {
 		t.Fatalf("Reload changed the chain it extends:\n%s\n%s", a, b)
 	}
+	row := ui.JS.Hide("#form")
+	gone := row.Remove(ui.Closest("tr"))
+	if a, b := encode(t, row), encode(t, gone); a != `[["hide",{"to":{"sel":"#form"}}]]` || !strings.HasSuffix(b, `["remove",{"to":{"closest":"tr"}}]]`) {
+		t.Fatalf("Remove changed the chain it extends:\n%s\n%s", a, b)
+	}
 	list := ui.JS.On(ui.Ref("list"))
+	list.Remove()
 	list.Reload()
 	if encode(t, list) != `[]` {
 		t.Fatal("CommandsOn.Reload changed its chain")
