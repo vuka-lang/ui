@@ -43,6 +43,12 @@ var JS Commands
 // attribute, OnError and OnSuccess take.
 type JSChain interface{ jsChain() Commands }
 
+// Action is what an event does, in any form an on… attribute takes: a
+// chain of JS commands, the statements onClick={open = !open} lowers to, a
+// method of the page, or a closure. A component declares a prop of this
+// type and forwards it to its element with onClick={OnClick}.
+type Action interface{}
+
 func (c Commands) jsChain() Commands { return c }
 
 type jsOp struct {
