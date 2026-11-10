@@ -313,6 +313,7 @@ func (c *Client) value(e *node) string {
 type op struct {
 	name string
 	args opArgs
+	raw  json.RawMessage
 }
 
 type opArgs struct {
@@ -329,10 +330,13 @@ type opArgs struct {
 	Keys       []string          `json:"keys"`
 	Msg        string            `json:"msg"`
 	Cond       *cond             `json:"cond"`
-	Text       string            `json:"text"`
+	Text       json.RawMessage   `json:"text"`
 	Transition []string          `json:"transition"`
+	Before     json.RawMessage   `json:"before"`
 	OnOK       json.RawMessage   `json:"on_ok"`
 	OnError    json.RawMessage   `json:"on_error"`
+	After      json.RawMessage   `json:"after"`
+	Go         bool              `json:"vk_go"` // the push a Before chain ends in
 	Timeout    int64             `json:"timeout"`
 	Keep       bool              `json:"keep"`
 	Fn         string            `json:"fn"`
@@ -349,6 +353,7 @@ type cond struct {
 	Attr    string          `json:"attr"`
 	Is      string          `json:"is"`
 	Exists  bool            `json:"exists"`
+	Error   bool            `json:"error"`
 	Some    bool            `json:"some"`
 	And     []*cond         `json:"and"`
 	Or      []*cond         `json:"or"`
@@ -368,6 +373,7 @@ func parseOps(data []byte) ([]op, error) {
 		if len(r) != 2 || json.Unmarshal(r[0], &ops[i].name) != nil || json.Unmarshal(r[1], &ops[i].args) != nil {
 			return nil, fmt.Errorf("livetest: bad command %s", r)
 		}
+		ops[i].raw = r[1]
 	}
 	return ops, nil
 }
@@ -576,6 +582,11 @@ func (c *Client) read(e *node, k *cond) (bool, error) {
 // run runs commands with this as This, for the event ev, recording their
 // changes in acc, the segment an exec runs in, or in a segment of their own.
 func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error {
+	return c.runWaiting(this, data, ev, acc, nil)
+}
+
+// runWaiting is run with waiting the Busy marks for its first push.
+func (c *Client) runWaiting(this *node, data []byte, ev ui.Event, acc *[]change, waiting []*busyState) error {
 	ops, err := parseOps(data)
 	if err != nil {
 		return err
@@ -587,8 +598,7 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 	c.acc = acc
 	type level struct{ taken, active, outer bool }
 	var levels []level
-	var waiting []*busyState // Busy marks for the next push
-	var last *pending        // the chain's last push sent
+	var last *pending // the chain's last push sent
 	running := func() bool { return len(levels) == 0 || levels[len(levels)-1].active }
 	for i, o := range ops {
 		a := &o.args
@@ -644,9 +654,23 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 			}
 			continue
 		case "copy_text":
-			c.Clipboard = a.Text
+			c.Clipboard = c.text0(a.Text)
 			continue
 		case "push":
+			if len(a.Before) > 0 {
+				sent, err := c.before(this, o, ev, acc, waiting)
+				if err != nil {
+					return err
+				}
+				waiting = nil
+				if sent != nil {
+					last = sent
+				}
+				continue
+			}
+			if a.Go && c.going != nil {
+				*c.going = true
+			}
 			seg := *acc
 			*acc = nil
 			if a.H == "" {
@@ -669,6 +693,9 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 			pd := c.predict(this, a, seg)
 			pd.busy, waiting, last = waiting, nil, pd
 			c.queue = append(c.queue, sending{ev: p, p: pd})
+			if a.Go {
+				c.sent = pd
+			}
 			continue
 		case "busy":
 			ts, err := c.targets(this, a.To)
@@ -719,6 +746,64 @@ func (c *Client) run(this *node, data []byte, ev ui.Event, acc *[]change) error 
 		}
 	}
 	return nil
+}
+
+// before runs a push's Before chain, then the push when the chain gets to
+// its end: the push it sent, or nil when the chain stopped (a declined
+// confirm, an if not taken), which takes off the Busy marks waiting for it.
+func (c *Client) before(this *node, o op, ev ui.Event, acc *[]change, waiting []*busyState) (*pending, error) {
+	var rest map[string]json.RawMessage
+	if err := json.Unmarshal(o.raw, &rest); err != nil {
+		return nil, err
+	}
+	delete(rest, "before")
+	rest["vk_go"] = json.RawMessage("true")
+	push, err := json.Marshal([]any{"push", rest})
+	if err != nil {
+		return nil, err
+	}
+	var ops []json.RawMessage
+	if err := json.Unmarshal(o.args.Before, &ops); err != nil {
+		return nil, fmt.Errorf("livetest: before %s: %w", o.args.Before, err)
+	}
+	data, _ := json.Marshal(append(ops, push))
+	going, outerGoing, outerSent := false, c.going, c.sent
+	c.going, c.sent = &going, nil
+	err = c.runWaiting(this, data, ev, acc, waiting)
+	sent := c.sent
+	c.going, c.sent = outerGoing, outerSent
+	if err != nil {
+		return nil, err
+	}
+	if !going {
+		for _, b := range waiting {
+			c.unbusy(b)
+		}
+		return nil, nil
+	}
+	if o.args.Go { // a Before chain's push, itself with a Before
+		if c.going != nil {
+			*c.going = true
+		}
+		c.sent = sent
+	}
+	return sent, nil
+}
+
+// text0 is a command's text: a string, or ui.LoadError's read.
+func (c *Client) text0(raw json.RawMessage) string {
+	var read map[string]map[string]any
+	if json.Unmarshal(raw, &read) == nil && read["$read"] != nil && read["$read"]["error"] == true {
+		if c.loadErr == nil {
+			return ""
+		}
+		return *c.loadErr
+	}
+	var s string
+	if json.Unmarshal(raw, &s) != nil {
+		return strings.Trim(string(raw), `"`)
+	}
+	return s
 }
 
 // apply runs one command on one element.
@@ -816,7 +901,7 @@ func (c *Client) apply(e *node, o op, ev ui.Event) error {
 			return c.run(e, []byte(js), ev, c.acc)
 		}
 	case "set_text":
-		c.set(e, textAttr, a.Text, true)
+		c.set(e, textAttr, c.text0(a.Text), true)
 	}
 	return nil
 }

@@ -38,6 +38,8 @@ func (c *Docs) Delete(id int)   {}
 func (c *Docs) ToggleDone()     {}
 func (c *Docs) SelectAll()      {}
 func (c *Docs) DeleteTodo()     {}
+func (c *Docs) Remove()         {}
+func (c *Docs) Archive()        {}
 
 func (c *Docs) RegionsOf(country string) []ui.Option {
 	return []ui.Option{{Value: country + "-r", Label: "Region of " + country}}
@@ -51,15 +53,15 @@ func (c *Docs) CitiesOf(country string) []ui.Option {
 	return []ui.Option{{Value: country + "-1", Label: "City of " + country}}
 }
 
-//line docs.vuka.html:50
+//line docs.vuka.html:52
 func (c *Docs) Render() ui.Node {
-//line docs.vuka.html:72
+//line docs.vuka.html:74
 	value := ui.JS.Hide(ui.Closest("li"))
-//line docs.vuka.html:90
+//line docs.vuka.html:92
 	value2 := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
-//line docs.vuka.html:131
+//line docs.vuka.html:141
 	value3 := ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))
-//line docs.vuka.html:50
+//line docs.vuka.html:52
 	return ui.HTML(`
 <div>
   <div>
@@ -109,6 +111,14 @@ func (c *Docs) Render() ui.Node {
     <button onClick={ui.JS.Optimistic().Set(c.liked, true).Push(c.Like)}>♥</button>
     <button onClick={ui.JS.Prevent().Then(ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog")))}>Edit</button>
     <button onClick={ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved")))}>Save</button>
+    <button onClick={ui.JS.Push(c.Save).Success(ui.JS.Show(ui.Ref("saved")))}>Save</button>
+    <button onClick={ui.JS.On(ui.Ref("saved")).Hide().Push(c.Save).Success(ui.JS.Show(ui.Ref("saved")))}>Save</button>
+    <button onClick={ui.JS.Push(c.Remove).Before(ui.JS.Confirm("Delete this order?"))}>Delete</button>
+    <button onClick={ui.JS.On(ui.Closest("tr")).Push(c.Remove).Before(ui.JS.Confirm("Delete?"))}>Delete</button>
+    <button onClick={ui.JS.AddClass(ui.This, "liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
+    <button onClick={ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
+    <button onClick={ui.JS.PushFocus().Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
+    <button onClick={ui.JS.On(ui.This).Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show()}>Done</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst()}>Edit</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Hide()}>Close</button>
@@ -299,6 +309,14 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.Optimistic().Set(c.liked, true).Push(c.Like),
 		ui.JS.Prevent().Then(ui.JS.Show(ui.Ref("dialog")).FocusFirst(ui.Ref("dialog"))),
 		ui.JS.Push(c.Save).OnSuccess(ui.JS.Show(ui.Ref("saved"))),
+		ui.JS.Push(c.Save).Success(ui.JS.Show(ui.Ref("saved"))),
+		ui.JS.On(ui.Ref("saved")).Hide().Push(c.Save).Success(ui.JS.Show(ui.Ref("saved"))),
+		ui.JS.Push(c.Remove).Before(ui.JS.Confirm("Delete this order?")),
+		ui.JS.On(ui.Closest("tr")).Push(c.Remove).Before(ui.JS.Confirm("Delete?")),
+		ui.JS.AddClass(ui.This, "liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error"))),
+		ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error"))),
+		ui.JS.PushFocus().Push(c.Archive).After(ui.JS.PopFocus()),
+		ui.JS.On(ui.This).Push(c.Archive).After(ui.JS.PopFocus()),
 		ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show(),
 		ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst(),
 		ui.JS.On(ui.Ref("dialog")).Hide(),

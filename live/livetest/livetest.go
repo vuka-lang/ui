@@ -56,6 +56,9 @@ type Client struct {
 	queue   []sending                       // events to send
 	acc     *[]change                       // the running segment's changes, nil outside one
 	pending []*pending                      // optimistic pushes sent or waiting, not yet replied to
+	going   *bool                           // set when a Before chain reaches its push
+	sent    *pending                        // the push a Before chain's push sent
+	loadErr *string                         // the failed push's message, while its hooks run (ui.LoadError)
 	now     time.Duration                   // the virtual clock timeouts run on
 	held    bool                            // events wait for Deliver
 	url     string                          // the page's URL, once it moved
@@ -137,6 +140,9 @@ func (c *Client) send(m live.ClientMessage, p *pending) (live.ServerMessage, err
 		return reply, err
 	}
 	if p != nil {
+		if failed {
+			p.msg = reply.Error
+		}
 		return reply, c.settle(p, !failed)
 	}
 	return reply, nil

@@ -2,6 +2,7 @@ package livetest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -36,6 +37,8 @@ type pending struct {
 	this        string // the path of This, for its hooks
 	changes     []change
 	onOK, onErr json.RawMessage
+	after       json.RawMessage
+	msg         string // its error's message
 	keep        bool
 	deadline    time.Duration
 	settled     bool
@@ -57,7 +60,7 @@ func (c *Client) predict(this *node, a *opArgs, seg []change) *pending {
 	if a.Timeout > 0 {
 		t = time.Duration(a.Timeout) * time.Millisecond
 	}
-	p := &pending{this: this.path, changes: seg, onOK: a.OnOK, onErr: a.OnError, keep: a.Keep, deadline: c.now + t}
+	p := &pending{this: this.path, changes: seg, onOK: a.OnOK, onErr: a.OnError, after: a.After, keep: a.Keep, deadline: c.now + t}
 	c.pending = append(c.pending, p)
 	return p
 }
@@ -109,6 +112,7 @@ func (c *Client) Advance(d time.Duration) error {
 		if !p.keep {
 			c.revert(p.changes)
 		}
+		p.msg = "no reply in time"
 		if err := c.settle(p, false); err != nil {
 			return err
 		}
@@ -117,7 +121,7 @@ func (c *Client) Advance(d time.Duration) error {
 }
 
 // settle marks p settled, undoes the Busy marks waiting for it, and runs
-// its hook, on_ok or on_error.
+// its hook, on_ok or on_error, then its after, even when the hook fails.
 func (c *Client) settle(p *pending, ok bool) error {
 	p.settled = true
 	for _, b := range p.busy {
@@ -127,13 +131,25 @@ func (c *Client) settle(p *pending, ok bool) error {
 	if ok {
 		hook = p.onOK
 	}
-	if len(hook) == 0 {
-		return nil
+	this := c.at(p.this)
+	defer func(was *string) { c.loadErr = was }(c.loadErr)
+	if !ok {
+		m := p.msg
+		if m == "" {
+			m = "the push failed"
+		}
+		c.loadErr = &m
+	} else {
+		c.loadErr = nil
 	}
-	if this := c.at(p.this); this != nil {
-		return c.run(this, hook, ui.Event{}, nil)
+	var err error
+	if len(hook) > 0 && this != nil {
+		err = c.run(this, hook, ui.Event{}, nil)
 	}
-	return nil
+	if len(p.after) > 0 && this != nil {
+		err = errors.Join(err, c.run(this, p.after, ui.Event{}, nil))
+	}
+	return err
 }
 
 // at is the element of the page at path ("" is the root).
