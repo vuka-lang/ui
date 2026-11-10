@@ -109,6 +109,7 @@ func (c *Docs) CitiesOf(country string) []ui.Option {
     <button onClick={ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
     <button onClick={ui.JS.PushFocus().Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
     <button onClick={ui.JS.Push(c.Remove).Success(ui.JS.Reload())}>Delete</button>
+    <button onClick={ui.JS.Push(c.Remove).Success(ui.JS.Reload("#orders"))}>Delete</button>
     <button onClick={ui.JS.Push(c.Remove).Before(ui.JS.Remove(ui.Closest("tr"))).Error(ui.JS.Reload())}>Delete</button>
     <button onClick={ui.JS.On(ui.Closest("li")).Remove().Push(c.Remove)}>Dismiss</button>
     <button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Reload()}>Refresh</button>

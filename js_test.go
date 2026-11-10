@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"context"
+	"fmt"
 	"html"
 	"os"
 	"strings"
@@ -48,6 +49,7 @@ func TestJSEncoding(t *testing.T) {
 		{ui.JS.Push(noop), `[["push",{}]]`}, // no session: no handler id
 		{ui.JS.Patch("/books?page=2").On(ui.This).Navigate("/books/7"), `[["patch",{"href":"/books?page=2"}],["navigate",{"href":"/books/7"}]]`},
 		{ui.JS.Reload(), `[["reload",{}]]`},
+		{ui.JS.Reload("#orders").On(ui.Ref("list")).Reload("#order-7:notes"), `[["reload",{"sel":"#orders"}],["reload",{"sel":"#order-7:notes"}]]`},
 		{ui.JS.Remove(ui.Closest("tr")).Remove(ui.This).Remove(ui.Ref("row", "note")), `[["remove",{"to":{"closest":"tr"}}],["remove",{}],["remove",{"to":{"ref":["row","note"]}}]]`},
 		{ui.JS.On("#row-7").Remove().Commands().Remove(ui.Sel(".toast")), `[["remove",{"to":{"sel":"#row-7"}}],["remove",{"to":{"sel":".toast"}}]]`},
 		{ui.JS.Hide("#form").Reload().On(ui.Ref("list")).AddClass("dim").Reload(), `[["hide",{"to":{"sel":"#form"}}],["reload",{}],["add_class",{"to":{"ref":"list"},"names":["dim"]}],["reload",{}]]`},
@@ -141,6 +143,23 @@ func TestJSImmutable(t *testing.T) {
 	list.Reload()
 	if encode(t, list) != `[]` {
 		t.Fatal("CommandsOn.Reload changed its chain")
+	}
+}
+
+func TestJSReloadRegion(t *testing.T) {
+	for _, region := range [][]string{{"orders"}, {"#"}, {"#a b"}, {"#a", "#b"}} {
+		func() {
+			defer func() {
+				if r := recover(); r == nil || !strings.Contains(fmt.Sprint(r), "one region") {
+					t.Errorf("Reload(%q): %v", region, r)
+				}
+			}()
+			ui.JS.Reload(region...)
+		}()
+	}
+	base := ui.JS.Hide("#form")
+	if a, b := encode(t, base), encode(t, base.Reload("#orders")); a != `[["hide",{"to":{"sel":"#form"}}]]` || !strings.HasSuffix(b, `["reload",{"sel":"#orders"}]]`) {
+		t.Fatalf("Reload(region) changed the chain it extends:\n%s\n%s", a, b)
 	}
 }
 

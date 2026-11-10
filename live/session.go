@@ -343,6 +343,9 @@ func (s *Session) handler(target string) any {
 	if !ok || in == nil {
 		return nil
 	}
+	if n == ReloadEvent {
+		return func() { renderAgain(in) }
+	}
 	var fn any
 	if strings.IndexByte(n, ':') >= 0 {
 		fn = in.keyed[n]
@@ -369,6 +372,19 @@ func (s *Session) handler(target string) any {
 		}
 	}
 	return fn
+}
+
+// ReloadEvent is the handler of an instance a region reload names
+// ("c3:vkreload", ui.JS.Reload("#id")): the instance, and those it
+// renders, render again as they are, none mounting afresh.
+const ReloadEvent = "vkreload"
+
+// renderAgain marks in and the instances it rendered to render again.
+func renderAgain(in *instance) {
+	in.set = true
+	for _, k := range in.kids {
+		renderAgain(k)
+	}
 }
 
 // isNumber reports whether s is a decimal number, no sign.

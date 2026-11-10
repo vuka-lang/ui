@@ -1632,10 +1632,31 @@ func (c Commands) PatchReplace(href string) Commands {
 // again. In a push's Success it runs once the reply is applied; a handler
 // can return it.
 //
+// With a region, "#id", it renders only the part of the page the element
+// with that id is in, and the rest of the page keeps its state and what
+// the visitor did to it: on a live page the instance that renders the
+// element renders again, with the components inside it, mounted as they
+// are, its state as it is, and the page is patched with what changed; on
+// a page that isn't live the page renders once over HTTP and the element
+// alone takes the new markup. No element with the id is an error in
+// development (vk:error) and does nothing outside it. A region other than
+// one "#id" panics.
+//
 // Example:
 //
 //	<button onClick={ui.JS.Push(c.Remove).Success(ui.JS.Reload())}>Delete</button>
-func (c Commands) Reload() Commands { return c.add("reload") }
+//	<button onClick={ui.JS.Push(c.Remove).Success(ui.JS.Reload("#orders"))}>Delete</button>
+func (c Commands) Reload(region ...string) Commands {
+	switch len(region) {
+	case 0:
+		return c.add("reload")
+	case 1:
+		if id, ok := strings.CutPrefix(region[0], "#"); ok && id != "" && !strings.ContainsAny(id, " \t\n\f\r") {
+			return c.add("reload", jsArg{"sel", region[0]})
+		}
+	}
+	panic(fmt.Sprintf("ui: JS Reload takes one region, an element's id as \"#orders\", not %q", region))
+}
 
 // Navigate moves a live page to another page, href, over its connection:
 // the new page's components mount, and the address bar changes. On a page
@@ -2039,12 +2060,13 @@ func (o CommandsOn) Timeout(d time.Duration) CommandsOn { return o.with(o.c.Time
 //	<button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Patch("/pets?page=2")}>Next</button>
 func (o CommandsOn) Patch(href string) CommandsOn { return o.with(o.c.Patch(href)) }
 
-// Reload renders the current page again (see Commands.Reload).
+// Reload renders the current page again, or a region of it (see
+// Commands.Reload).
 //
 // Example:
 //
 //	<button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Reload()}>Refresh</button>
-func (o CommandsOn) Reload() CommandsOn { return o.with(o.c.Reload()) }
+func (o CommandsOn) Reload(region ...string) CommandsOn { return o.with(o.c.Reload(region...)) }
 
 // Navigate moves a live page to another page, href (see Commands.Navigate).
 //
