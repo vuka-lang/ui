@@ -262,7 +262,7 @@
 .vk-modal__close:hover{color:var(--ui-fg)}
 
 /* Dialog: a native <dialog>, and the frame a component opened with Call shows in */
-dialog.vk-dialog,dialog.vk-call{box-sizing:border-box;width:min(32rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;overflow:auto;
+dialog.vk-dialog,dialog.vk-call{box-sizing:border-box;margin:auto;width:min(32rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;overflow:auto;
   background:var(--ui-bg);color:var(--ui-fg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
 dialog.vk-dialog::backdrop,dialog.vk-call::backdrop{background:var(--ui-overlay)}
 .vk-dialog--sm{width:min(24rem,calc(100vw - 2rem))} .vk-dialog--lg{width:min(48rem,calc(100vw - 2rem))}
@@ -287,7 +287,7 @@ dialog.vk-popover{position:fixed;margin:0;padding:0;max-width:min(22rem,calc(100
 .vk-popover .vk-dialog__body{padding:.75rem 1rem}
 .vk-call-inline{border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg)}
 #vk-overlays{position:fixed;z-index:60;right:0;bottom:0;display:flex;flex-direction:column-reverse;gap:.5rem;padding:1rem;max-width:min(24rem,100vw);pointer-events:none}
-#vk-overlays [data-vk-present="toast"]{pointer-events:auto}
+#vk-overlays dialog,#vk-overlays [data-vk-present="toast"]{pointer-events:auto}
 .vk-confirm .vk-dialog__body p{margin:0}
 
 /* Alert */
@@ -548,7 +548,7 @@ dialog.vk-popover{position:fixed;margin:0;padding:0;max-width:min(22rem,calc(100
 .vk-modal__close:hover{color:var(--ui-fg)}
 
 /* Dialog: a native <dialog>, and the frame a component opened with Call shows in */
-dialog.vk-dialog,dialog.vk-call{box-sizing:border-box;width:min(32rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;overflow:auto;
+dialog.vk-dialog,dialog.vk-call{box-sizing:border-box;margin:auto;width:min(32rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;overflow:auto;
   background:var(--ui-bg);color:var(--ui-fg);border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
 dialog.vk-dialog::backdrop,dialog.vk-call::backdrop{background:var(--ui-overlay)}
 .vk-dialog--sm{width:min(24rem,calc(100vw - 2rem))} .vk-dialog--lg{width:min(48rem,calc(100vw - 2rem))}
@@ -573,7 +573,7 @@ dialog.vk-popover{position:fixed;margin:0;padding:0;max-width:min(22rem,calc(100
 .vk-popover .vk-dialog__body{padding:.75rem 1rem}
 .vk-call-inline{border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:var(--ui-bg);color:var(--ui-fg)}
 #vk-overlays{position:fixed;z-index:60;right:0;bottom:0;display:flex;flex-direction:column-reverse;gap:.5rem;padding:1rem;max-width:min(24rem,100vw);pointer-events:none}
-#vk-overlays [data-vk-present="toast"]{pointer-events:auto}
+#vk-overlays dialog,#vk-overlays [data-vk-present="toast"]{pointer-events:auto}
 .vk-confirm .vk-dialog__body p{margin:0}
 
 /* Alert */
