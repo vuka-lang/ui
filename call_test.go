@@ -293,3 +293,16 @@ func TestCallOptions(t *testing.T) {
 		}()
 	}
 }
+
+func TestCallNotice(t *testing.T) {
+	ctx := callCtx("v")
+	c, err := ui.ParseCall(ctx, "v", tokenOf(t, openStep(t, ctx, ui.JS.Call(ui.Notice{Text: "Saved"}))), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, _ := c.Value(nil)
+	html, _ := ui.RenderCall(ctx, "n", v)
+	if !strings.HasPrefix(html, `<div class="vk-toast vk-toast--info" role="status" data-vk-call="n" data-vk-present="toast" data-vk-timeout="4000">`) {
+		t.Errorf("a Notice over HTTP: %s", html)
+	}
+}

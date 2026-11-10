@@ -547,7 +547,11 @@ func RenderCall(ctx context.Context, key string, comp any, opts ...CallOption) (
 			}
 		}
 	default:
-		view = viewOf(comp)
+		if n, ok := comp.(Node); ok {
+			view = n // CallView reads its presentation off it
+		} else {
+			view = viewOf(comp)
+		}
 	}
 	ctx = WithEager(ctx)
 	var b bytes.Buffer
