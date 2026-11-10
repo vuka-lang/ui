@@ -16,7 +16,9 @@ import (
 // on its elements — classes, attributes, the style's display, values —
 // kept across patches while the server renders those attributes as it did,
 // as a browser runtime keeps them. An element is known by its place in the
-// page. Pushes send events, settling the changes before them as their
+// page; one a remove command took off stays off while the server renders
+// it (known by its key, id or markup) and a push predicting it waits, or,
+// for a plain removal, while the server renders it at all. Pushes send events, settling the changes before them as their
 // predictions (optimistic.go); calls run the Funcs a test registers;
 // debounce and throttle run at once; focus, scrolling and transitions do
 // nothing.
@@ -31,6 +33,7 @@ type override struct {
 func (c *Client) page() *node {
 	if c.dom == nil || c.domOf != c.html {
 		c.dom, c.domOf = parse(c.html), c.html
+		c.takeRemoved(c.dom)
 	}
 	return c.dom
 }
@@ -106,8 +109,14 @@ func (c *Client) text(e *node) string {
 }
 
 // reconcile drops what commands changed where the server now renders the
-// attribute differently from when they did, or the element is gone.
+// attribute differently from when they did, or the element is gone, and
+// the removals the server no longer renders an element for, but those a
+// push still waiting predicts.
 func (c *Client) reconcile() {
+	if len(c.removed) > 0 {
+		c.page()
+		c.removed = slices.DeleteFunc(c.removed, func(r *removal) bool { return !r.found && !r.pending })
+	}
 	if len(c.over) == 0 {
 		return
 	}
@@ -941,6 +950,8 @@ func (c *Client) apply(e *node, o op, ev ui.Event) error {
 		}
 	case "set_text":
 		c.set(e, textAttr, c.text0(a.Text), true)
+	case "remove":
+		c.remove(e)
 	}
 	return nil
 }

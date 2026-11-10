@@ -810,6 +810,23 @@ func (c Commands) Hide(target Target, opts ...ShowOption) Commands {
 	return c.add("hide", showArgs(target, opts)...)
 }
 
+// Remove removes target from the page. Ahead of a Push, or in its Before,
+// it is a prediction as the chain's other changes are: the runtime keeps
+// the removed elements and their places until the push settles, drops
+// them when it succeeds, and puts them back when it fails (an error, a
+// guard refusing it, no reply in time, a lost connection) before its
+// Error runs, unless KeepOnError. Anywhere else, returned by a handler or
+// pushed with PushJS among them, it is a plain removal. Either way a
+// render of a live page that shows the element as before leaves it
+// removed: an element the server renders differently, or renders after the
+// push it predicted for has succeeded, is the server's again. The runtime
+// knows a rendered element again by its key, else its id, else its markup.
+//
+// Example:
+//
+//	<button onClick={ui.JS.Push(c.Remove).Before(ui.JS.Remove(ui.Closest("tr"))).Error(ui.JS.Reload())}>Delete</button>
+func (c Commands) Remove(target Target) Commands { return c.add("remove", to(target)) }
+
 // Toggle shows target when it is hidden, and hides it otherwise. Options:
 // Display, Transition, Time.
 //
@@ -1739,6 +1756,13 @@ func (o CommandsOn) Show(opts ...ShowOption) CommandsOn { return o.with(o.c.Show
 //
 //	<button onClick={ui.JS.On(ui.Ref("dialog")).Hide()}>Close</button>
 func (o CommandsOn) Hide(opts ...ShowOption) CommandsOn { return o.with(o.c.Hide(o.to, opts...)) }
+
+// Remove removes the target from the page (see Commands.Remove).
+//
+// Example:
+//
+//	<button onClick={ui.JS.On(ui.Closest("li")).Remove().Push(c.Remove)}>Dismiss</button>
+func (o CommandsOn) Remove() CommandsOn { return o.with(o.c.Remove(o.to)) }
 
 // Toggle shows the target when it is hidden, and hides it otherwise.
 //

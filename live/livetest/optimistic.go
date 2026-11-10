@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/vuka-lang/ui/v2"
@@ -30,6 +31,7 @@ type value struct {
 type change struct {
 	path, name            string
 	before, after, server value
+	rm                    *removal // a remove command's, instead of an attribute
 }
 
 // pending is an optimistic push not yet settled by its reply.
@@ -60,6 +62,11 @@ func (c *Client) predict(this *node, a *opArgs, seg []change) *pending {
 	t := DefaultTimeout
 	if a.Timeout > 0 {
 		t = time.Duration(a.Timeout) * time.Millisecond
+	}
+	for _, ch := range seg {
+		if ch.rm != nil {
+			ch.rm.pending = true
+		}
 	}
 	p := &pending{this: this.path, changes: seg, onOK: a.OnOK, onErr: a.OnError, after: a.After, keep: a.Keep, deadline: c.now + t}
 	c.pending = append(c.pending, p)
@@ -126,6 +133,14 @@ func (c *Client) Advance(d time.Duration) error {
 // on_error, then its after, even when the hook fails.
 func (c *Client) settle(p *pending, ok bool) error {
 	p.settled = true
+	for _, ch := range p.changes {
+		if ch.rm != nil && ch.rm.pending {
+			ch.rm.pending = false
+			if ok { // the server's render is the page's
+				c.dropRemoval(ch.rm)
+			}
+		}
+	}
 	for _, b := range p.busy {
 		c.unbusy(b)
 	}
@@ -137,6 +152,9 @@ func (c *Client) settle(p *pending, ok bool) error {
 		}
 	}
 	this := c.at(p.this)
+	if this == nil {
+		this = c.page() // gone with what a remove took off
+	}
 	defer func(was *string) { c.loadErr = was }(c.loadErr)
 	if !ok {
 		m := p.msg
@@ -187,6 +205,10 @@ func (c *Client) at(path string) *node {
 func (c *Client) revert(changes []change) {
 	for i := len(changes) - 1; i >= 0; i-- {
 		ch := changes[i]
+		if ch.rm != nil {
+			c.dropRemoval(ch.rm)
+			continue
+		}
 		e := c.at(ch.path)
 		if e == nil {
 			continue
@@ -357,4 +379,75 @@ func (c *Client) resultArg() any {
 		return *r.Value
 	}
 	return r.Fields
+}
+
+// removal is an element a remove command took off the page: its parent's
+// path and how the client knows it again (removalSig) when the server
+// renders it. While pending, a push predicts it.
+type removal struct {
+	parent, sig string
+	pending     bool
+	found       bool // the page parsed last shows it
+}
+
+// removalSig is how a removed element is known: its key, else its id, else
+// its markup.
+func removalSig(e *node) string {
+	if k, ok := e.attr("data-vk-key"); ok {
+		return "k:" + k
+	}
+	if id, ok := e.attr("id"); ok {
+		return "i:" + id
+	}
+	var b strings.Builder
+	b.WriteString(e.tag)
+	for _, a := range e.attrs {
+		b.WriteString(" " + a[0] + "=" + a[1])
+	}
+	b.WriteString(">" + e.textContent())
+	return b.String()
+}
+
+// remove takes e off the page, recording the change for the push it may
+// predict for.
+func (c *Client) remove(e *node) {
+	if e.tag == "#root" || e.parent == nil {
+		return
+	}
+	r := &removal{parent: e.parent.path, sig: removalSig(e)}
+	c.removed = append(c.removed, r)
+	c.dom = nil
+	if c.acc != nil {
+		*c.acc = append(*c.acc, change{rm: r})
+	}
+}
+
+// dropRemoval puts back what r took off.
+func (c *Client) dropRemoval(r *removal) {
+	c.removed = slices.DeleteFunc(c.removed, func(x *removal) bool { return x == r })
+	c.dom = nil
+}
+
+// takeRemoved takes off the page parsed, root, the elements the removals
+// name, noting which it found.
+func (c *Client) takeRemoved(root *node) {
+	if len(c.removed) == 0 {
+		return
+	}
+	at := map[string]*node{"": root}
+	root.walk(func(e *node) bool { at[e.path] = e; return true })
+	for _, r := range c.removed {
+		r.found = false
+		p := at[r.parent]
+		if p == nil {
+			continue
+		}
+		for i, k := range p.kids {
+			if k.tag != "" && removalSig(k) == r.sig {
+				p.kids = slices.Delete(p.kids, i, i+1)
+				r.found = true
+				break
+			}
+		}
+	}
 }
