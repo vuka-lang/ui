@@ -25,21 +25,23 @@ type Docs struct {
 	liked ui.State[bool]
 }
 
-func (c *Docs) MenuOpened()     {}
-func (c *Docs) Search(q string) {}
-func (c *Docs) Like() error     { return nil }
-func (c *Docs) Save()           {}
-func (c *Docs) Send() error     { return nil }
-func (c *Docs) Pick(id int)     {}
-func (c *Docs) Follow()         {}
-func (c *Docs) Unfollow()       {}
-func (c *Docs) SetVolume(v int) {}
-func (c *Docs) Delete(id int)   {}
-func (c *Docs) ToggleDone()     {}
-func (c *Docs) SelectAll()      {}
-func (c *Docs) DeleteTodo()     {}
-func (c *Docs) Remove()         {}
-func (c *Docs) Archive()        {}
+func (c *Docs) MenuOpened()          {}
+func (c *Docs) Search(q string)      {}
+func (c *Docs) Like() error          { return nil }
+func (c *Docs) Save()                {}
+func (c *Docs) Send() error          { return nil }
+func (c *Docs) Pick(id int)          {}
+func (c *Docs) Follow()              {}
+func (c *Docs) Unfollow()            {}
+func (c *Docs) SetVolume(v int)      {}
+func (c *Docs) Delete(id int)        {}
+func (c *Docs) ToggleDone()          {}
+func (c *Docs) SelectAll()           {}
+func (c *Docs) DeleteTodo()          {}
+func (c *Docs) Remove()              {}
+func (c *Docs) Archive()             {}
+func (c *Docs) Create() (int, error) { return 1, nil }
+func (c *Docs) Created(id int)       {}
 
 func (c *Docs) RegionsOf(country string) []ui.Option {
 	return []ui.Option{{Value: country + "-r", Label: "Region of " + country}}
@@ -53,15 +55,15 @@ func (c *Docs) CitiesOf(country string) []ui.Option {
 	return []ui.Option{{Value: country + "-1", Label: "City of " + country}}
 }
 
-//line docs.vuka.html:52
+//line docs.vuka.html:54
 func (c *Docs) Render() ui.Node {
-//line docs.vuka.html:74
+//line docs.vuka.html:76
 	value := ui.JS.Hide(ui.Closest("li"))
-//line docs.vuka.html:92
+//line docs.vuka.html:94
 	value2 := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
-//line docs.vuka.html:144
+//line docs.vuka.html:147
 	value3 := ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))
-//line docs.vuka.html:52
+//line docs.vuka.html:54
 	return ui.HTML(`
 <div>
   <div>
@@ -121,6 +123,7 @@ func (c *Docs) Render() ui.Node {
     <button onClick={ui.JS.Call(PetEditor{ID: c.pet.Get().ID, OnSave: ui.JS.Show(ui.Ref("saved"))})}>Edit</button>
     <button onClick={ui.JS.Call(PetEditor{ID: c.pet.Get().ID}).Success(ui.JS.Hide(ui.Ref("saved"))).Closed(ui.JS.Focus(ui.This))}>Edit</button>
     <button onClick={ui.JS.Close()}>Cancel</button>
+    <form onSubmit={ui.JS.Push(c.Create).Success(c.Created)}>…</form>
     <button onClick={ui.JS.On(ui.This).Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show()}>Done</button>
     <button onClick={ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst()}>Edit</button>
@@ -322,6 +325,7 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.Call(PetEditor{ID: c.pet.Get().ID, OnSave: ui.JS.Show(ui.Ref("saved"))}),
 		ui.JS.Call(PetEditor{ID: c.pet.Get().ID}).Success(ui.JS.Hide(ui.Ref("saved"))).Closed(ui.JS.Focus(ui.This)),
 		ui.JS.Close(),
+		ui.JS.Push(c.Create).Success(c.Created),
 		ui.JS.On(ui.This).Push(c.Archive).After(ui.JS.PopFocus()),
 		ui.JS.On(ui.Ref("dialog")).Hide().On(ui.Ref("saved")).Show(),
 		ui.JS.On(ui.Ref("dialog")).Show(ui.Display("flex")).FocusFirst(),

@@ -48,7 +48,7 @@ func TestJSEncoding(t *testing.T) {
 		{ui.JS.Push(noop), `[["push",{}]]`}, // no session: no handler id
 		{ui.JS.Patch("/books?page=2").On(ui.This).Navigate("/books/7"), `[["patch",{"href":"/books?page=2"}],["navigate",{"href":"/books/7"}]]`},
 		{ui.JS.Debounce(300 * time.Millisecond).Throttle(time.Second), `[["debounce",{"ms":300}],["throttle",{"ms":1000}]]`},
-		{ui.JS.Key("Escape", "Enter").Confirm(`Delete "x" <now>?`), `[["key",{"keys":["Escape","Enter"]}],["confirm",{"msg":"Delete \"x\" <now>?"}]]`},
+		{ui.JS.Key("Escape", "Enter").Confirm(`Delete "x" <now>?`), `[["key",{"keys":["Escape","Enter"]}],["confirm",{"msg":"Delete \"x\" <now>?","yes":"OK","no":"Cancel"}]]`},
 		{ui.JS.Prevent().Stop().Once().Key("ctrl+Enter"), `[["prevent",{}],["stop",{}],["once",{}],["key",{"keys":["ctrl+Enter"]}]]`},
 		{ui.JS.Prevent().Then(ui.JS.Show("#m").Hide("#n")), `[["prevent",{}],["show",{"to":{"sel":"#m"}}],["hide",{"to":{"sel":"#n"}}]]`},
 		{ui.JS.If(menu.Checked()).Hide(menu).ElseIf(menu.Value().Eq("a")).Show(menu).Else().Toggle(menu).End(),

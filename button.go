@@ -28,6 +28,10 @@ const (
 	SizeMd Size = ""   // the default
 	SizeSm Size = "sm" // compact
 	SizeLg Size = "lg" // large
+	// SizeXl and SizeFull are a Call's presentation's widths (JS.Call),
+	// with SizeSm, SizeMd and SizeLg.
+	SizeXl   Size = "xl"
+	SizeFull Size = "full"
 )
 
 // ButtonProps is Button, by its former name.

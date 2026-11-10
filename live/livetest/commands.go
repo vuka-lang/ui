@@ -338,6 +338,7 @@ type opArgs struct {
 	After      json.RawMessage            `json:"after"`
 	Closed     json.RawMessage            `json:"closed"`
 	T          string                     `json:"t"`     // a Call's token
+	CallKey    string                     `json:"key"`   // a Call's key (ui.CallKey)
 	Reads      map[string]json.RawMessage `json:"reads"` // a Call's props the browser reads
 	Go         bool                       `json:"vk_go"` // the push a Before chain ends in
 	Timeout    int64                      `json:"timeout"`
@@ -357,6 +358,7 @@ type cond struct {
 	Is      string          `json:"is"`
 	Exists  bool            `json:"exists"`
 	Error   bool            `json:"error"`
+	Result  bool            `json:"result"`
 	Some    bool            `json:"some"`
 	And     []*cond         `json:"and"`
 	Or      []*cond         `json:"or"`
@@ -696,7 +698,14 @@ func (c *Client) runWaiting(this *node, data []byte, ev ui.Event, acc *[]change,
 			p := ev
 			p.Target = a.H
 			if len(a.Args) > 0 {
-				p.Args = a.Args // values as the step carries them
+				p.Args = make([]json.RawMessage, len(a.Args))
+				for i, raw := range a.Args { // values, and reads made now
+					v, err := c.arg(this, raw)
+					if err != nil {
+						return err
+					}
+					p.Args[i], _ = json.Marshal(v)
+				}
 			}
 			if len(a.Value) > 0 {
 				var s string

@@ -35,8 +35,11 @@ const callOpen = "vkcall"
 
 // openCall is a component the page opened.
 type openCall struct {
-	key string
-	in  *instance
+	key   string
+	in    *instance
+	opts  []ui.CallOption // how it shows: As, Into, CallKey, Size
+	into  string          // the element it opened in, "#side"; "" for the overlay host
+	owner string          // the instance it belongs to, Into a region of its
 }
 
 // callHolder renders a stateless component a Call opened, or the error
@@ -47,9 +50,12 @@ type callHolder struct {
 	view   ui.Node
 	failed error
 	close  func()
+	opts   []ui.CallOption
 }
 
-func (h *callHolder) Render() ui.Node { return ui.CallView(h.key, h.view, h.close, h.failed) }
+func (h *callHolder) Render() ui.Node {
+	return ui.CallView(h.key, h.view, h.close, h.failed, h.opts...)
+}
 
 var callKey = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)
 
@@ -61,6 +67,9 @@ func newNonce() string {
 
 // CallBinding is what the tokens of the session's Calls are bound to.
 func (sc *scope) CallBinding() string { return sc.in.s.callNonce }
+
+// CallOwner is the instance whose render shows the Call.
+func (sc *scope) CallOwner() string { return sc.in.id }
 
 // CallTarget is the handler a Call step's open event names.
 func (sc *scope) CallTarget() string { return RootID + ":" + callOpen }
@@ -110,25 +119,36 @@ func (s *Session) openEvent(ctx context.Context, ev ui.Event) error {
 	if err != nil {
 		return err
 	}
+	if k := c.Key(); k != "" && k != d.Key {
+		return publicErr{errors.New("live: the call's key isn't its token's"), "live: the call's key isn't its token's"}
+	}
 	comp, err := c.Value(s.action)
 	if err != nil {
 		return err
 	}
-	return s.open(ctx, d.Key, comp)
+	_, owner := c.Into()
+	return s.open(ctx, d.Key, comp, c.Options(), owner)
 }
 
 // open mounts comp, a pointer to a component's new value, as the opened
-// component key names, rendered from the next render on. Its Mount's error
-// is open's, the component showing its frame's error state, after its
-// OnError prop runs.
-func (s *Session) open(ctx context.Context, key string, comp any) error {
-	if slices.ContainsFunc(s.calls, func(c *openCall) bool { return c.key == key }) {
-		return fmt.Errorf("live: a component is open under the key %s already", key)
+// component key names, shown as opts say, rendered from the next render
+// on; owner is the instance it belongs to when it opens Into a region. Its
+// Mount's error is open's, the component showing its frame's error state,
+// after its OnError prop runs. A component open under key already takes
+// comp's props instead (CallKey).
+func (s *Session) open(ctx context.Context, key string, comp any, opts []ui.CallOption, owner string) error {
+	if c := s.callByKey(key); c != nil {
+		return s.update(c, comp, opts)
+	}
+	_, into := ui.CallOptions(opts)
+	if into != "" {
+		// a region shows one opened component: the one opened last
+		s.calls = slices.DeleteFunc(s.calls, func(c *openCall) bool { return c.into == into })
 	}
 	s.next++
 	in := &instance{s: s, id: "c" + strconv.Itoa(s.next), children: map[string]*instance{}, fresh: true}
 	closeIt := func() { s.dropCall(key) }
-	oc := &openCall{key: key, in: in}
+	oc := &openCall{key: key, in: in, opts: opts, into: into, owner: owner}
 	failed := ui.InjectFields(ctx, comp)
 	st, live := comp.(ui.Stateful)
 	switch {
@@ -141,10 +161,10 @@ func (s *Session) open(ctx context.Context, key string, comp any) error {
 			failed = mount(ctx, st)
 		}
 	default:
-		in.comp = &callHolder{key: key, view: comp.(ui.Node), close: closeIt}
+		in.comp = &callHolder{key: key, view: comp.(ui.Node), close: closeIt, opts: opts}
 	}
 	if failed != nil {
-		in.comp, in.call, in.methods = &callHolder{key: key, failed: failed, close: closeIt}, nil, nil
+		in.comp, in.call, in.methods = &callHolder{key: key, failed: failed, close: closeIt, opts: opts}, nil, nil
 	}
 	in.typ = reflect.TypeOf(in.comp)
 	if h, ok := in.comp.(*callHolder); ok {
@@ -170,6 +190,47 @@ func (s *Session) open(ctx context.Context, key string, comp any) error {
 	return failed
 }
 
+// callByKey is the component open under key, or nil.
+func (s *Session) callByKey(key string) *openCall {
+	for _, c := range s.calls {
+		if c.key == key {
+			return c
+		}
+	}
+	return nil
+}
+
+// update gives c, an opened component, comp's props, and opts, as a
+// second Call with its key does: a stateful one keeps its state, its tag's
+// props set as a parent's render sets them.
+func (s *Session) update(c *openCall, comp any, opts []ui.CallOption) error {
+	c.opts = opts
+	if h, ok := c.in.comp.(*callHolder); ok {
+		n, stateless := comp.(ui.Node)
+		if _, live := comp.(ui.Stateful); live || !stateless || h.failed != nil {
+			return fmt.Errorf("live: a component is open under the key %s already, of another type", c.key)
+		}
+		h.view, h.opts, c.in.set = n, opts, true
+		return nil
+	}
+	st, ok := comp.(ui.Stateful)
+	if !ok || reflect.TypeOf(st) != c.in.typ {
+		return fmt.Errorf("live: a component is open under the key %s already, of another type", c.key)
+	}
+	copyProps(c.in.comp, st)
+	c.in.trackMethods(st)
+	c.in.set = true
+	return nil
+}
+
+// dropOrphans drops the components opened Into a region whose instance is
+// gone, reporting whether it dropped any.
+func (s *Session) dropOrphans() bool {
+	n := len(s.calls)
+	s.calls = slices.DeleteFunc(s.calls, func(c *openCall) bool { return c.owner != "" && s.byID[c.owner] == nil })
+	return len(s.calls) < n
+}
+
 // callPlace is an opened component's place among the page's children.
 func callPlace(key string) string { return "vk-call#k" + keyText(key) }
 
@@ -184,7 +245,11 @@ func (s *Session) dropCall(key string) {
 func (s *Session) overlays() []ui.Node {
 	out := make([]ui.Node, len(s.calls))
 	for i, c := range s.calls {
-		out[i] = ui.Teleport{To: "#" + OverlayHost, ID: "vk-call-" + c.key, Children: &ui.ComponentNode{Site: "vk-call", Key: c.key, Props: c.in.comp, Routed: true}}
+		to := c.into
+		if to == "" {
+			to = "#" + OverlayHost
+		}
+		out[i] = ui.Teleport{To: to, ID: "vk-call-" + c.key, Children: &ui.ComponentNode{Site: "vk-call", Key: c.key, Props: c.in.comp, Routed: true}}
 	}
 	return out
 }
@@ -219,8 +284,16 @@ func (c caller) OpenCall(ctx context.Context, component any, opts []ui.CallOptio
 	if err != nil {
 		return err
 	}
-	c.s.callSeq++
-	return c.s.open(ctx, "s"+strconv.Itoa(c.s.callSeq), comp)
+	key, into := ui.CallOptions(opts)
+	if key == "" {
+		c.s.callSeq++
+		key = "s" + strconv.Itoa(c.s.callSeq)
+	}
+	owner := ""
+	if into != "" {
+		owner, _, _ = strings.Cut(c.target, ":")
+	}
+	return c.s.open(ctx, key, comp, opts, owner)
 }
 
 func (c caller) CloseCall(context.Context) {
@@ -232,15 +305,19 @@ func (c caller) CloseCall(context.Context) {
 // Call opens component as ui.Call does in a handler, then renders the
 // page again: what changed, the opened component among it. Its Mount's
 // error is the patch's.
-func (s *Session) Call(component any) (Patch, error) {
+func (s *Session) Call(component any, opts ...ui.CallOption) (Patch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	comp, err := ui.CallValue(component)
 	if err != nil {
 		return Patch{}, err
 	}
-	s.callSeq++
-	oerr := s.open(s.ctx, "s"+strconv.Itoa(s.callSeq), comp)
+	key, _ := ui.CallOptions(opts)
+	if key == "" {
+		s.callSeq++
+		key = "s" + strconv.Itoa(s.callSeq)
+	}
+	oerr := s.open(s.ctx, key, comp, opts, "")
 	p, err := s.patch()
 	if oerr != nil {
 		p.Err, p.Error = oerr, s.errorText(oerr)

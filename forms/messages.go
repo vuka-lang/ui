@@ -305,6 +305,9 @@ var defaults = map[string]string{
 
 	"call.close":  "Close",
 	"call.failed": "This couldn't open.",
+
+	"confirm.yes": "OK",
+	"confirm.no":  "Cancel",
 }
 
 // DefaultMessages is a copy of the default wording, by key: what an app's

@@ -33,26 +33,16 @@ type Dialog struct {
 
 func (d Dialog) View() Node {
 	return ctxNode(func(ctx context.Context) Node {
-		call, ctx := callRootAttrs(ctx)
+		call, ctx := callRoot(ctx, "modal")
 		class := "vk-dialog"
 		switch d.Size {
 		case "sm", "lg":
 			class += " vk-dialog--" + d.Size
 		}
-		attrs := append([]Attr{{"class", withClass(class, d.Class)}}, call...)
 		if d.Open && call == nil {
-			attrs = append(attrs, Attr{"open", true})
+			call = []Attr{{"open", true}}
 		}
-		header := []Node{}
-		if d.Title != nil {
-			header = append(header, El("h2", []Attr{{"class", "vk-dialog__title"}}, d.Title))
-		}
-		header = append(header, callClose(ctx, "vk-dialog__close"))
-		kids := []Node{El("div", []Attr{{"class", "vk-dialog__header"}}, header...), El("div", []Attr{{"class", "vk-dialog__body"}}, d.Children)}
-		if d.Footer != nil {
-			kids = append(kids, El("div", []Attr{{"class", "vk-dialog__footer"}}, d.Footer))
-		}
-		return withContext(func(c context.Context) context.Context { return context.WithValue(c, callRootKey{}, []Attr(nil)) }, El("dialog", attrs, kids...))
+		return presentation("dialog", withClass(class, d.Class), call, ctx, d.parts(), true)
 	})
 }
 

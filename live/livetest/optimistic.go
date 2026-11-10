@@ -131,7 +131,7 @@ func (c *Client) settle(p *pending, ok bool) error {
 	hook := p.onErr
 	if ok {
 		hook = p.onOK
-		if p.call != nil {
+		if p.call != nil && !slices.ContainsFunc(c.frames, func(f *openFrame) bool { return f.key == p.call.key }) {
 			c.frames = append(c.frames, p.call)
 		}
 	}
@@ -299,6 +299,9 @@ func (c *Client) arg(this *node, raw json.RawMessage) (any, error) {
 	var read map[string]*cond
 	if json.Unmarshal(raw, &read) == nil && len(read) == 1 && read["$read"] != nil {
 		k := read["$read"]
+		if k.Result {
+			return c.resultArg(), nil
+		}
 		if k.joined() {
 			return c.holds(this, k)
 		}
@@ -328,4 +331,20 @@ func (c *Client) arg(this *node, raw json.RawMessage) (any, error) {
 	}
 	var v any
 	return v, json.Unmarshal(raw, &v)
+}
+
+// resultArg is ui.Result's read: what the push a Success runs for
+// returned, a scalar's text or a struct's fields.
+func (c *Client) resultArg() any {
+	var r struct {
+		Value  *string        `json:"value"`
+		Fields map[string]any `json:"fields"`
+	}
+	if json.Unmarshal(c.result, &r) != nil {
+		return nil
+	}
+	if r.Value != nil {
+		return *r.Value
+	}
+	return r.Fields
 }

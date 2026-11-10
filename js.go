@@ -677,6 +677,29 @@ func Prepend() IntoOption { return func(p *push) { p.mode = "prepend" } }
 //	<button onClick={ui.JS.Push(c.Details, ui.Value(pet.ID), ui.Read()).Into("#details").OnError(ui.JS.SetText("#err", ui.LoadError))}>View</button>
 var LoadError = ValueCondition{Condition{key: "error", val: true}}
 
+// Result is a read of what the push a Success runs for returned: a scalar's
+// text, or a struct's fields. A method given to Success taking one value
+// gets it without saying so — its typed result:
+//
+//	func (c *Docs) Create() (int, error)
+//	func (c *Docs) Created(id int)
+//
+//	<form onSubmit={ui.JS.Push(c.Create).Success(c.Created)}>…</form>
+var Result = ValueCondition{Condition{key: "result", val: true}}
+
+type resultHookKey struct{}
+
+// pushResult is what the push x's handler returns.
+func pushResult(x *push) resultKind {
+	if pm := pushOf(x.fn); pm != nil {
+		return pm.result
+	}
+	if pm, err := handlerShape(x.fn); err == nil {
+		return pm.result
+	}
+	return resNone
+}
+
 // Timeout is how long a Push waits for the server's reply before it counts
 // as failed and its OnError runs; 10s unless set. A reply that comes later
 // is still applied.
@@ -1279,13 +1302,32 @@ func (c Commands) Then(chain JSChain) Commands {
 	return Commands{append(slices.Clip(c.ops), chain.jsChain().ops...)}
 }
 
-// Confirm asks msg in the browser's confirm dialog, and stops the chain
-// unless the user accepts.
+// Confirm asks msg, and stops the chain unless the user accepts: in a
+// ConfirmBox where the runtime has an overlay host (the page renders a Call
+// or a Confirm), else, and with NativeConfirm, in the browser's own
+// confirm dialog. A styled one waits for the answer, so the browser's is
+// kept for a submit, a link and an element whose event the server takes as
+// well.
 //
 // Example:
 //
 //	<button onClick={ui.JS.Confirm("Delete " + pet.Name + "?").Push(func() { c.Delete(pet.ID) })}>Delete</button>
-func (c Commands) Confirm(msg string) Commands { return c.add("confirm", jsArg{"msg", msg}) }
+func (c Commands) Confirm(msg string, opts ...ConfirmOption) Commands {
+	args := []jsArg{{"msg", msg}}
+	for _, o := range opts {
+		if o.native {
+			args = append(args, jsArg{"native", true})
+		}
+	}
+	return c.add("confirm", args...)
+}
+
+// A ConfirmOption is how Confirm asks.
+type ConfirmOption struct{ native bool }
+
+// NativeConfirm makes Confirm ask in the browser's own confirm dialog,
+// not a ConfirmBox.
+func NativeConfirm() ConfirmOption { return ConfirmOption{native: true} }
 
 // If runs the steps after it, up to its ElseIf, Else or End, only when cond
 // holds; cond is read when the If is reached. Ifs nest. Without End, the
@@ -1797,7 +1839,9 @@ func (o CommandsOn) Key(keys ...string) CommandsOn { return o.with(o.c.Key(keys.
 // Example:
 //
 //	<button onClick={ui.JS.On(ui.Closest("li")).Confirm("Delete this todo?").Hide().Push(c.DeleteTodo)}>Delete</button>
-func (o CommandsOn) Confirm(msg string) CommandsOn { return o.with(o.c.Confirm(msg)) }
+func (o CommandsOn) Confirm(msg string, opts ...ConfirmOption) CommandsOn {
+	return o.with(o.c.Confirm(msg, opts...))
+}
 
 // If runs the steps after it, up to its ElseIf, Else or End, only when cond
 // holds (see Commands.If).
@@ -2014,7 +2058,12 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 		first = false
 		b.WriteString(`["` + o.name + `",{`)
 		sep := ""
-		for _, a := range o.args {
+		args := o.args
+		if o.name == "confirm" && !slices.ContainsFunc(args, func(a jsArg) bool { return a.key == "native" }) {
+			// a ConfirmBox's words, in the visitor's language
+			args = append(slices.Clip(args), jsArg{"yes", tr(ctx, "confirm.yes")}, jsArg{"no", tr(ctx, "confirm.no")})
+		}
+		for _, a := range args {
 			kvs := []jsArg{a}
 			switch x := a.val.(type) {
 			case Target:
@@ -2054,7 +2103,11 @@ func EncodeJS(ctx context.Context, ch JSChain) ([]byte, error) {
 					ch  *Commands
 				}{{"before", x.before}, {"on_ok", x.onOK}, {"on_error", x.onErr}, {"after", x.after}, {"closed", x.closed}} {
 					if h.ch != nil {
-						j, err := EncodeJS(ctx, *h.ch)
+						hctx := context.WithValue(ctx, resultHookKey{}, false)
+						if r := pushResult(x); h.key == "on_ok" && x.call == nil && (r == resScalar || r == resStruct) {
+							hctx = context.WithValue(ctx, resultHookKey{}, true) // its methods taking one value get the result
+						}
+						j, err := EncodeJS(hctx, *h.ch)
 						if err != nil {
 							return nil, err
 						}
@@ -2124,6 +2177,9 @@ func encodePush(ctx context.Context, host LiveHost, x *push) ([]jsArg, error) {
 	args := x.args
 	if x.has {
 		args = append(callArgs{x.value}, args...)
+	} else if typed, _ := ctx.Value(resultHookKey{}).(bool); typed && len(args) == 0 && len(shape.args) == 1 {
+		args = callArgs{Result} // a Success's method taking the push's result
+		x = &push{fn: x.fn, args: args, into: x.into, mode: x.mode, read: x.read, cache: x.cache, options: x.options}
 	}
 	var kvs []jsArg
 	if http {

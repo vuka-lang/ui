@@ -69,6 +69,7 @@ type Client struct {
 	busy    []*busyState            // what Busy commands marked, not yet undone
 	streams map[string]*streamState // each stream container's rows, by instance and name (stream.go)
 	frames  []*openFrame            // the components Calls opened, still open (call.go)
+	result  json.RawMessage         // the settled push's result, while its hooks run (ui.Result)
 	calls   int                     // the Calls opened so far, naming them
 }
 
@@ -147,7 +148,9 @@ func (c *Client) send(m live.ClientMessage, p *pending) (live.ServerMessage, err
 		if failed {
 			p.msg = reply.Error
 		}
+		c.result = reply.Result
 		err = c.settle(p, !failed)
+		c.result = nil
 	}
 	return reply, errors.Join(err, c.closedGone())
 }

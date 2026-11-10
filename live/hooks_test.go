@@ -199,7 +199,7 @@ func TestPushHooksEncoding(t *testing.T) {
 	if got, want := enc(base), `[["push",{"h":"h"}]]`; got != want {
 		t.Errorf("the chain wrapped is as it was: %s", got)
 	}
-	if got, want := enc(wrapped), `[["push",{"h":"h","before":[["confirm",{"msg":"Delete?"}]],"on_ok":[["hide",{"to":{"sel":"#row"}}]],"on_error":[["show",{"to":{"sel":"#err"}}]],"after":[["pop_focus",{}]]}]]`; got != want {
+	if got, want := enc(wrapped), `[["push",{"h":"h","before":[["confirm",{"msg":"Delete?","yes":"OK","no":"Cancel"}]],"on_ok":[["hide",{"to":{"sel":"#row"}}]],"on_error":[["show",{"to":{"sel":"#err"}}]],"after":[["pop_focus",{}]]}]]`; got != want {
 		t.Errorf("got  %s\nwant %s", got, want)
 	}
 	if a, b := enc(base.OnSuccess(ui.JS.Hide("#x")).OnError(ui.JS.Show("#y"))), enc(base.Success(ui.JS.Hide("#x")).Error(ui.JS.Show("#y"))); a != b {
@@ -211,7 +211,7 @@ func TestPushHooksEncoding(t *testing.T) {
 	if got, want := enc(base.Success(ui.JS.Hide("#a")).Success(ui.JS.Hide("#b"))), `[["push",{"h":"h","on_ok":[["hide",{"to":{"sel":"#a"}}],["hide",{"to":{"sel":"#b"}}]]}]]`; got != want {
 		t.Errorf("twice: %s", got)
 	}
-	if got, want := enc(ui.JS.On("#row").Push(f).Before(ui.JS.Confirm("?")).After(ui.JS.PopFocus()).Hide()), `[["push",{"h":"h","before":[["confirm",{"msg":"?"}]],"after":[["pop_focus",{}]]}],["hide",{"to":{"sel":"#row"}}]]`; got != want {
+	if got, want := enc(ui.JS.On("#row").Push(f).Before(ui.JS.Confirm("?")).After(ui.JS.PopFocus()).Hide()), `[["push",{"h":"h","before":[["confirm",{"msg":"?","yes":"OK","no":"Cancel"}]],"after":[["pop_focus",{}]]}],["hide",{"to":{"sel":"#row"}}]]`; got != want {
 		t.Errorf("CommandsOn: %s", got)
 	}
 	for name, f := range map[string]func(){
