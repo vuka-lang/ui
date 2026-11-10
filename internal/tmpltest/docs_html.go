@@ -61,7 +61,7 @@ func (c *Docs) Render() ui.Node {
 	value := ui.JS.Hide(ui.Closest("li"))
 //line docs.vuka.html:94
 	value2 := ui.JS.Hide(ui.Ref("dialog")).PopFocus()
-//line docs.vuka.html:151
+//line docs.vuka.html:152
 	value3 := ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))
 //line docs.vuka.html:54
 	return ui.HTML(`
@@ -121,6 +121,7 @@ func (c *Docs) Render() ui.Node {
     <button onClick={ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error")))}>Like</button>
     <button onClick={ui.JS.PushFocus().Push(c.Archive).After(ui.JS.PopFocus())}>Archive</button>
     <button onClick={ui.JS.Push(c.Remove).Success(ui.JS.Reload())}>Delete</button>
+    <button onClick={ui.JS.Push(c.Remove).Success(ui.JS.Reload("#orders"))}>Delete</button>
     <button onClick={ui.JS.Push(c.Remove).Before(ui.JS.Remove(ui.Closest("tr"))).Error(ui.JS.Reload())}>Delete</button>
     <button onClick={ui.JS.On(ui.Closest("li")).Remove().Push(c.Remove)}>Dismiss</button>
     <button onClick={ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Reload()}>Refresh</button>
@@ -327,6 +328,7 @@ func (c *Docs) Render() ui.Node {
 		ui.JS.On(ui.This).AddClass("liked").Push(c.Like).Error(ui.JS.Show(ui.Ref("like-error"))),
 		ui.JS.PushFocus().Push(c.Archive).After(ui.JS.PopFocus()),
 		ui.JS.Push(c.Remove).Success(ui.JS.Reload()),
+		ui.JS.Push(c.Remove).Success(ui.JS.Reload("#orders")),
 		ui.JS.Push(c.Remove).Before(ui.JS.Remove(ui.Closest("tr"))).Error(ui.JS.Reload()),
 		ui.JS.On(ui.Closest("li")).Remove().Push(c.Remove),
 		ui.JS.On(ui.Ref("list")).AddClass("opacity-50").Reload(),

@@ -355,6 +355,7 @@ type opArgs struct {
 	Fn         string                     `json:"fn"`
 	Href       string                     `json:"href"`
 	Replace    bool                       `json:"replace"`
+	Sel        string                     `json:"sel"` // a region reload's "#id"
 	Args       []json.RawMessage          `json:"args"`
 }
 
@@ -525,6 +526,18 @@ func (a *attrTarget) matches(c *Client, e *node) bool {
 }
 
 // instanceOf is the nearest element, e or an ancestor, carrying data-vk-id.
+// byID is the element of the page whose id is id, as commands left it.
+func (c *Client) byID(id string) *node {
+	var found *node
+	c.page().walk(func(e *node) bool {
+		if v, ok := c.get(e, "id"); ok && v == id {
+			found = e
+		}
+		return found == nil
+	})
+	return found
+}
+
 func instanceOf(e *node) *node {
 	for ; e.parent != nil; e = e.parent {
 		if _, ok := e.attr("data-vk-id"); ok {
@@ -777,6 +790,15 @@ func (c *Client) runWaiting(this *node, data []byte, ev ui.Event, acc *[]change,
 			}
 			continue
 		case "reload":
+			if a.Sel != "" {
+				el := c.byID(strings.TrimPrefix(a.Sel, "#"))
+				if el == nil {
+					return fmt.Errorf("livetest: Reload(%q): no element has the id", a.Sel)
+				}
+				id, _ := instanceOf(el).attr("data-vk-id") // the instance rendering it
+				c.queue = append(c.queue, sending{ev: ui.Event{Target: id + ":" + live.ReloadEvent, Type: live.ReloadEvent}})
+				continue
+			}
 			if c.url == "" {
 				return fmt.Errorf("livetest: a reload needs the page's URL (SetURL)")
 			}
