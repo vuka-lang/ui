@@ -10,8 +10,9 @@ import (
 
 // Navigation (the live protocol's "Navigation"): a click on a ui.Link, a
 // patch or navigate command, Navigate and Patch send a navigate message; a
-// patch reply is applied like any patch, and the client's URL becomes the
-// page's. Once a navigate (not a patch) is applied, the optimistic pushes
+// reload command, a patch of the client's URL in place of its history
+// entry. A patch reply is applied like any patch, and the client's URL
+// becomes the page's. Once a navigate (not a patch) is applied, the optimistic pushes
 // still waiting are dropped without their hooks, as a browser drops them
 // when the page changes. A redirect reply is the full page load a browser
 // would make: the URL changes, the page the client holds doesn't.

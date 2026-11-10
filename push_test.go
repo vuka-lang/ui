@@ -51,12 +51,14 @@ func (o *orders) Lookup(postcode string) (place2, error) {
 func (o *orders) Check(name string) ui.Commands {
 	return ui.JS.SetText("#name-msg", name+" is free")
 }
-func (o *orders) Remove(id int64) error  { return nil }
-func (o *orders) When() time.Time        { return time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC) }
-func (o *orders) Missing() (string, int) { return "", 0 }
+func (o *orders) Remove(id int64) error                 { return nil }
+func (o *orders) Archive(id int64) (ui.Commands, error) { return ui.JS.Reload(), nil }
+func (o *orders) Dim() ui.CommandsOn                    { return ui.JS.On("#list").AddClass("dim").Reload() }
+func (o *orders) When() time.Time                       { return time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC) }
+func (o *orders) Missing() (string, int)                { return "", 0 }
 
 func init() {
-	for _, m := range []any{(*orders).Details, (*orders).Price, (*orders).Quote, (*orders).Lookup, (*orders).Check, (*orders).Remove, (*orders).When} {
+	for _, m := range []any{(*orders).Details, (*orders).Price, (*orders).Quote, (*orders).Lookup, (*orders).Check, (*orders).Remove, (*orders).Archive, (*orders).Dim, (*orders).When} {
 		ui.RegisterPush(m)
 	}
 }
@@ -202,6 +204,8 @@ func TestPushCall(t *testing.T) {
 		{ref(ui.JS.Push(o.Lookup, "x")), `["0100"]`, "", `{"fields":{"city":"Arusha","gift":true,"region":"0100","tags":["a","b"]}}`},
 		{ref(ui.JS.Push(o.Check, "x")), `["ann"]`, "", `{"js":[["set_text",{"to":{"sel":"#name-msg"},"text":"ann is free"}]]}`},
 		{ref(ui.JS.Push(o.Remove, int64(1))), `[1]`, "", `{}`},
+		{ref(ui.JS.Push(o.Archive, int64(1))), `[1]`, "", `{"js":[["reload",{}]]}`},
+		{ref(ui.JS.Push(o.Dim)), ``, "", `{"js":[["add_class",{"to":{"sel":"#list"},"names":["dim"]}],["reload",{}]]}`},
 		{ref(ui.JS.Push(o.When)), ``, "", `{"value":"2026-01-02"}`},
 	}
 	for _, tt := range tests {

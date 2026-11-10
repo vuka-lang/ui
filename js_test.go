@@ -47,6 +47,8 @@ func TestJSEncoding(t *testing.T) {
 		{ui.JS.Exec(menu, "data-cancel"), `[["exec",{"to":{"ref":"menu"},"attr":"data-cancel"}]]`},
 		{ui.JS.Push(noop), `[["push",{}]]`}, // no session: no handler id
 		{ui.JS.Patch("/books?page=2").On(ui.This).Navigate("/books/7"), `[["patch",{"href":"/books?page=2"}],["navigate",{"href":"/books/7"}]]`},
+		{ui.JS.Reload(), `[["reload",{}]]`},
+		{ui.JS.Hide("#form").Reload().On(ui.Ref("list")).AddClass("dim").Reload(), `[["hide",{"to":{"sel":"#form"}}],["reload",{}],["add_class",{"to":{"ref":"list"},"names":["dim"]}],["reload",{}]]`},
 		{ui.JS.Debounce(300 * time.Millisecond).Throttle(time.Second), `[["debounce",{"ms":300}],["throttle",{"ms":1000}]]`},
 		{ui.JS.Key("Escape", "Enter").Confirm(`Delete "x" <now>?`), `[["key",{"keys":["Escape","Enter"]}],["confirm",{"msg":"Delete \"x\" <now>?","yes":"OK","no":"Cancel"}]]`},
 		{ui.JS.Prevent().Stop().Once().Key("ctrl+Enter"), `[["prevent",{}],["stop",{}],["once",{}],["key",{"keys":["ctrl+Enter"]}]]`},
@@ -121,6 +123,16 @@ func TestJSImmutable(t *testing.T) {
 	on.Hide()
 	if encode(t, on) != `[]` {
 		t.Fatal("On changed")
+	}
+	saved := ui.JS.Hide("#form")
+	reload := saved.Reload()
+	if a, b := encode(t, saved), encode(t, reload); a != `[["hide",{"to":{"sel":"#form"}}]]` || b != `[["hide",{"to":{"sel":"#form"}}],["reload",{}]]` {
+		t.Fatalf("Reload changed the chain it extends:\n%s\n%s", a, b)
+	}
+	list := ui.JS.On(ui.Ref("list"))
+	list.Reload()
+	if encode(t, list) != `[]` {
+		t.Fatal("CommandsOn.Reload changed its chain")
 	}
 }
 

@@ -122,7 +122,8 @@ func (c *Client) Advance(d time.Duration) error {
 }
 
 // settle marks p settled, undoes the Busy marks waiting for it, and runs
-// its hook, on_ok or on_error, then its after, even when the hook fails.
+// the commands its handler returned when it succeeded, its hook, on_ok or
+// on_error, then its after, even when the hook fails.
 func (c *Client) settle(p *pending, ok bool) error {
 	p.settled = true
 	for _, b := range p.busy {
@@ -147,8 +148,17 @@ func (c *Client) settle(p *pending, ok bool) error {
 		c.loadErr = nil
 	}
 	var err error
+	if ok && this != nil {
+		// the commands the handler returned, before the push's Success
+		var r struct {
+			JS json.RawMessage `json:"js"`
+		}
+		if json.Unmarshal(c.result, &r) == nil && len(r.JS) > 0 {
+			err = c.run(this, r.JS, ui.Event{}, nil)
+		}
+	}
 	if len(hook) > 0 && this != nil {
-		err = c.run(this, hook, ui.Event{}, nil)
+		err = errors.Join(err, c.run(this, hook, ui.Event{}, nil))
 	}
 	if len(p.after) > 0 && this != nil {
 		err = errors.Join(err, c.run(this, p.after, ui.Event{}, nil))
