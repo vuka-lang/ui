@@ -1,0 +1,245 @@
+<script lang="go">
+package ui
+
+import (
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+)
+
+// dataTableBody is a DataTable's content once its page is known: the bar,
+// the table and the foot, as its mode draws them.
+type dataTableBody[T any] struct {
+	D    DataTable[T]
+	Page Page[T]
+	// Server: Query was read from URL, and the controls write it.
+	Server bool
+	Query  TableQuery
+	URL    tableURL
+	// Failed: Load returned an error.
+	Failed bool
+}
+
+func (b dataTableBody[T]) placeholder() string {
+	if b.D.SearchPlaceholder == "" {
+		return "Search…"
+	}
+	return b.D.SearchPlaceholder
+}
+
+// searchable reports whether the bar has a search box.
+func (b dataTableBody[T]) searchable() bool {
+	switch {
+	case b.D.Client:
+		return true
+	case b.Server && b.D.Load != nil:
+		return !b.D.NoSearch
+	case b.Server:
+		return b.D.SearchBy != nil
+	}
+	return b.D.OnSearch != nil
+}
+
+func (b dataTableBody[T]) bar() bool { return b.searchable() || b.D.Tabs != nil || b.D.Toolbar != nil }
+
+func (b dataTableBody[T]) formID() string { return b.D.id() + "-search" }
+
+// search is the search box: a live handler's input, a GET form whose input
+// writes the URL as it is typed, or the browser's.
+func (b dataTableBody[T]) search() Node {
+	icon := Icon("search", "vk-datatable__searchicon")
+	switch {
+	case b.Server:
+		var kept []Node
+		for _, kv := range b.URL.kept() {
+			kept = append(kept, HTML(`<input type="hidden" name={kv[0]} value={kv[1]}/>`, kv[0], kv[1]))
+		}
+		return HTML(`<form class="vk-datatable__searchbox" id={b.formID()} method="get" role="search">{kept}{icon}<input type="search" class="vk-datatable__search" name={b.URL.param("q")} value={b.Query.Search} placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-debounce="300" {on("onInput", b.URL.edit("q"))...}/></form>`,
+			b.formID(), kept, icon, b.URL.param("q"), b.Query.Search, b.placeholder(), on("onInput", b.URL.edit("q")))
+	case b.D.Client:
+		return HTML(`<div class="vk-datatable__searchbox" role="search">{icon}<input type="search" class="vk-datatable__search" placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-table-search/></div>`, icon, b.placeholder())
+	}
+	return HTML(`<div class="vk-datatable__searchbox">{icon}<input type="search" class="vk-datatable__search" name="q" placeholder={b.placeholder()} aria-label="Search" value={b.D.Search} {on("onInput", b.D.OnSearch)...}/></div>`, icon, b.placeholder(), b.D.Search, on("onInput", b.D.OnSearch))
+}
+
+// columns are the table's columns, a sortable one's header its sort
+// control: a link in the URL modes, a button calling OnSort else.
+func (b dataTableBody[T]) columns() []Column[T] {
+	cols := make([]Column[T], len(b.D.Columns))
+	copy(cols, b.D.Columns)
+	sortable := b.Query.Sortable
+	for i := range cols {
+		switch {
+		case cols[i].Sort == "":
+		case b.Server && slices.Contains(sortable, cols[i].Sort):
+			cols[i].Header = sortLink(cols[i], b.Query, b.URL)
+		case !b.Server && !b.D.Client && b.D.OnSort != nil:
+			cols[i].Header = sortHeader(cols[i], b.D.Sort, b.D.SortDir, b.D.OnSort)
+		}
+	}
+	return cols
+}
+
+// actions is the table's trailing column: RowActions' controls, then the
+// Actions menu.
+func (b dataTableBody[T]) actions() func(T) Node {
+	if b.D.Actions == nil {
+		return b.D.RowActions
+	}
+	n := 0
+	return func(row T) Node {
+		n++
+		key := strconv.Itoa(n)
+		if b.D.RowKey != nil {
+			key = fmt.Sprint(b.D.RowKey(row))
+		}
+		menu := rowMenu(b.D.id()+"-menu-"+key, b.D.Actions(row))
+		if b.D.RowActions == nil {
+			return menu
+		}
+		return Fragment(b.D.RowActions(row), menu)
+	}
+}
+
+// rowAttrs marks a row for the browser in Client mode, with the text it is
+// found by.
+func (b dataTableBody[T]) rowAttrs() func(T) []Attr {
+	if !b.D.Client {
+		return nil
+	}
+	return func(row T) []Attr {
+		a := []Attr{{"data-vk-table-row", true}}
+		if b.D.SearchBy != nil {
+			a = append(a, Attr{"data-vk-text", strings.ToLower(b.D.SearchBy(row))})
+		}
+		return a
+	}
+}
+
+// empty is what the body shows with no rows: the load's error, no match
+// for the search, else the table's Empty.
+func (b dataTableBody[T]) empty() (Node, Node) {
+	switch {
+	case b.Failed:
+		return HTML(`<span class="vk-datatable__error" role="alert">The rows couldn’t be loaded. Try again in a moment.</span>`), Icon("warning-circle")
+	case b.Server && b.Query.Search != "":
+		clear := b.URL.href("q", "", "page", "")
+		return HTML(`<span class="vk-datatable__nomatch"><b>No results</b><span>Nothing matches “{b.Query.Search}”.</span><a class="vk-datatable__clear" href={clear} data-vk-link="patch">Clear search</a></span>`, b.Query.Search, clear), Icon("search")
+	}
+	return b.D.Empty, b.D.EmptyIcon
+}
+
+func (b dataTableBody[T]) table() Node {
+	empty, icon := b.empty()
+	return Table[T]{
+		Columns: b.columns(), Rows: b.Page.Items, RowKey: b.D.RowKey, RowHref: b.D.RowHref,
+		RowActions: b.actions(), Selectable: b.D.Selectable, SelectName: b.D.SelectName,
+		RowSelected: b.D.RowSelected, OnSelect: b.D.OnSelect, OnSelectAll: b.D.OnSelectAll,
+		AllSelected: b.D.AllSelected, SomeSelected: b.D.SomeSelected,
+		Index: b.D.Index, IndexFrom: max(b.Page.From()-1, 0),
+		Empty: empty, EmptyIcon: icon, Flush: b.D.Flush,
+		rowAttrs: b.rowAttrs(),
+	}.View()
+}
+
+// count is the foot's "Showing 1–10 of 42".
+func (b dataTableBody[T]) count() Node {
+	if b.Page.Total == 0 {
+		return Text("No results")
+	}
+	filtered := Node(nil)
+	if b.Server && b.Query.Search != "" && b.Page.All > b.Page.Total {
+		filtered = HTML(`<span class="vk-datatable__filtered"> (filtered from {b.Page.All})</span>`, b.Page.All)
+	}
+	return HTML(`<span>Showing <b>{b.Page.From()}–{b.Page.To()}</b> of <b>{b.Page.Total}</b>{filtered}</span>`, b.Page.From(), b.Page.To(), b.Page.Total, filtered)
+}
+
+// size is the rows-per-page select: a live handler's, or one writing the
+// URL (in the search form, so its submit keeps it).
+func (b dataTableBody[T]) size() Node {
+	var opts []Node
+	for _, n := range b.D.sizes() {
+		opts = append(opts, HTML(`<option value={n} selected={n == b.Page.Size}>{n}</option>`, n, n == b.Page.Size))
+	}
+	if b.Server {
+		form := Node(nil)
+		if b.searchable() {
+			form = Text(b.formID())
+		}
+		return HTML(`<label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" name={b.URL.param("size")} form={form} {on("onChange", b.URL.edit("size"))...}>{opts}</select></label>`, b.URL.param("size"), form, on("onChange", b.URL.edit("size")), opts)
+	}
+	return HTML(`<label class="vk-datatable__size">{"Per page "}<select aria-label="Rows per page" {on("onChange", b.D.OnSize)...}>{opts}</select></label>`, "Per page ", on("onChange", b.D.OnSize), opts)
+}
+
+// foot reports whether the foot is shown: with a page of rows in the URL
+// modes (the body says why there are none), always else.
+func (b dataTableBody[T]) foot() bool { return !b.Server || b.Page.Total > 0 }
+
+func (b dataTableBody[T]) sizeShown() bool {
+	if b.Server {
+		return b.Page.Total > 0
+	}
+	return b.D.OnSize != nil && len(b.D.Sizes) > 0
+}
+
+func (b dataTableBody[T]) pager() Node {
+	if b.Server {
+		return linkPager(b.Page, b.D.Window, b.URL)
+	}
+	return pager(b.Page, b.D.Window, b.D.OnPage)
+}
+
+// clientSizes are the sizes Client offers, the first selected.
+func (b dataTableBody[T]) clientSizes() []Node {
+	var opts []Node
+	for i, n := range b.D.sizes() {
+		opts = append(opts, HTML(`<option value={n} selected={i == 0}>{n}</option>`, n, i == 0))
+	}
+	return opts
+}
+</script>
+
+<>
+  if b.bar() {
+    <div class="vk-datatable__bar">
+      <div class="vk-datatable__bar-left">
+        {b.D.Tabs}
+        if b.searchable() {
+          {b.search()}
+        }
+      </div>
+      if b.D.Toolbar != nil {
+        <div class="vk-datatable__bar-right">{b.D.Toolbar}</div>
+      }
+    </div>
+  }
+  <div class="vk-datatable__busy" aria-hidden="true"></div>
+  {b.table()}
+  if b.D.Client {
+    <div class="vk-datatable__nomatch vk-datatable__nomatch--client" data-vk-table-empty="match" hidden><b>No results</b><span>Nothing matches your search.</span><button type="button" class="vk-datatable__clear" data-vk-table-clear>Clear search</button></div>
+    if len(b.D.Rows) > 0 {
+      <div class="vk-datatable__foot">
+        <div class="vk-datatable__count">
+          <span>Showing <b><span data-vk-table-from>1</span>–<span data-vk-table-to>{min(len(b.D.Rows), b.D.sizes()[0])}</span></b> of <b data-vk-table-total>{len(b.D.Rows)}</b></span>
+          <label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" data-vk-table-size>{b.clientSizes()}</select></label>
+        </div>
+        <nav class="vk-pager" aria-label="Pagination">
+          <button type="button" aria-label="Previous page" data-vk-table-go="prev" disabled>{Icon("chevron-left")}</button>
+          <span class="vk-pager__status">Page <b data-vk-table-page>1</b> of <b data-vk-table-pages>{(len(b.D.Rows) + b.D.sizes()[0] - 1) / b.D.sizes()[0]}</b></span>
+          <button type="button" aria-label="Next page" data-vk-table-go="next" disabled={len(b.D.Rows) <= b.D.sizes()[0]}>{Icon("chevron-right")}</button>
+        </nav>
+      </div>
+    }
+  } else if b.foot() {
+    <div class="vk-datatable__foot">
+      <div class="vk-datatable__count">
+        {b.count()}
+        if b.sizeShown() {
+          {b.size()}
+        }
+      </div>
+      {b.pager()}
+    </div>
+  }
+</>

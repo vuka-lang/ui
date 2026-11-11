@@ -63,6 +63,16 @@ type Table[T any] struct {
 	// in a Card (use with Card.NoPad).
 	Flush bool
 	Class string
+
+	// rowAttrs are attributes of a row's tr: a DataTable's, for the browser.
+	rowAttrs func(T) []Attr
+}
+
+func (t Table[T]) attrsOf(row T) []Attr {
+	if t.rowAttrs == nil {
+		return nil
+	}
+	return t.rowAttrs(row)
 }
 
 func (t Table[T]) classes() string {
@@ -190,7 +200,7 @@ func (t Table[T]) emptyState() Node {
     } else {
       <tbody>
         for i, row := range t.Rows {
-          <tr key={t.key(row)} class={t.rowClass(row)} {t.rowNav(row)...}>
+          <tr key={t.key(row)} class={t.rowClass(row)} {t.rowNav(row)...} {t.attrsOf(row)...}>
             if t.Selectable {
               <td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value={t.selectValue(row)} {t.selectBox(row)...}/></td>
             }
