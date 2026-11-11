@@ -1,0 +1,37 @@
+<script lang="go">
+package ui
+
+// sortLink is a sortable header of a DataTable kept in the URL: a link
+// patching the page to the column's next order (ascending, descending,
+// the table's own).
+type sortLink struct {
+	Header Node
+	Key    string
+	Query  TableQuery
+	URL    tableURL
+}
+
+func (s sortLink) sorted() bool { return s.Key == s.Query.Sort }
+
+func (s sortLink) aria() string {
+	dir := ""
+	if s.Query.Desc {
+		dir = "desc"
+	}
+	return sortAria(s.sorted(), dir)
+}
+
+func (s sortLink) href() string { return s.URL.sortHref(s.Query, s.Key) }
+
+func (s sortLink) icon() Node {
+	switch {
+	case !s.sorted():
+		return Icon("caret-up-down", "vk-sort__ind")
+	case s.Query.Desc:
+		return Icon("caret-down", "vk-sort__ind vk-sort__ind--active")
+	}
+	return Icon("caret-up", "vk-sort__ind vk-sort__ind--active")
+}
+</script>
+
+<a class="vk-sort" href={s.href()} data-vk-link="patch" data-vk-replace aria-sort={s.aria()}>{s.Header}{s.icon()}</a>

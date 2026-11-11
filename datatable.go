@@ -1,6 +1,11 @@
 package ui
 
-import "strconv"
+import (
+	"context"
+	"log/slog"
+	"slices"
+	"strconv"
+)
 
 // DataTableProps is DataTable, by its former name.
 //
@@ -66,4 +71,58 @@ func pager[T any](page Page[T], window int, onPage any) Node {
 
 func pagerButton(label, aria string, target int, enabled, current bool, onPage any) Node {
 	return HTML(`<button type="button" aria-label={aria} aria-current={when(current, "page")} disabled={!enabled || onPage == nil} {pageTo(onPage, target, enabled)...}>{label}</button>`, aria, when(current, "page"), !enabled || onPage == nil, pageTo(onPage, target, enabled), label)
+}
+
+// sortable is the sort keys the table's URL sort takes: its columns' keys
+// (with Rows, those Sorts orders by).
+func (d DataTable[T]) sortable() []string {
+	var keys []string
+	for _, c := range d.Columns {
+		if c.Sort == "" || slices.Contains(keys, c.Sort) {
+			continue
+		}
+		if d.Load == nil && d.Sorts[c.Sort] == nil {
+			continue
+		}
+		keys = append(keys, c.Sort)
+	}
+	return keys
+}
+
+// sizes is the page sizes offered: Sizes, else 10, 25, 50 and 100.
+func (d DataTable[T]) sizes() []int {
+	if len(d.Sizes) > 0 {
+		return d.Sizes
+	}
+	return tableSizes
+}
+
+// resolve is the table's content for the URL ctx renders: its query read,
+// the page loaded (the last page when the URL asks for one past it).
+func (d DataTable[T]) resolve(ctx context.Context) Node {
+	u := urlOf(ctx, d.Key)
+	q := u.query(d.sizes(), d.sortable())
+	b := dataTableBody[T]{D: d, URL: u, Query: q, Server: true}
+	if d.Load == nil {
+		b.Page = pageOf(d.Rows, q, d.SearchBy, d.Sorts)
+		b.Page.All = len(d.Rows)
+		return b
+	}
+	p, err := d.Load(ctx, q)
+	if err == nil {
+		if pages := (p.Total + q.Size - 1) / q.Size; pages > 0 && q.Page > pages {
+			q.Page = pages
+			b.Query = q
+			p, err = d.Load(ctx, q)
+		}
+	}
+	if err != nil {
+		slog.ErrorContext(ctx, "ui: a DataTable's Load failed", "table", d.id(), "err", err)
+		b.Failed = true
+		return b
+	}
+	all := p.All
+	b.Page = NewPage(p.Items, p.Total, q.Page, q.Size)
+	b.Page.All = all
+	return b
 }

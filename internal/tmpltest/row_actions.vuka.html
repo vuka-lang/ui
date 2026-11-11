@@ -1,0 +1,23 @@
+<script lang="go">
+package tmpltest
+
+import (
+	"strconv"
+
+	"github.com/vuka-lang/ui/v2"
+)
+
+// RowActions is the ActionMenu example: a row's menu items, a link and an
+// action that destroys.
+type RowActions struct {
+	Book     Book
+	OnDelete func(id int64)
+}
+
+func (r RowActions) href() string { return "/books/" + strconv.FormatInt(r.Book.ID, 10) }
+</script>
+
+<>
+  <ui.ActionMenu icon="file-text" href={href()}>Open</ui.ActionMenu>
+  <ui.ActionMenu icon="trash" danger on={ui.JS.Push(OnDelete, ui.Value(Book.ID))}>Delete</ui.ActionMenu>
+</>

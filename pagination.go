@@ -16,6 +16,9 @@ type Page[T any] struct {
 	Pages   int  // how many pages the list has (0 when empty)
 	HasPrev bool // whether a page comes before this one
 	HasNext bool // whether a page comes after this one
+	// All is how many items the list holds before a search narrowed it to
+	// Total, when known (LoadPage sets it); 0 otherwise.
+	All int
 }
 
 // NewPage builds a Page from the items fetched for a page and the total count

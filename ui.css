@@ -52,6 +52,7 @@
   --ui-font-modal-icon:1.2rem;
   --ui-font-modal-close:1.15rem;
   --ui-weight-normal:400;
+  --ui-weight-medium:500;
   --ui-weight-semibold:600;
   --ui-weight-bold:700;
   --ui-leading-button:1.2;
@@ -241,6 +242,64 @@ dialog.vk-popover{position:fixed;margin:0;padding:0;max-width:min(22rem,calc(100
 .vk-datatable__search{width:100%;padding-left:calc(var(--ui-space) * 8)}
 .vk-sort__ind{color:var(--ui-muted)}
 .vk-sort__ind--active{color:var(--ui-primary)}
+
+/* DataTable: the look of shadcn's Table, Input, Button, Pagination and DropdownMenu */
+.vk-datatable{position:relative;font-size:var(--ui-font-label)}
+.vk-datatable .vk-table-wrap{border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius-sm);background:var(--ui-bg)}
+.vk-datatable .vk-table-wrap:has(.vk-table--flush){border:0;border-radius:0}
+.vk-datatable .vk-table{font-size:var(--ui-font-label)}
+.vk-datatable .vk-table th,.vk-datatable .vk-table td{padding:calc(var(--ui-space) * 2) calc(var(--ui-space) * 3)}
+.vk-datatable .vk-table thead th{height:calc(var(--ui-space) * 10);padding-block:0;color:var(--ui-muted);font-size:inherit;font-weight:var(--ui-weight-medium);text-transform:none;letter-spacing:normal;white-space:nowrap}
+.vk-datatable .vk-table tbody tr:last-child>td{border-bottom:0}
+.vk-datatable .vk-table tbody tr{transition:background-color var(--ui-ease)}
+.vk-datatable .vk-table tbody tr:hover{background:color-mix(in srgb,var(--ui-subtle) 50%,transparent)}
+.vk-datatable .vk-table__empty{padding:calc(var(--ui-space) * 12) calc(var(--ui-space) * 6)}
+.vk-datatable .vk-sort{margin:0 calc(var(--ui-space) * -2);padding:calc(var(--ui-space) * 1.5) calc(var(--ui-space) * 2);border-radius:var(--ui-radius-sm);color:inherit;font-weight:inherit;text-decoration:none}
+.vk-datatable .vk-sort:hover{background:var(--ui-subtle);color:var(--ui-fg)}
+.vk-datatable .vk-sort[aria-sort="ascending"],.vk-datatable .vk-sort[aria-sort="descending"]{color:var(--ui-fg)}
+.vk-datatable .vk-sort__ind{opacity:var(--ui-opacity-dismiss)}
+.vk-datatable .vk-sort__ind--active{color:var(--ui-fg);opacity:1}
+.vk-datatable__searchbox{max-width:20rem}
+.vk-datatable .vk-datatable__search{height:calc(var(--ui-space) * 9);min-width:0;max-width:none;padding-block:0;padding-right:calc(var(--ui-space) * 3);border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius-sm);background:transparent;box-shadow:var(--ui-shadow-sm);font-size:var(--ui-font-label);transition:border-color var(--ui-ease),box-shadow var(--ui-ease)}
+.vk-datatable .vk-datatable__search::placeholder{color:var(--ui-muted)}
+.vk-datatable .vk-datatable__search:focus-visible,.vk-datatable__size select:focus-visible,.vk-datatable .vk-sort:focus-visible,.vk-datatable .vk-pager>:focus-visible,.vk-datatable__clear:focus-visible,.vk-menu__trigger:focus-visible{outline:none;border-color:var(--ui-ring);box-shadow:0 0 0 calc(var(--ui-focus-width) + 1px) color-mix(in srgb,var(--ui-ring) 50%,transparent)}
+.vk-datatable__foot{font-size:var(--ui-font-label)}
+.vk-datatable__count{display:flex;align-items:center;gap:calc(var(--ui-space) * 6);flex-wrap:wrap}
+.vk-datatable__count b{color:var(--ui-fg);font-weight:var(--ui-weight-medium);font-variant-numeric:tabular-nums}
+.vk-datatable__size{display:inline-flex;align-items:center;gap:calc(var(--ui-space) * 2)}
+.vk-datatable__size select{height:calc(var(--ui-space) * 8);padding:0 calc(var(--ui-space) * 2);border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius-sm);background:var(--ui-bg);color:var(--ui-fg);box-shadow:var(--ui-shadow-sm);font:inherit;cursor:pointer}
+.vk-datatable .vk-pager>a,.vk-datatable .vk-pager>button,.vk-datatable .vk-pager>span[aria-disabled]{display:inline-flex;align-items:center;justify-content:center;gap:var(--ui-space);min-width:calc(var(--ui-space) * 9);height:calc(var(--ui-space) * 9);padding:0 calc(var(--ui-space) * 2.5);border:var(--ui-border-width) solid transparent;border-radius:var(--ui-radius-sm);background:transparent;color:var(--ui-fg);font-size:var(--ui-font-label);font-weight:var(--ui-weight-medium);text-decoration:none;cursor:pointer;transition:background-color var(--ui-ease)}
+.vk-datatable .vk-pager>a:hover,.vk-datatable .vk-pager>button:hover:not(:disabled){border-color:transparent;background:var(--ui-subtle)}
+.vk-datatable .vk-pager>[aria-current="page"],.vk-datatable .vk-pager>[aria-current="page"]:hover{border-color:var(--ui-border);background:var(--ui-bg);color:var(--ui-fg);box-shadow:var(--ui-shadow-sm)}
+.vk-datatable .vk-pager>[aria-disabled="true"],.vk-datatable .vk-pager>button:disabled{opacity:var(--ui-opacity-disabled-pager);cursor:default;pointer-events:none}
+.vk-pager__status{padding:0 calc(var(--ui-space) * 2);color:var(--ui-muted);white-space:nowrap}
+.vk-pager__status b{color:var(--ui-fg);font-weight:var(--ui-weight-medium)}
+.vk-datatable__busy{height:2px;margin-bottom:calc(-2px - var(--ui-space) * 3);border-radius:var(--ui-radius-pill);visibility:hidden;background:linear-gradient(90deg,transparent,var(--ui-primary),transparent) no-repeat;background-size:40% 100%;animation:vk-dt-busy 1.2s linear infinite}
+.vk-datatable[aria-busy="true"]>.vk-datatable__busy,.vk-datatable:has([aria-busy="true"])>.vk-datatable__busy{visibility:visible}
+.vk-datatable[aria-busy="true"] .vk-table-wrap{opacity:var(--ui-opacity-busy)}
+@keyframes vk-dt-busy{0%{background-position:-40% 0}100%{background-position:140% 0}}
+.vk-datatable__nomatch{display:flex;flex-direction:column;align-items:center;gap:calc(var(--ui-space) * 1.5);color:var(--ui-muted)}
+.vk-datatable__nomatch b{color:var(--ui-fg);font-weight:var(--ui-weight-semibold)}
+.vk-datatable__nomatch--client{padding:calc(var(--ui-space) * 12) calc(var(--ui-space) * 6);border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius-sm);text-align:center}
+.vk-datatable__nomatch--client[hidden]{display:none}
+.vk-datatable__clear{display:inline-flex;align-items:center;height:calc(var(--ui-space) * 8);margin-top:calc(var(--ui-space) * 2);padding:0 calc(var(--ui-space) * 3);border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius-sm);background:var(--ui-bg);color:var(--ui-fg);box-shadow:var(--ui-shadow-sm);font:inherit;font-weight:var(--ui-weight-medium);text-decoration:none;cursor:pointer}
+.vk-datatable__clear:hover{background:var(--ui-subtle)}
+.vk-datatable__error{color:var(--ui-danger)}
+.vk-datatable .vk-empty__icon:has(.vk-icon[data-vk-icon="warning-circle"]){color:var(--ui-danger)}
+.vk-datatable__filtered{color:var(--ui-muted)}
+.vk-datatable .vk-col--actions{width:1px;white-space:nowrap}
+.vk-menu{display:inline-flex}
+.vk-menu__trigger{display:inline-flex;align-items:center;justify-content:center;width:calc(var(--ui-space) * 8);height:calc(var(--ui-space) * 8);padding:0;border:var(--ui-border-width) solid transparent;border-radius:var(--ui-radius-sm);background:transparent;color:var(--ui-muted);cursor:pointer}
+.vk-menu__trigger:hover,.vk-menu:has(:popover-open) .vk-menu__trigger{background:var(--ui-subtle);color:var(--ui-fg)}
+.vk-menu__panel{width:max-content;min-width:10rem;overflow:visible;padding:var(--ui-space);border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius-sm);background:var(--ui-bg);color:var(--ui-fg);box-shadow:var(--ui-shadow-lg);font-size:var(--ui-font-label);text-align:left}
+@supports (position-area:bottom){.vk-menu__panel{inset:auto;margin:var(--ui-space) 0 0;position-area:bottom span-left;position-try-fallbacks:flip-block}}
+.vk-menu__item{display:flex;width:100%;align-items:center;gap:calc(var(--ui-space) * 2);padding:calc(var(--ui-space) * 1.5) calc(var(--ui-space) * 2);border:0;border-radius:calc(var(--ui-radius-sm) - 2px);background:transparent;color:var(--ui-fg);font:inherit;text-align:left;text-decoration:none;cursor:pointer;outline:none}
+.vk-menu__item:hover,.vk-menu__item:focus-visible{background:var(--ui-subtle)}
+.vk-menu__item:disabled{opacity:var(--ui-opacity-disabled-control);pointer-events:none}
+.vk-menu__item--danger{color:var(--ui-danger)}
+.vk-menu__item--danger:hover,.vk-menu__item--danger:focus-visible{background:var(--ui-danger-bg)}
+.vk-menu__icon{flex:none;color:var(--ui-muted)}
+.vk-menu__item--danger .vk-menu__icon{color:inherit}
 
 /* Icon + spinner */
 .vk-icon{display:inline-block;vertical-align:-.125em;width:1em;height:1em;flex:none}
