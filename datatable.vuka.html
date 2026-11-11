@@ -11,7 +11,7 @@ import "context"
 // LoadPage, which pages an orm QuerySet). Sorting, paging and searching
 // write the URL, so each is a patch of the live page, a link without one:
 //
-//	<ui.DataTable load={Books} placeholder="Find books">
+//	<ui.DataTable load={Books} searchPlaceholder="Find books">
 //		<slot:column header="Title" sort="title" let={b}>{b.Title}</slot:column>
 //		<slot:actions let={b}><ui.ActionMenu icon="trash" danger on={ui.JS.Push(Delete, ui.Value(b.ID))}>Delete</ui.ActionMenu></slot:actions>
 //	</ui.DataTable>

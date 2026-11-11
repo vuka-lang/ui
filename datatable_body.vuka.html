@@ -45,24 +45,6 @@ func (b dataTableBody[T]) bar() bool { return b.searchable() || b.D.Tabs != nil 
 
 func (b dataTableBody[T]) formID() string { return b.D.id() + "-search" }
 
-// search is the search box: a live handler's input, a GET form whose input
-// writes the URL as it is typed, or the browser's.
-func (b dataTableBody[T]) search() Node {
-	icon := Icon("search", "vk-datatable__searchicon")
-	switch {
-	case b.Server:
-		var kept []Node
-		for _, kv := range b.URL.kept() {
-			kept = append(kept, HTML(`<input type="hidden" name={kv[0]} value={kv[1]}/>`, kv[0], kv[1]))
-		}
-		return HTML(`<form class="vk-datatable__searchbox" id={b.formID()} method="get" role="search">{kept}{icon}<input type="search" class="vk-datatable__search" name={b.URL.param("q")} value={b.Query.Search} placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-debounce="300" {on("onInput", b.URL.edit("q"))...}/></form>`,
-			b.formID(), kept, icon, b.URL.param("q"), b.Query.Search, b.placeholder(), on("onInput", b.URL.edit("q")))
-	case b.D.Client:
-		return HTML(`<div class="vk-datatable__searchbox" role="search">{icon}<input type="search" class="vk-datatable__search" placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-table-search/></div>`, icon, b.placeholder())
-	}
-	return HTML(`<div class="vk-datatable__searchbox">{icon}<input type="search" class="vk-datatable__search" name="q" placeholder={b.placeholder()} aria-label="Search" value={b.D.Search} {on("onInput", b.D.OnSearch)...}/></div>`, icon, b.placeholder(), b.D.Search, on("onInput", b.D.OnSearch))
-}
-
 // columns are the table's columns, a sortable one's header its sort
 // control: a link in the URL modes, a button calling OnSort else.
 func (b dataTableBody[T]) columns() []Column[T] {
@@ -73,7 +55,7 @@ func (b dataTableBody[T]) columns() []Column[T] {
 		switch {
 		case cols[i].Sort == "":
 		case b.Server && slices.Contains(sortable, cols[i].Sort):
-			cols[i].Header = sortLink(cols[i], b.Query, b.URL)
+			cols[i].Header = sortLink{Header: cols[i].Header, Key: cols[i].Sort, Query: b.Query, URL: b.URL}
 		case !b.Server && !b.D.Client && b.D.OnSort != nil:
 			cols[i].Header = sortHeader(cols[i], b.D.Sort, b.D.SortDir, b.D.OnSort)
 		}
@@ -94,7 +76,7 @@ func (b dataTableBody[T]) actions() func(T) Node {
 		if b.D.RowKey != nil {
 			key = fmt.Sprint(b.D.RowKey(row))
 		}
-		menu := rowMenu(b.D.id()+"-menu-"+key, b.D.Actions(row))
+		menu := rowMenu{ID: b.D.id() + "-menu-" + key, Items: b.D.Actions(row)}
 		if b.D.RowActions == nil {
 			return menu
 		}
@@ -143,35 +125,6 @@ func (b dataTableBody[T]) table() Node {
 	}.View()
 }
 
-// count is the foot's "Showing 1–10 of 42".
-func (b dataTableBody[T]) count() Node {
-	if b.Page.Total == 0 {
-		return Text("No results")
-	}
-	filtered := Node(nil)
-	if b.Server && b.Query.Search != "" && b.Page.All > b.Page.Total {
-		filtered = HTML(`<span class="vk-datatable__filtered"> (filtered from {b.Page.All})</span>`, b.Page.All)
-	}
-	return HTML(`<span>Showing <b>{b.Page.From()}–{b.Page.To()}</b> of <b>{b.Page.Total}</b>{filtered}</span>`, b.Page.From(), b.Page.To(), b.Page.Total, filtered)
-}
-
-// size is the rows-per-page select: a live handler's, or one writing the
-// URL (in the search form, so its submit keeps it).
-func (b dataTableBody[T]) size() Node {
-	var opts []Node
-	for _, n := range b.D.sizes() {
-		opts = append(opts, HTML(`<option value={n} selected={n == b.Page.Size}>{n}</option>`, n, n == b.Page.Size))
-	}
-	if b.Server {
-		form := Node(nil)
-		if b.searchable() {
-			form = Text(b.formID())
-		}
-		return HTML(`<label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" name={b.URL.param("size")} form={form} {on("onChange", b.URL.edit("size"))...}>{opts}</select></label>`, b.URL.param("size"), form, on("onChange", b.URL.edit("size")), opts)
-	}
-	return HTML(`<label class="vk-datatable__size">{"Per page "}<select aria-label="Rows per page" {on("onChange", b.D.OnSize)...}>{opts}</select></label>`, "Per page ", on("onChange", b.D.OnSize), opts)
-}
-
 // foot reports whether the foot is shown: with a page of rows in the URL
 // modes (the body says why there are none), always else.
 func (b dataTableBody[T]) foot() bool { return !b.Server || b.Page.Total > 0 }
@@ -185,18 +138,33 @@ func (b dataTableBody[T]) sizeShown() bool {
 
 func (b dataTableBody[T]) pager() Node {
 	if b.Server {
-		return linkPager(b.Page, b.D.Window, b.URL)
+		return linkPager{Page: b.Page.Page, Pages: b.Page.Pages, HasPrev: b.Page.HasPrev, HasNext: b.Page.HasNext,
+			Numbers: b.Page.Window(pagerWindow(b.D.Window)), URL: b.URL}
 	}
 	return pager(b.Page, b.D.Window, b.D.OnPage)
 }
 
-// clientSizes are the sizes Client offers, the first selected.
-func (b dataTableBody[T]) clientSizes() []Node {
-	var opts []Node
-	for i, n := range b.D.sizes() {
-		opts = append(opts, HTML(`<option value={n} selected={i == 0}>{n}</option>`, n, i == 0))
-	}
-	return opts
+// sizeName and searchName are the size select's and search box's
+// parameters; form ties the size select to the search form, so its submit
+// keeps the size.
+func (b dataTableBody[T]) sizeName() string   { return b.URL.param("size") }
+func (b dataTableBody[T]) searchName() string { return b.URL.param("q") }
+func (b dataTableBody[T]) form() any          { return when(b.searchable(), b.formID()) }
+
+// writes is the live handler a control kept in the URL writes param with.
+func (b dataTableBody[T]) writes(event, param string) []Attr {
+	return on(event, b.URL.edit(param))
+}
+
+// filtered reports whether the count says what the search left out.
+func (b dataTableBody[T]) filtered() bool {
+	return b.Server && b.Query.Search != "" && b.Page.All > b.Page.Total
+}
+
+func (b dataTableBody[T]) firstSize() int { return b.D.sizes()[0] }
+
+func (b dataTableBody[T]) clientPages() int {
+	return (len(b.D.Rows) + b.firstSize() - 1) / b.firstSize()
 }
 </script>
 
@@ -206,7 +174,25 @@ func (b dataTableBody[T]) clientSizes() []Node {
       <div class="vk-datatable__bar-left">
         {b.D.Tabs}
         if b.searchable() {
-          {b.search()}
+          if b.Server {
+            <form class="vk-datatable__searchbox" id={b.formID()} method="get" role="search">
+              for _, kv := range b.URL.kept() {
+                <input type="hidden" name={kv[0]} value={kv[1]}/>
+              }
+              {Icon("search", "vk-datatable__searchicon")}
+              <input type="search" class="vk-datatable__search" name={b.searchName()} value={b.Query.Search} placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-debounce="300" {b.writes("onInput", "q")...}/>
+            </form>
+          } else if b.D.Client {
+            <div class="vk-datatable__searchbox" role="search">
+              {Icon("search", "vk-datatable__searchicon")}
+              <input type="search" class="vk-datatable__search" placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-table-search/>
+            </div>
+          } else {
+            <div class="vk-datatable__searchbox">
+              {Icon("search", "vk-datatable__searchicon")}
+              <input type="search" class="vk-datatable__search" name="q" placeholder={b.placeholder()} aria-label="Search" value={b.D.Search} {on("onInput", b.D.OnSearch)...}/>
+            </div>
+          }
         }
       </div>
       if b.D.Toolbar != nil {
@@ -221,22 +207,46 @@ func (b dataTableBody[T]) clientSizes() []Node {
     if len(b.D.Rows) > 0 {
       <div class="vk-datatable__foot">
         <div class="vk-datatable__count">
-          <span>Showing <b><span data-vk-table-from>1</span>–<span data-vk-table-to>{min(len(b.D.Rows), b.D.sizes()[0])}</span></b> of <b data-vk-table-total>{len(b.D.Rows)}</b></span>
-          <label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" data-vk-table-size>{b.clientSizes()}</select></label>
+          <span>Showing <b><span data-vk-table-from>1</span>–<span data-vk-table-to>{min(len(b.D.Rows), b.firstSize())}</span></b> of <b data-vk-table-total>{len(b.D.Rows)}</b></span>
+          <label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" data-vk-table-size>
+            for i, n := range b.D.sizes() {
+              <option value={n} selected={i == 0}>{n}</option>
+            }
+          </select></label>
         </div>
         <nav class="vk-pager" aria-label="Pagination">
           <button type="button" aria-label="Previous page" data-vk-table-go="prev" disabled>{Icon("chevron-left")}</button>
-          <span class="vk-pager__status">Page <b data-vk-table-page>1</b> of <b data-vk-table-pages>{(len(b.D.Rows) + b.D.sizes()[0] - 1) / b.D.sizes()[0]}</b></span>
-          <button type="button" aria-label="Next page" data-vk-table-go="next" disabled={len(b.D.Rows) <= b.D.sizes()[0]}>{Icon("chevron-right")}</button>
+          <span class="vk-pager__status">Page <b data-vk-table-page>1</b> of <b data-vk-table-pages>{b.clientPages()}</b></span>
+          <button type="button" aria-label="Next page" data-vk-table-go="next" disabled={len(b.D.Rows) <= b.firstSize()}>{Icon("chevron-right")}</button>
         </nav>
       </div>
     }
   } else if b.foot() {
     <div class="vk-datatable__foot">
       <div class="vk-datatable__count">
-        {b.count()}
+        if b.Page.Total == 0 {
+          <span>No results</span>
+        } else {
+          <span>Showing <b>{b.Page.From()}–{b.Page.To()}</b> of <b>{b.Page.Total}</b>
+            if b.filtered() {
+              <span class="vk-datatable__filtered"> (filtered from {b.Page.All})</span>
+            }
+          </span>
+        }
         if b.sizeShown() {
-          {b.size()}
+          if b.Server {
+            <label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" name={b.sizeName()} form={b.form()} {b.writes("onChange", "size")...}>
+              for _, n := range b.D.sizes() {
+                <option value={n} selected={n == b.Page.Size}>{n}</option>
+              }
+            </select></label>
+          } else {
+            <label class="vk-datatable__size">{"Per page "}<select aria-label="Rows per page" {on("onChange", b.D.OnSize)...}>
+              for _, n := range b.D.sizes() {
+                <option value={n} selected={n == b.Page.Size}>{n}</option>
+              }
+            </select></label>
+          }
         }
       </div>
       {b.pager()}

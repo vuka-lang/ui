@@ -1,0 +1,52 @@
+<script lang="go">
+package tmpltest
+
+import (
+	"context"
+
+	"github.com/vuka-lang/orm/v2"
+	"github.com/vuka-lang/ui/v2"
+)
+
+// Book is a row of the Books example.
+type Book struct {
+	ID     int64 `orm:"pk"`
+	Title  string
+	Author string
+	Pages  int
+}
+
+// Books is the DataTable example: a store's rows paged by ui.LoadPage,
+// searched by author, sorted by the columns' keys, a menu per row, and a
+// button reloading just the table.
+type Books struct {
+	ui.Live
+	Deleted int64
+}
+
+func (p *Books) Load(ctx context.Context, q ui.TableQuery) (ui.Page[Book], error) {
+	return ui.LoadPage(ctx, q, ui.Source[Book]{
+		Search: func(qs orm.QuerySet[Book], term string) orm.QuerySet[Book] {
+			return qs.Filter(orm.Q{"author__icontains": term})
+		},
+		Default: "title",
+	})
+}
+
+func (p *Books) Delete(id int64) { p.Deleted = id }
+</script>
+
+<section>
+  <ui.Button on={ui.JS.Reload("#records")}>Refresh</ui.Button>
+  if Deleted != 0 {
+    <p class="deleted">Deleted book {Deleted}</p>
+  }
+  <ui.DataTable load={Load} searchPlaceholder="Find an author" sizes={[]int{5, 10}}>
+    <slot:column header="Title" sort="title" let={b}><b>{b.Title}</b></slot:column>
+    <slot:column header="Author" sort="author" let={b}>{b.Author}</slot:column>
+    <slot:column header="Pages" sort="pages" align="right" let={b}>{b.Pages}</slot:column>
+    <slot:actions let={b}>
+      <RowActions book={b} onDelete={Delete}/>
+    </slot:actions>
+  </ui.DataTable>
+</section>

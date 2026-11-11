@@ -51,24 +51,6 @@ func (b dataTableBody[T]) bar() bool { return b.searchable() || b.D.Tabs != nil 
 
 func (b dataTableBody[T]) formID() string { return b.D.id() + "-search" }
 
-// search is the search box: a live handler's input, a GET form whose input
-// writes the URL as it is typed, or the browser's.
-func (b dataTableBody[T]) search() Node {
-	icon := Icon("search", "vk-datatable__searchicon")
-	switch {
-	case b.Server:
-		var kept []Node
-		for _, kv := range b.URL.kept() {
-			kept = append(kept, HTML(`<input type="hidden" name={kv[0]} value={kv[1]}/>`, kv[0], kv[1]))
-		}
-		return HTML(`<form class="vk-datatable__searchbox" id={b.formID()} method="get" role="search">{kept}{icon}<input type="search" class="vk-datatable__search" name={b.URL.param("q")} value={b.Query.Search} placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-debounce="300" {on("onInput", b.URL.edit("q"))...}/></form>`,
-			b.formID(), kept, icon, b.URL.param("q"), b.Query.Search, b.placeholder(), on("onInput", b.URL.edit("q")))
-	case b.D.Client:
-		return HTML(`<div class="vk-datatable__searchbox" role="search">{icon}<input type="search" class="vk-datatable__search" placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-table-search/></div>`, icon, b.placeholder())
-	}
-	return HTML(`<div class="vk-datatable__searchbox">{icon}<input type="search" class="vk-datatable__search" name="q" placeholder={b.placeholder()} aria-label="Search" value={b.D.Search} {on("onInput", b.D.OnSearch)...}/></div>`, icon, b.placeholder(), b.D.Search, on("onInput", b.D.OnSearch))
-}
-
 // columns are the table's columns, a sortable one's header its sort
 // control: a link in the URL modes, a button calling OnSort else.
 func (b dataTableBody[T]) columns() []Column[T] {
@@ -79,7 +61,7 @@ func (b dataTableBody[T]) columns() []Column[T] {
 		switch {
 		case cols[i].Sort == "":
 		case b.Server && slices.Contains(sortable, cols[i].Sort):
-			cols[i].Header = sortLink(cols[i], b.Query, b.URL)
+			cols[i].Header = sortLink{Header: cols[i].Header, Key: cols[i].Sort, Query: b.Query, URL: b.URL}
 		case !b.Server && !b.D.Client && b.D.OnSort != nil:
 			cols[i].Header = sortHeader(cols[i], b.D.Sort, b.D.SortDir, b.D.OnSort)
 		}
@@ -100,7 +82,7 @@ func (b dataTableBody[T]) actions() func(T) Node {
 		if b.D.RowKey != nil {
 			key = fmt.Sprint(b.D.RowKey(row))
 		}
-		menu := rowMenu(b.D.id()+"-menu-"+key, b.D.Actions(row))
+		menu := rowMenu{ID: b.D.id() + "-menu-" + key, Items: b.D.Actions(row)}
 		if b.D.RowActions == nil {
 			return menu
 		}
@@ -149,35 +131,6 @@ func (b dataTableBody[T]) table() Node {
 	}.View()
 }
 
-// count is the foot's "Showing 1–10 of 42".
-func (b dataTableBody[T]) count() Node {
-	if b.Page.Total == 0 {
-		return Text("No results")
-	}
-	filtered := Node(nil)
-	if b.Server && b.Query.Search != "" && b.Page.All > b.Page.Total {
-		filtered = HTML(`<span class="vk-datatable__filtered"> (filtered from {b.Page.All})</span>`, b.Page.All)
-	}
-	return HTML(`<span>Showing <b>{b.Page.From()}–{b.Page.To()}</b> of <b>{b.Page.Total}</b>{filtered}</span>`, b.Page.From(), b.Page.To(), b.Page.Total, filtered)
-}
-
-// size is the rows-per-page select: a live handler's, or one writing the
-// URL (in the search form, so its submit keeps it).
-func (b dataTableBody[T]) size() Node {
-	var opts []Node
-	for _, n := range b.D.sizes() {
-		opts = append(opts, HTML(`<option value={n} selected={n == b.Page.Size}>{n}</option>`, n, n == b.Page.Size))
-	}
-	if b.Server {
-		form := Node(nil)
-		if b.searchable() {
-			form = Text(b.formID())
-		}
-		return HTML(`<label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" name={b.URL.param("size")} form={form} {on("onChange", b.URL.edit("size"))...}>{opts}</select></label>`, b.URL.param("size"), form, on("onChange", b.URL.edit("size")), opts)
-	}
-	return HTML(`<label class="vk-datatable__size">{"Per page "}<select aria-label="Rows per page" {on("onChange", b.D.OnSize)...}>{opts}</select></label>`, "Per page ", on("onChange", b.D.OnSize), opts)
-}
-
 // foot reports whether the foot is shown: with a page of rows in the URL
 // modes (the body says why there are none), always else.
 func (b dataTableBody[T]) foot() bool { return !b.Server || b.Page.Total > 0 }
@@ -191,31 +144,86 @@ func (b dataTableBody[T]) sizeShown() bool {
 
 func (b dataTableBody[T]) pager() Node {
 	if b.Server {
-		return linkPager(b.Page, b.D.Window, b.URL)
+		return linkPager{Page: b.Page.Page, Pages: b.Page.Pages, HasPrev: b.Page.HasPrev, HasNext: b.Page.HasNext,
+			Numbers: b.Page.Window(pagerWindow(b.D.Window)), URL: b.URL}
 	}
 	return pager(b.Page, b.D.Window, b.D.OnPage)
 }
 
-// clientSizes are the sizes Client offers, the first selected.
-func (b dataTableBody[T]) clientSizes() []Node {
-	var opts []Node
-	for i, n := range b.D.sizes() {
-		opts = append(opts, HTML(`<option value={n} selected={i == 0}>{n}</option>`, n, i == 0))
-	}
-	return opts
+// sizeName and searchName are the size select's and search box's
+// parameters; form ties the size select to the search form, so its submit
+// keeps the size.
+func (b dataTableBody[T]) sizeName() string   { return b.URL.param("size") }
+func (b dataTableBody[T]) searchName() string { return b.URL.param("q") }
+func (b dataTableBody[T]) form() any          { return when(b.searchable(), b.formID()) }
+
+// writes is the live handler a control kept in the URL writes param with.
+func (b dataTableBody[T]) writes(event, param string) []Attr {
+	return on(event, b.URL.edit(param))
 }
 
-//line datatable_body.vuka.html:203
+// filtered reports whether the count says what the search left out.
+func (b dataTableBody[T]) filtered() bool {
+	return b.Server && b.Query.Search != "" && b.Page.All > b.Page.Total
+}
+
+func (b dataTableBody[T]) firstSize() int { return b.D.sizes()[0] }
+
+func (b dataTableBody[T]) clientPages() int {
+	return (len(b.D.Rows) + b.firstSize() - 1) / b.firstSize()
+}
+
+//line datatable_body.vuka.html:171
 func (b dataTableBody[T]) View() Node {
 	var div Node
-//line datatable_body.vuka.html:204
+//line datatable_body.vuka.html:172
 	if b.bar() {
-		var search2 Node
-//line datatable_body.vuka.html:208
+		var text2 Node
+//line datatable_body.vuka.html:176
 		if b.searchable() {
-			search2 = b.search()
+			var form2 Node
+//line datatable_body.vuka.html:177
+			if b.Server {
+				var inputs []Node
+				for _, kv := range b.URL.kept() {
+					inputs = append(inputs, HTML(`<input type="hidden" name={kv[0]} value={kv[1]}/>`, kv[0], kv[1]))
+				}
+				value2 := Icon("search", "vk-datatable__searchicon")
+				form2 = HTML(`
+<form class="vk-datatable__searchbox" id={b.formID()} method="get" role="search">
+  {inputs}
+  {value2}
+  <input type="search" class="vk-datatable__search" name={b.searchName()} value={b.Query.Search} placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-debounce="300" {b.writes("onInput", "q")...}/>
+</form>`,
+					b.formID(),
+					inputs,
+					value2,
+					b.searchName(),
+					b.Query.Search,
+					b.placeholder(),
+					b.writes("onInput", "q"),
+				)
+			} else if b.D.Client {
+//line datatable_body.vuka.html:187
+				value22 := Icon("search", "vk-datatable__searchicon")
+				form2 = HTML(`
+<div class="vk-datatable__searchbox" role="search">
+  {value22}
+  <input type="search" class="vk-datatable__search" placeholder={b.placeholder()} aria-label="Search" autocomplete="off" data-vk-table-search/>
+</div>`, value22, b.placeholder())
+			} else {
+//line datatable_body.vuka.html:192
+				value3 := Icon("search", "vk-datatable__searchicon")
+				form2 = HTML(`
+<div class="vk-datatable__searchbox">
+  {value3}
+  <input type="search" class="vk-datatable__search" name="q" placeholder={b.placeholder()} aria-label="Search" value={b.D.Search} {on("onInput", b.D.OnSearch)...}/>
+</div>`, value3, b.placeholder(), b.D.Search, on("onInput", b.D.OnSearch))
+			}
+			text2 = form2
 		}
 		var div2 Node
+//line datatable_body.vuka.html:198
 		if b.D.Toolbar != nil {
 			div2 = HTML(`<div class="vk-datatable__bar-right">{b.D.Toolbar}</div>`, b.D.Toolbar)
 		}
@@ -223,34 +231,39 @@ func (b dataTableBody[T]) View() Node {
 <div class="vk-datatable__bar">
   <div class="vk-datatable__bar-left">
     {b.D.Tabs}
-    {search2}
+    {text2}
   </div>
   {div2}
-</div>`, b.D.Tabs, search2, div2)
+</div>`, b.D.Tabs, text2, div2)
 	}
 	var div3 Node
-//line datatable_body.vuka.html:219
+//line datatable_body.vuka.html:205
 	if b.D.Client {
 		var div4 Node
 		if len(b.D.Rows) > 0 {
+			var options2 []Node
+//line datatable_body.vuka.html:212
+			for i, n := range b.D.sizes() {
+				options2 = append(options2, HTML(`<option value={n} selected={i == 0}>{n}</option>`, n, i == 0))
+			}
 			div4 = HTML(`
 <div class="vk-datatable__foot">
   <div class="vk-datatable__count">
-    <span>Showing <b><span data-vk-table-from>1</span>–<span data-vk-table-to>{min(len(b.D.Rows), b.D.sizes()[0])}</span></b> of <b data-vk-table-total>{len(b.D.Rows)}</b></span>
-    <label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" data-vk-table-size>{b.clientSizes()}</select></label>
+    <span>Showing <b><span data-vk-table-from>1</span>–<span data-vk-table-to>{min(len(b.D.Rows), b.firstSize())}</span></b> of <b data-vk-table-total>{len(b.D.Rows)}</b></span>
+    <label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" data-vk-table-size>{options2}</select></label>
   </div>
   <nav class="vk-pager" aria-label="Pagination">
     <button type="button" aria-label="Previous page" data-vk-table-go="prev" disabled>{Icon("chevron-left")}</button>
-    <span class="vk-pager__status">Page <b data-vk-table-page>1</b> of <b data-vk-table-pages>{(len(b.D.Rows) + b.D.sizes()[0] - 1) / b.D.sizes()[0]}</b></span>
-    <button type="button" aria-label="Next page" data-vk-table-go="next" disabled={len(b.D.Rows) <= b.D.sizes()[0]}>{Icon("chevron-right")}</button>
+    <span class="vk-pager__status">Page <b data-vk-table-page>1</b> of <b data-vk-table-pages>{b.clientPages()}</b></span>
+    <button type="button" aria-label="Next page" data-vk-table-go="next" disabled={len(b.D.Rows) <= b.firstSize()}>{Icon("chevron-right")}</button>
   </nav>
 </div>`,
-				min(len(b.D.Rows), b.D.sizes()[0]),
+				min(len(b.D.Rows), b.firstSize()),
 				len(b.D.Rows),
-				b.clientSizes(),
+				options2,
 				Icon("chevron-left"),
-				(len(b.D.Rows)+b.D.sizes()[0]-1)/b.D.sizes()[0],
-				len(b.D.Rows) <= b.D.sizes()[0],
+				b.clientPages(),
+				len(b.D.Rows) <= b.firstSize(),
 				Icon("chevron-right"),
 			)
 		}
@@ -262,21 +275,57 @@ func (b dataTableBody[T]) View() Node {
 </div>
 {div4}`, div4)
 	} else if b.foot() {
-		var size2 Node
-//line datatable_body.vuka.html:238
+		var span2 Node
+//line datatable_body.vuka.html:227
+		if b.Page.Total == 0 {
+			span2 = HTML(`<span>No results</span>`)
+		} else {
+			var span22 Node
+			if b.filtered() {
+				span22 = HTML(`<span class="vk-datatable__filtered"> (filtered from {b.Page.All})</span>`, b.Page.All)
+			}
+			span2 = HTML(`
+<span>
+  Showing <b>{b.Page.From()}–{b.Page.To()}</b> of <b>{b.Page.Total}</b>
+  {span22}
+</span>`, b.Page.From(), b.Page.To(), b.Page.Total, span22)
+		}
+		var text22 Node
+//line datatable_body.vuka.html:236
 		if b.sizeShown() {
-			size2 = b.size()
+			var label2 Node
+//line datatable_body.vuka.html:237
+			if b.Server {
+				var options22 []Node
+				for _, n := range b.D.sizes() {
+					options22 = append(options22, HTML(`<option value={n} selected={n == b.Page.Size}>{n}</option>`, n, n == b.Page.Size))
+				}
+//line datatable_body.vuka.html:238
+				label2 = HTML(`<label class="vk-datatable__size">Rows per page <select aria-label="Rows per page" name={b.sizeName()} form={b.form()} {b.writes("onChange", "size")...}>{options22}</select></label>`, b.sizeName(), b.form(), b.writes("onChange", "size"), options22)
+			} else {
+				var options3 []Node
+//line datatable_body.vuka.html:245
+				for _, n := range b.D.sizes() {
+					options3 = append(options3, HTML(`<option value={n} selected={n == b.Page.Size}>{n}</option>`, n, n == b.Page.Size))
+				}
+				label2 = HTML(`
+<label class="vk-datatable__size">
+  {"Per page "}
+  <select aria-label="Rows per page" {on("onChange", b.D.OnSize)...}>{options3}</select>
+</label>`, "Per page ", on("onChange", b.D.OnSize), options3)
+			}
+			text22 = label2
 		}
 		div3 = HTML(`
 <div class="vk-datatable__foot">
   <div class="vk-datatable__count">
-    {b.count()}
-    {size2}
+    {span2}
+    {text22}
   </div>
   {b.pager()}
-</div>`, b.count(), size2, b.pager())
+</div>`, span2, text22, b.pager())
 	}
-//line datatable_body.vuka.html:203
+//line datatable_body.vuka.html:171
 	return HTML(`
 {div}
 <div class="vk-datatable__busy" aria-hidden="true"/>
@@ -284,8 +333,8 @@ func (b dataTableBody[T]) View() Node {
 {div3}`, div, b.table(), div3)
 }
 
-//line datatable_body.vuka.html:245
+//line datatable_body.vuka.html:255
 func (b dataTableBody[T]) Render(ctx context.Context, w io.Writer) error {
-//line datatable_body.vuka.html:245
+//line datatable_body.vuka.html:255
 	return b.View().Render(ctx, w)
 }

@@ -1,0 +1,21 @@
+<script lang="go">
+package ui
+
+// rowMenu is a DataTable row's actions menu: a button opening a popover of
+// its ActionMenu items, anchored to the button where the browser supports
+// anchor positioning (else the popover shows in the middle of the window).
+type rowMenu struct {
+	ID    string
+	Items Node
+}
+
+func (m rowMenu) id() string     { return menuID(m.ID) }
+func (m rowMenu) anchor() string { return "anchor-name:--" + m.id() }
+func (m rowMenu) place() string  { return "position-anchor:--" + m.id() }
+func (m rowMenu) items() Node    { return inMenu(m.id(), m.Items) }
+</script>
+
+<div class="vk-menu">
+  <button type="button" class="vk-menu__trigger" aria-label="Actions" title="Actions" aria-haspopup="menu" popovertarget={m.id()} style={m.anchor()}>{Icon("dots-vertical")}</button>
+  <div class="vk-menu__panel" id={m.id()} popover role="menu" style={m.place()}>{m.items()}</div>
+</div>
