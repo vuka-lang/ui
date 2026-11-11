@@ -1,0 +1,25 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type DataTableDemo struct{}
+
+type payment struct {
+	Email  string
+	Amount string
+}
+
+var payments = []payment{{"ken99@example.com", "$316.00"}, {"abe45@example.com", "$242.00"}, {"monserrat44@example.com", "$837.00"}}
+
+func (DataTableDemo) columns() []ui.Column[payment] {
+	return []ui.Column[payment]{
+		{Header: ui.Text("Email"), Cell: func(p payment) ui.Node { return ui.Text(p.Email) }, Sort: "email"},
+		{Header: ui.Text("Amount"), Cell: func(p payment) ui.Node { return ui.Text(p.Amount) }, Align: "right"},
+	}
+}
+</script>
+
+<div>
+  {ui.DataTable[payment]{Columns: columns(), Page: ui.NewPage(payments, 30, 1, 10), Toolbar: ui.Button{Size: ui.SizeSm, Children: ui.Text("Export")}}}
+</div>

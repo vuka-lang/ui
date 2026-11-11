@@ -1,0 +1,13 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type TabsDemo struct{}
+</script>
+
+<ui.Tabs tabs={[]ui.Tab{
+  {Label: "Account", Href: "?tab=account", Active: true},
+  {Label: "Password", Href: "?tab=password", Icon: "lock"},
+  {Label: "Members", Href: "?tab=members", Count: ui.Count(12)},
+}}/>

@@ -1,0 +1,17 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type ButtonVariants struct{}
+</script>
+
+<div class="flex flex-wrap gap-2">
+  <ui.Button>Default</ui.Button>
+  <ui.Button variant={ui.Primary}>Primary</ui.Button>
+  <ui.Button variant={ui.Success}>Success</ui.Button>
+  <ui.Button variant={ui.Danger}>Danger</ui.Button>
+  <ui.Button variant={ui.Warning}>Warning</ui.Button>
+  <ui.Button variant={ui.Info}>Info</ui.Button>
+  <ui.Button variant={ui.Ghost}>Ghost</ui.Button>
+</div>

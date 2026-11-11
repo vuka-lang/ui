@@ -1,0 +1,11 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type CardDemo struct{}
+</script>
+
+<ui.Card title={ui.Text("Members")} header={ui.Button{Size: ui.SizeSm, Children: ui.Text("Invite")}}>
+  <p>Invite your team to collaborate on this project.</p>
+</ui.Card>

@@ -1,0 +1,13 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type FormDemo struct{}
+</script>
+
+<ui.Form method="post" action="/signup" error="Could not reach the server.">
+  <ui.Input name="email" label="Email" type="email" placeholder="you@example.com" required/>
+  <ui.Password name="password" label="Password" help="At least 12 characters."/>
+  <ui.Submit variant={ui.Primary}>Sign up</ui.Submit>
+</ui.Form>

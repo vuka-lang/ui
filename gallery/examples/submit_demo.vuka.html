@@ -1,0 +1,12 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type SubmitDemo struct{}
+</script>
+
+<form class="flex flex-wrap items-center gap-2">
+  <ui.Submit variant={ui.Primary}>Save</ui.Submit>
+  <ui.Submit variant={ui.Danger} loading>Deleting</ui.Submit>
+</form>

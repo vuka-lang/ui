@@ -1,0 +1,11 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type ActionsDemo struct{}
+</script>
+
+<div>
+  {ui.Actions(ui.Cancel(ui.CloseModal("edit")), ui.Button{Variant: ui.Primary, Children: ui.Text("Save")})}
+</div>

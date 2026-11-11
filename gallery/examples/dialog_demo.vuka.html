@@ -1,0 +1,11 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type DialogDemo struct{}
+</script>
+
+<ui.Dialog open title={ui.Text("Are you sure?")} footer={ui.Button{Children: ui.Text("Done")}}>
+  <p>This dialog is shown in place; JS.Close in it closes it.</p>
+</ui.Dialog>

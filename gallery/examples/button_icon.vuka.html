@@ -1,0 +1,12 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type ButtonIcon struct{}
+</script>
+
+<div class="flex flex-wrap items-center gap-2">
+  <ui.Button variant={ui.Primary} icon={ui.Icon("plus")}>New</ui.Button>
+  <ui.Button iconOnly icon={ui.Icon("x")} title="Close"/>
+</div>

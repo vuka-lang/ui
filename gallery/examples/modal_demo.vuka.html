@@ -1,0 +1,13 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type ModalDemo struct{}
+</script>
+
+<button onClick={ui.OpenModal("edit")}>Edit profile</button>
+<ui.Modal ref="edit" open title={ui.Text("Edit profile")} subtitle="Make changes to your profile here."
+    footer={ui.Actions(ui.Cancel(ui.CloseModal("edit")), ui.Button{Variant: ui.Primary, Children: ui.Text("Save")})}>
+  <ui.Input name="name" label="Name" value="Ada Lovelace"/>
+</ui.Modal>

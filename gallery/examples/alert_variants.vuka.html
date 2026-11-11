@@ -1,0 +1,14 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type AlertVariants struct{}
+</script>
+
+<div class="grid gap-2">
+  <ui.Alert title="Heads up">You can add components to your app.</ui.Alert>
+  <ui.Alert variant={ui.AlertSuccess} title="Saved">Your changes are live.</ui.Alert>
+  <ui.Alert variant={ui.AlertWarning} dismissible>Your trial ends in 3 days.</ui.Alert>
+  <ui.Alert variant={ui.AlertError} title="Payment failed">Check your card details.</ui.Alert>
+</div>

@@ -1,0 +1,11 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type DrawerDemo struct{}
+</script>
+
+<ui.Drawer title={ui.Text("Filters")} side="right">
+  <ui.Checkbox name="instock" label="In stock only" value="true"/>
+</ui.Drawer>

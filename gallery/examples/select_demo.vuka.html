@@ -1,0 +1,13 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type SelectDemo struct{}
+</script>
+
+<ui.Select name="fruit" label="Fruit" placeholder="Select a fruit" options={[]ui.Option{
+  {Value: "apple", Label: "Apple"},
+  {Value: "banana", Label: "Banana"},
+  {Value: "mango", Label: "Mango"},
+}}/>

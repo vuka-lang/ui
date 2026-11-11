@@ -1,0 +1,13 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type ButtonStates struct{}
+</script>
+
+<div class="flex flex-wrap items-center gap-2">
+  <ui.Button variant={ui.Primary} loading>Saving</ui.Button>
+  <ui.Button disabled>Disabled</ui.Button>
+  <ui.Button href="/books" nav>Link</ui.Button>
+</div>
