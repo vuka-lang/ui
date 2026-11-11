@@ -3,6 +3,15 @@
 package gallery
 
 var typeDocs = map[string]typeDoc{
+	"ActionMenu": {Doc: "ActionMenu is one item of a DataTable row's actions menu, what its\nActions (<slot:actions let={row}>) returns:\n\n\t<slot:actions let={b}>\n\t\t<ui.ActionMenu icon=\"file-text\" href={\"/books/\" + b.Slug}>Open</ui.ActionMenu>\n\t\t<ui.ActionMenu icon=\"trash\" danger on={ui.JS.Push(Delete, ui.Value(b.ID))}>Delete</ui.ActionMenu>\n\t</slot:actions>\n\nChoosing an item closes the menu.", Fields: []Prop{
+		{Name: "Icon", Attr: "icon", Type: "string", Default: "", Doc: "Icon names a kit icon shown before the label."},
+		{Name: "On", Attr: "on", Type: "any", Default: "", Doc: "On is what choosing the item does: a live handler or a ui.JS chain."},
+		{Name: "Href", Attr: "href", Type: "string", Default: "", Doc: "Href makes the item a link (followed over the live connection)."},
+		{Name: "Danger", Attr: "danger", Type: "bool", Default: "false", Doc: "Danger marks an item that destroys, in the danger colour."},
+		{Name: "Disabled", Attr: "disabled", Type: "bool", Default: "false", Doc: ""},
+		{Name: "Class", Attr: "class", Type: "string", Default: "", Doc: ""},
+		{Name: "Children", Attr: "children", Type: "Node", Default: "", Doc: ""},
+	}},
 	"Alert": {Doc: "Alert is an inline message box in one of four tones:\n\n\t<ui.Alert variant={ui.AlertSuccess} title=\"Saved\">Your changes are live.</ui.Alert>\n\nA dismissible alert hides itself with a browser command; a server that\nwants it gone for good drops it from its own render instead.", Fields: []Prop{
 		{Name: "Variant", Attr: "variant", Type: "AlertVariant", Default: "AlertInfo", Doc: "Variant is the tone: AlertInfo (default), AlertSuccess, AlertWarning or\nAlertError."},
 		{Name: "Title", Attr: "title", Type: "string", Default: "", Doc: "Title is an optional bold heading above the body."},
@@ -71,12 +80,12 @@ var typeDocs = map[string]typeDoc{
 		{Name: "OnYes", Attr: "onYes", Type: "Action", Default: "", Doc: ""},
 		{Name: "OnNo", Attr: "onNo", Type: "Action", Default: "", Doc: ""},
 	}},
-	"DataTable": {Doc: "DataTable is a Table with a search box, sortable headers and a pager,\ndriven from a live view's events. It renders a page (ui.Page[T], e.g. from\nweb.Paginate) and calls the handlers the host supplies:\n\n\t<ui.DataTable columns={cols} page={p.page.Get()} search={p.query.Get()}\n\t\tonSearch={p.Search} onSort={p.SortBy} onPage={p.GoTo}/>\n\nThe On… handlers are live event handlers (a func, as an on… attribute\ntakes); leaving one nil drops its control, so a DataTable can offer just\npaging, or paging with search and sort.", Fields: []Prop{
+	"DataTable": {Doc: "DataTable is a Table with a search box, sortable headers and a pager.\nIt gets its rows in one of four ways, with the same columns and markup:\n\nFrom a store (Load): the table reads its page, size, search and sort from\nthe page's URL and calls Load with them; Load returns that page (see\nLoadPage, which pages an orm QuerySet). Sorting, paging and searching\nwrite the URL, so each is a patch of the live page, a link without one:\n\n\t<ui.DataTable load={Books} searchPlaceholder=\"Find books\">\n\t\t<slot:column header=\"Title\" sort=\"title\" let={b}>{b.Title}</slot:column>\n\t\t<slot:actions let={b}><ui.ActionMenu icon=\"trash\" danger on={ui.JS.Push(Delete, ui.Value(b.ID))}>Delete</ui.ActionMenu></slot:actions>\n\t</ui.DataTable>\n\nFrom a slice (Rows): every row; the table cuts, finds (SearchBy) and orders\n(Sorts) them itself, from the URL as Load does.\n\nIn the browser (Client with Rows): every row is in the page and the\nbrowser searches and pages them, with no request.\n\nFrom a live view's events (Page): it renders the page it is given and\ncalls the On… handlers the host supplies:\n\n\t<ui.DataTable columns={cols} page={p.page.Get()} search={p.query.Get()}\n\t\tonSearch={p.Search} onSort={p.SortBy} onPage={p.GoTo}/>\n\nThe On… handlers are live event handlers (a func, as an on… attribute\ntakes); leaving one nil drops its control, so a DataTable can offer just\npaging, or paging with search and sort.\n\nThe table's root carries ID (\"records\" unless set), so\nui.JS.Reload(\"#records\") renders it again, calling Load again.", Fields: []Prop{
 		{Name: "Columns", Attr: "columns", Type: "[]Column[T]", Default: "", Doc: ""},
 		{Name: "Page", Attr: "page", Type: "Page[T]", Default: "", Doc: "Page is the current page of rows (see web.Paginate)."},
 		{Name: "OnPage", Attr: "onPage", Type: "any", Default: "", Doc: "OnPage is called with a 1-based page number when a pager control is\nused; without it the pager renders as static text."},
 		{Name: "OnSize", Attr: "onSize", Type: "any", Default: "", Doc: "OnSize is called with a new page size when the size select changes;\nshown only with Sizes."},
-		{Name: "Sizes", Attr: "sizes", Type: "[]int", Default: "", Doc: "Sizes are the page-size options offered when OnSize is set."},
+		{Name: "Sizes", Attr: "sizes", Type: "[]int", Default: "", Doc: "Sizes are the page-size options: offered when OnSize is set, and by a\ntable with Load or Rows (10, 25, 50 and 100 without them)."},
 		{Name: "OnSearch", Attr: "onSearch", Type: "any", Default: "", Doc: "OnSearch is called with the search box's value as the user types;\nwithout it no search box is shown."},
 		{Name: "Search", Attr: "search", Type: "string", Default: "", Doc: "Search is the current search value (kept in the box across renders)."},
 		{Name: "SearchPlaceholder", Attr: "searchPlaceholder", Type: "string", Default: "", Doc: ""},
@@ -101,6 +110,16 @@ var typeDocs = map[string]typeDoc{
 		{Name: "Class", Attr: "class", Type: "string", Default: "", Doc: ""},
 		{Name: "Toolbar", Attr: "toolbar", Type: "Node", Default: "", Doc: "Toolbar is extra controls shown in the bar beside the search box\n(filters, a \"New\" button)."},
 		{Name: "Tabs", Attr: "tabs", Type: "Node", Default: "", Doc: "Tabs, when set, are shown in the bar above the table."},
+		{Name: "ID", Attr: "id", Type: "string", Default: "", Doc: "ID is the id of the table's root, what ui.JS.Reload(\"#\"+ID) renders\nagain; \"records\" unless set. Two tables on a page need two."},
+		{Name: "Key", Attr: "key", Type: "string", Default: "", Doc: "Key prefixes the table's URL parameters (q, page, size, sort, dir):\n\"orders\" keeps them as orders.page, so two tables on one page page\napart."},
+		{Name: "Load", Attr: "load", Type: "func(ctx context.Context, q TableQuery) (Page[T], error)", Default: "", Doc: "Load returns the page q asks for: what the table renders, with q read\nfrom the page's URL. An error is logged and shown as the table's\nerror state."},
+		{Name: "Rows", Attr: "rows", Type: "[]T", Default: "", Doc: "Rows is every row, for the table to page itself: on the server from\nthe URL, or in the browser with Client."},
+		{Name: "Client", Attr: "client", Type: "bool", Default: "false", Doc: "Client pages and searches Rows in the browser, with no request."},
+		{Name: "SearchBy", Attr: "searchBy", Type: "func(T) string", Default: "", Doc: "SearchBy is the text a row of Rows is found by; without it Rows has\nno search box (Client finds a row by what it shows)."},
+		{Name: "Sorts", Attr: "sorts", Type: "map[string]func(T) any", Default: "", Doc: "Sorts orders Rows by a column's sort key: the value a row sorts by\n(numbers and times by value, anything else as text)."},
+		{Name: "NoSearch", Attr: "noSearch", Type: "bool", Default: "false", Doc: "NoSearch drops the search box of a table with Load."},
+		{Name: "Actions", Attr: "actions", Type: "func(T) Node", Default: "", Doc: "Actions is a row's menu: its ActionMenu items, shown behind a button\nin a trailing column (<slot:actions let={row}>)."},
+		{Name: "Loading", Attr: "loading", Type: "bool", Default: "false", Doc: "Loading marks the table busy (aria-busy), as it is while one of its\ncontrols waits for the server."},
 	}},
 	"Dialog": {Doc: "Dialog is a native <dialog>: a header with its title and a close button,\nits children, and a footer. As the root of a component opened with\nJS.Call (or ui.Call) it is the component's presentation: shown modal for\nas long as the opened instance lives, Escape and its close button\nclosing it (and destroying the instance), focus going back to what had\nit when it opened.\n\n\t<ui.Dialog title={ui.Text(\"Edit product\")}>\n\t  <form onSubmit={Save}>…</form>\n\t</ui.Dialog>\n\nAnywhere else it is a <dialog> the page shows itself: Open renders it\nopen (not modal), and JS.Close in it closes it.", Fields: []Prop{
 		{Name: "Title", Attr: "title", Type: "Node", Default: "", Doc: "Title is the header's heading; omitted when nil."},
@@ -357,6 +376,10 @@ var typeDocs = map[string]typeDoc{
 		{Name: "Class", Attr: "class", Type: "string", Default: "", Doc: ""},
 		{Name: "Children", Attr: "children", Type: "Node", Default: "", Doc: ""},
 	}},
+	"dataTableBody": {Doc: "", Fields: []Prop{}},
+	"linkPager":     {Doc: "", Fields: []Prop{}},
+	"rowMenu":       {Doc: "", Fields: []Prop{}},
+	"sortLink":      {Doc: "", Fields: []Prop{}},
 }
 
 var funcDocs = map[string]string{
