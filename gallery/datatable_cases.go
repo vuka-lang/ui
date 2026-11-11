@@ -53,7 +53,8 @@ func dataTableCases() []Case {
 		{"datatable/load/no-match", table("/books?q=zzz", ui.DataTable[book]{Load: load(0, nil)})},
 		{"datatable/client", table("/books", ui.DataTable[book]{Rows: books, Client: true, SearchBy: func(b book) string { return b.Title }})},
 		{"actionmenu", func() ui.Node {
-			return ui.HTML(`<div class="vk-menu__panel" role="menu">{items}</div>`, actions(book{}))
+			items := actions(book{})
+			return ui.HTML(`<div class="vk-menu__panel" role="menu">{items}</div>`, items)
 		}},
 	}
 }

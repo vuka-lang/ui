@@ -81,7 +81,7 @@ func main() {
 					t = ix.X
 				}
 				id, ok := t.(*ast.Ident)
-				if ok && (strings.HasSuffix(base, "_html.go") || slices.Contains(kitFiles, base)) {
+				if ok && id.IsExported() && (strings.HasSuffix(base, "_html.go") || slices.Contains(kitFiles, base)) {
 					kit[id.Name] = true
 				}
 			}

@@ -83,4 +83,5 @@ var All = []Example{
 	{Component: "Field", File: "field_demo.vuka.html", Node: FieldDemo{}},
 	{Component: "Table", File: "table_demo.vuka.html", Node: TableDemo{}},
 	{Component: "DataTable", File: "datatable_demo.vuka.html", Node: DataTableDemo{}},
+	{Component: "ActionMenu", File: "actionmenu_demo.vuka.html", Node: ActionMenuDemo{}},
 }

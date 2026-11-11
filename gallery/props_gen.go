@@ -376,10 +376,6 @@ var typeDocs = map[string]typeDoc{
 		{Name: "Class", Attr: "class", Type: "string", Default: "", Doc: ""},
 		{Name: "Children", Attr: "children", Type: "Node", Default: "", Doc: ""},
 	}},
-	"dataTableBody": {Doc: "", Fields: []Prop{}},
-	"linkPager":     {Doc: "", Fields: []Prop{}},
-	"rowMenu":       {Doc: "", Fields: []Prop{}},
-	"sortLink":      {Doc: "", Fields: []Prop{}},
 }
 
 var funcDocs = map[string]string{

@@ -1,0 +1,25 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type ActionMenuDemo struct{}
+
+func (ActionMenuDemo) columns() []ui.Column[payment] {
+	return []ui.Column[payment]{
+		{Header: ui.Text("Email"), Cell: func(p payment) ui.Node { return ui.Text(p.Email) }},
+		{Header: ui.Text("Amount"), Cell: func(p payment) ui.Node { return ui.Text(p.Amount) }, Align: "right"},
+	}
+}
+
+func (ActionMenuDemo) actions(p payment) ui.Node {
+	return ui.Fragment(
+		ui.ActionMenu{Icon: "file-text", Href: "/payments/1", Children: ui.Text("View payment")},
+		ui.ActionMenu{Icon: "trash", Danger: true, On: ui.JS.Hide("#row"), Children: ui.Text("Delete")},
+	)
+}
+</script>
+
+<div>
+  {ui.DataTable[payment]{Columns: columns(), Rows: payments[:2], Actions: actions}}
+</div>
