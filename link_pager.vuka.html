@@ -1,0 +1,43 @@
+<script lang="go">
+package ui
+
+import "strconv"
+
+// linkPager is a DataTable's pager kept in the URL: links patching the
+// page, a disabled end a span.
+type linkPager struct {
+	Page, Pages      int
+	HasPrev, HasNext bool
+	// Numbers are the numbered links shown.
+	Numbers []int
+	URL     tableURL
+}
+
+func (p linkPager) href(n int) string { return p.URL.pageHref(n) }
+
+func (p linkPager) label(n int) string { return "Page " + strconv.Itoa(n) }
+
+func (p linkPager) current(n int) any { return when(n == p.Page, "page") }
+</script>
+
+<>
+  if p.Pages <= 1 {
+    <div class="vk-pager"></div>
+  } else {
+    <nav class="vk-pager" aria-label="Pagination">
+      if p.HasPrev {
+        <a href={p.href(p.Page - 1)} data-vk-link="patch" aria-label="Previous page">{Icon("chevron-left")}</a>
+      } else {
+        <span aria-label="Previous page" aria-disabled="true">{Icon("chevron-left")}</span>
+      }
+      for _, n := range p.Numbers {
+        <a href={p.href(n)} data-vk-link="patch" aria-label={p.label(n)} aria-current={p.current(n)}>{n}</a>
+      }
+      if p.HasNext {
+        <a href={p.href(p.Page + 1)} data-vk-link="patch" aria-label="Next page">{Icon("chevron-right")}</a>
+      } else {
+        <span aria-label="Next page" aria-disabled="true">{Icon("chevron-right")}</span>
+      }
+    </nav>
+  }
+</>

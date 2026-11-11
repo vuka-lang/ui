@@ -303,6 +303,7 @@ func Cases() []Case {
 		node := c.node
 		cases = append(cases, Case{c.name, func() ui.Node { return node }})
 	}
+	cases = append(cases, dataTableCases()...)
 	widgets := []any{widget.Text{}, widget.Email{}, widget.Password{}, widget.Number{}, widget.Tel{}, widget.URL{}, widget.Search{}, widget.Textarea{}, widget.Date{}, widget.DateTime{}, widget.Time{}, widget.Checkbox{}, widget.Switch{}, widget.Select{}, widget.MultiSelect{}, widget.Radios{}, widget.Checkboxes{}, widget.Related{}, widget.RelatedSearch{}, widget.File{}}
 	for _, prototype := range widgets {
 		typ := reflect.TypeOf(prototype)
