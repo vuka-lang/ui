@@ -1,0 +1,16 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type BadgeVariants struct{}
+</script>
+
+<div class="flex flex-wrap items-center gap-2">
+  <ui.Badge>New</ui.Badge>
+  <ui.Badge variant={ui.Primary}>Primary</ui.Badge>
+  <ui.Badge variant={ui.Success}>Signed</ui.Badge>
+  <ui.Badge variant={ui.Warning}>Pending</ui.Badge>
+  <ui.Badge variant={ui.Danger} soft>Failed</ui.Badge>
+  <ui.Badge variant={ui.Info} soft>Draft</ui.Badge>
+</div>

@@ -1,0 +1,15 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type TileDemo struct{}
+</script>
+
+<div>
+  {ui.TileGrid(
+    ui.Tile{Label: "Revenue", Value: 45231, Icon: "trending-up", Variant: ui.Success},
+    ui.Tile{Label: "Subscriptions", Value: 2350, Icon: "users"},
+    ui.Tile{Label: "Refunds", Value: 12, Icon: "x", Variant: ui.Danger},
+  )}
+</div>

@@ -1,0 +1,12 @@
+<script lang="go">
+package examples
+
+import "github.com/vuka-lang/ui/v2"
+
+type ToastDemo struct{}
+</script>
+
+<ui.ToastContainer ref="notices">
+  <ui.Toast variant={ui.AlertSuccess} title="Saved">Your changes are live.</ui.Toast>
+  <ui.Toast variant={ui.AlertError} title="Could not save">Try again in a moment.</ui.Toast>
+</ui.ToastContainer>
