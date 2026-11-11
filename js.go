@@ -73,6 +73,7 @@ type push struct {
 	read    bool
 	cache   time.Duration
 	into    *Target
+	bare    bool   // component Into(Bare); not a Push insertion mode
 	mode    string // "append", "prepend", or "" to replace the target's content
 	before  *Commands
 	onOK    *Commands
@@ -650,7 +651,7 @@ func Read() PushOption { return func(p *push) { p.read = true } }
 func Cache(d time.Duration) PushOption { return func(p *push) { p.read, p.cache = true, d } }
 
 // IntoOption changes how Into puts a result's markup in its target:
-// Append, Prepend.
+// Append, Prepend for pushed markup; Bare for a component Call.
 type IntoOption func(*push)
 
 // Append adds a Node result after the target's content instead of

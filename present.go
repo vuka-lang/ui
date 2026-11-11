@@ -45,6 +45,7 @@ type callOpts struct {
 	As    string          `json:"as,omitempty"`   // a presentation's kind
 	With  json.RawMessage `json:"with,omitempty"` // its settings
 	Into  string          `json:"into,omitempty"` // "#id"
+	Bare  bool            `json:"bare,omitempty"` // no inline-card chrome
 	Key   string          `json:"key,omitempty"`
 	Size  string          `json:"size,omitempty"`
 	Owner string          `json:"owner,omitempty"` // the instance an Into's component belongs to (a live page's)
@@ -97,22 +98,6 @@ func As(p Presentation) CallOption {
 		panic(fmt.Sprintf("ui: As(%T{…}): %v", p, err))
 	}
 	return func(o *callOpts) { o.As, o.With = p.presentKind(), with }
-}
-
-var intoID = regexp.MustCompile(`^#[A-Za-z][\w-]*$`)
-
-// Into opens the component in the page's element sel ("#id") instead of
-// the overlay host: in place, no dialog, replacing what another Call put
-// there. It belongs to the part of the page that opened it, and goes with
-// it: on a live page when the instance whose markup ran the Call is
-// unmounted. Panics unless sel is "#" and an id.
-//
-//	<button onClick={ui.JS.Call(components.Preview{ID: o.ID}, ui.Into("#side"))}>Preview</button>
-func Into(sel string) CallOption {
-	if !intoID.MatchString(sel) {
-		panic(fmt.Sprintf("ui: Into(%q): it takes an element's id, \"#side\"", sel))
-	}
-	return func(o *callOpts) { o.Into = sel }
 }
 
 var keyText = regexp.MustCompile(`^[A-Za-z0-9_-]{1,40}$`)

@@ -1,0 +1,48 @@
+/* Opt in by loading AFTER ui.css. Complete CSS colour values (modern shadcn). */
+:root, :root[data-theme], :root:not([data-theme="light"]):not(.light), .dark{
+  --ui-bg:var(--background);
+  --ui-fg:var(--foreground);
+  --ui-subtle:var(--muted);
+  --ui-muted:var(--muted-foreground);
+  --ui-border:var(--border);
+  --ui-ring:var(--ring);
+  --ui-primary:var(--primary);
+  --ui-primary-fg:var(--primary-foreground);
+  --ui-danger:var(--destructive);
+  --ui-danger-fg:var(--destructive-foreground);
+  --ui-success:var(--success, var(--primary));
+  --ui-success-fg:var(--success-foreground, var(--primary-foreground));
+  --ui-warning:var(--warning, var(--primary));
+  --ui-warning-fg:var(--warning-foreground, var(--primary-foreground));
+  --ui-info:var(--info, var(--primary));
+  --ui-info-fg:var(--info-foreground, var(--primary-foreground));
+  --ui-image-bg:var(--muted);
+  --ui-radius:var(--radius);
+  --ui-info-bg:color-mix(in srgb,var(--ui-info) 10%,var(--ui-bg));
+  --ui-success-bg:color-mix(in srgb,var(--ui-success) 10%,var(--ui-bg));
+  --ui-warning-bg:color-mix(in srgb,var(--ui-warning) 10%,var(--ui-bg));
+  --ui-danger-bg:color-mix(in srgb,var(--ui-danger) 10%,var(--ui-bg));
+  --ui-overlay:color-mix(in srgb,var(--foreground) 45%,transparent);
+}
+
+/* Older shadcn: html data-ui-shadcn="hsl" opts into HSL channel tokens. */
+:root[data-ui-shadcn="hsl"], :root[data-ui-shadcn="hsl"][data-theme], :root[data-ui-shadcn="hsl"]:not([data-theme="light"]):not(.light), [data-ui-shadcn="hsl"] .dark{
+  --ui-bg:hsl(var(--background));
+  --ui-fg:hsl(var(--foreground));
+  --ui-subtle:hsl(var(--muted));
+  --ui-muted:hsl(var(--muted-foreground));
+  --ui-border:hsl(var(--border));
+  --ui-ring:hsl(var(--ring));
+  --ui-primary:hsl(var(--primary));
+  --ui-primary-fg:hsl(var(--primary-foreground));
+  --ui-danger:hsl(var(--destructive));
+  --ui-danger-fg:hsl(var(--destructive-foreground));
+  --ui-success:hsl(var(--success, var(--primary)));
+  --ui-success-fg:hsl(var(--success-foreground, var(--primary-foreground)));
+  --ui-warning:hsl(var(--warning, var(--primary)));
+  --ui-warning-fg:hsl(var(--warning-foreground, var(--primary-foreground)));
+  --ui-info:hsl(var(--info, var(--primary)));
+  --ui-info-fg:hsl(var(--info-foreground, var(--primary-foreground)));
+  --ui-image-bg:hsl(var(--muted));
+  --ui-overlay:color-mix(in srgb,hsl(var(--foreground)) 45%,transparent);
+}

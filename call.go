@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -98,6 +99,38 @@ func callTypeOf(v any) (*callType, reflect.Value, error) {
 	}
 	return ct, rv, nil
 }
+
+var intoID = regexp.MustCompile(`^#[A-Za-z][\w-]*$`)
+
+// Into opens the component in the page's element sel ("#id") instead of
+// the overlay host: in place, no dialog, replacing what another Call put
+// there. It belongs to the part of the page that opened it, and goes with
+// it: on a live page when the instance whose markup ran the Call is
+// unmounted. Plain components keep their inline-card chrome. Bare removes
+// it; Toast, Dialog and Drawer roots (also Notice) bring their own
+// presentation and are bare automatically. Panics unless sel is "#" and an id.
+//
+//	<button onClick={ui.JS.Call(components.Preview{ID: o.ID}, ui.Into("#side"))}>Preview</button>
+func Into(sel string, opts ...IntoOption) CallOption {
+	if !intoID.MatchString(sel) {
+		panic(fmt.Sprintf("ui: Into(%q): it takes an element's id, \"#side\"", sel))
+	}
+	var config push
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&config)
+		}
+	}
+	if config.mode != "" {
+		panic("ui: Into of a component takes Bare; Append and Prepend belong to JS.Push(...).Into")
+	}
+	return func(o *callOpts) { o.Into, o.Bare = sel, config.bare }
+}
+
+// Bare renders a called component without the inline-card header, close
+// button, border or body padding. The component keeps its own markup and
+// presentation. Use it with Into: ui.Into("#toasts", ui.Bare()).
+func Bare() IntoOption { return func(p *push) { p.bare = true } }
 
 // A CallOption is how a component opened with Call shows: given with the
 // component, JS.Call(component, opts...): As, Into, CallKey; a Size
@@ -580,6 +613,7 @@ func CallView(key string, view Node, close any, failed error, opts ...CallOption
 	var o callOpts
 	o.apply(opts)
 	return ctxNode(func(ctx context.Context) Node {
+		bare := o.Bare || inlineBareRoot(view)
 		if v, ok := view.(interface{ View() Node }); ok {
 			if _, own := view.(Presentation); !own {
 				view = v.View()
@@ -605,11 +639,21 @@ func CallView(key string, view Node, close any, failed error, opts ...CallOption
 		case failed != nil:
 			parts = presentParts{Children: El("p", []Attr{{"class", "vk-call__error"}, {"role", "alert"}}, Text(tr(ctx, "call.failed")))}
 			if o.Into != "" {
+				if bare {
+					return El("section", append(attrs, Attr{"data-vk-present", "inline"}),
+						El("p", []Attr{{"class", "vk-call-bare__error"}, {"role", "alert"}}, Text(tr(ctx, "call.failed"))))
+				}
 				return presentation("section", "vk-call-inline vk-call--failed", append(attrs, Attr{"data-vk-present", "inline"}), ctx, parts, true)
 			}
 			return El("dialog", append(attrs, Attr{"class", "vk-call vk-call--failed"}, Attr{"data-vk-present", "modal"}),
 				callClose(ctx, "vk-call__close"), parts.Children)
 		case o.Into != "":
+			if bare {
+				if own {
+					break
+				} // its own presentation receives the Call attributes below
+				return El("section", append(attrs, Attr{"data-vk-present", "inline"}), view)
+			}
 			return presentation("section", "vk-call-inline", append(attrs, Attr{"data-vk-present", "inline"}), ctx, parts, true)
 		case as != nil:
 			view = as.withParts(parts)
@@ -739,4 +783,31 @@ func CallValue(component any) (any, error) {
 	p := reflect.New(v.Type())
 	p.Elem().Set(v)
 	return p.Interface(), nil
+}
+
+// inlineBareRoot follows the same single-root wrappers as rootPresentation,
+// and component Views, retaining the typed Toast before it becomes HTML.
+func inlineBareRoot(n Node) bool {
+	for range 8 {
+		switch x := n.(type) {
+		case Dialog, *Dialog, Drawer, *Drawer, Toast, *Toast, Notice, *Notice:
+			return true
+		case *lazyFrame:
+			if x == nil || x.shape != "h" || len(x.dyns) != 1 {
+				return false
+			}
+			var ok bool
+			n, ok = x.dyns[0].(Node)
+			if !ok {
+				return false
+			}
+		case keyedNode:
+			n = x.n
+		case interface{ View() Node }:
+			n = x.View()
+		default:
+			return false
+		}
+	}
+	return false
 }
