@@ -138,22 +138,22 @@ func TestIslandUnregistered(t *testing.T) {
 	}
 }
 
-type Bare struct {
+type bareIsland struct {
 	N int `json:"n"`
 }
 
 // A bare @ui.Island registers the type by name (the vuka command infers the
 // file); "" with a strategy keeps the inference and sets the default.
 func TestIslandBare(t *testing.T) {
-	Island()(vuka.TypeOf[Bare]("dashboard.Bare"))
-	if s := renderIsland(t, MountIsland("s", Bare{N: 1})); !strings.Contains(s, `data-vk-island="Bare"`) || !strings.Contains(s, `data-vk-client="visible"`) {
+	Island()(vuka.TypeOf[bareIsland]("dashboard.bareIsland"))
+	if s := renderIsland(t, MountIsland("s", bareIsland{N: 1})); !strings.Contains(s, `data-vk-island="bareIsland"`) || !strings.Contains(s, `data-vk-client="visible"`) {
 		t.Fatalf("bare: %s", s)
 	}
-	Island("", "load")(vuka.TypeOf[Bare]("dashboard.Bare"))
-	if s := renderIsland(t, MountIsland("s", Bare{N: 1})); !strings.Contains(s, `data-vk-client="load"`) {
+	Island("", "load")(vuka.TypeOf[bareIsland]("dashboard.bareIsland"))
+	if s := renderIsland(t, MountIsland("s", bareIsland{N: 1})); !strings.Contains(s, `data-vk-client="load"`) {
 		t.Fatalf("strategy with inference: %s", s)
 	}
-	if info := lookupIsland(reflect.TypeFor[Bare]()); info.Path != "" {
+	if info := lookupIsland(reflect.TypeFor[bareIsland]()); info.Path != "" {
 		t.Fatalf("path: %q", info.Path)
 	}
 }
