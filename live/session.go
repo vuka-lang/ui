@@ -57,6 +57,7 @@ type Session struct {
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
 	uerr    error               // what their Update methods returned
+	from    *aheadTake          // the session NavigateFrom takes instances from, while it renders
 
 	url *url.URL   // the page's URL as an event's edit left it; nil: its context's (ui.PageURL)
 	q   url.Values // its query, parsed (query)
@@ -562,6 +563,9 @@ func (s *Session) DeferredSeen(groups []string) []*ui.DeferredLoad {
 func (s *Session) deferred(start func(ui.Stateful) []*ui.DeferredLoad) []*ui.DeferredLoad {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.closed {
+		return nil // what it held is unmounted, or another session's now
+	}
 	for d, in := range s.loading {
 		if s.byID[in.id] != in {
 			delete(s.loading, d) // its instance is gone: Loaded drops it
@@ -727,6 +731,11 @@ func (s *Session) SetRouter(r Router) {
 func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.navigateTo(rt, patch)
+}
+
+// navigateTo is Navigate, with the session locked.
+func (s *Session) navigateTo(rt Route, patch bool) (Patch, error) {
 	if s.closed {
 		return Patch{}, errors.New("live: the session is closed")
 	}
@@ -777,14 +786,32 @@ func (s *Session) Navigate(rt Route, patch bool) (Patch, error) {
 	return p, nil
 }
 
-// Close unmounts every instance. The session renders nothing after it.
+// Close unmounts every instance the session holds. The session renders
+// nothing after it, and closing it again does nothing. Instances a
+// navigation took from it (NavigateFrom) are no longer its own, so Close
+// leaves them to the session that took them.
 func (s *Session) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.close()
+}
+
+// close is Close, with the session locked: the instances in render order,
+// then those no render reached, each once.
+func (s *Session) close() {
+	if s.closed {
+		return
+	}
 	for _, in := range s.order() {
+		if s.byID[in.id] == in {
+			unmount(in)
+			delete(s.byID, in.id)
+		}
+	}
+	for _, in := range s.byID {
 		unmount(in)
 	}
-	s.byID, s.closed = map[string]*instance{}, true
+	s.byID, s.loading, s.closed = map[string]*instance{}, nil, true
 }
 
 // instance is a stateful component in the session, or the page itself (comp nil).
@@ -1043,11 +1070,24 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			in = nil
 		}
 	}
+	if s.from != nil && in != nil && in.typ == typ {
+		// kept: the instances below it may come from its ahead copy
+		s.from.mirror(parent, place, in)
+	}
 	same := false
 	switch {
 	case in != nil && in.seen == s.pass && in.typ == typ:
 		return nil, fmt.Errorf("live: two <%s> in one place share the key %v", typ.Elem().Name(), n.Key)
 	case in == nil || in.typ != typ:
+		if a := s.from.take(parent, place, typ); a != nil {
+			// mounted ahead (NavigateFrom): it takes its tag's props as a
+			// kept instance does, and renders whole, as a new one does
+			in = a
+			parent.children[place] = in
+			s.byID[in.id] = in
+			in.takeProps(n, s.adopting)
+			break
+		}
 		s.next++
 		if err := ui.CheckStateful(n.Props); err != nil {
 			return nil, err
