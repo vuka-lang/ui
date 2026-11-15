@@ -81,6 +81,7 @@ type FieldOptions struct {
 	URLDefault    any
 	HasURLDefault bool
 	Defer         string   // the group it loads in after the first render
+	WhenSeen      bool     // its group waits for its fallback to be seen: Defer.WhenSeen
 	Validate      []string // rules, as a validate tag writes them: "required", "max=50"
 	FormFields    []string // the fields of a ui.FormFor it edits, by Go path: @ui.Fields
 }
@@ -113,6 +114,38 @@ func (u URL) Apply(o *FieldOptions) { o.URL, o.URLBound = string(u), true }
 type Defer string
 
 func (d Defer) Apply(o *FieldOptions) { o.Defer = string(d) }
+
+// WhenSeen is the Defer attribute of a group that loads only once its
+// fallback is seen: @ui.Defer("comments").WhenSeen(). A live page starts
+// its other groups as soon as it joins, but leaves this one until the
+// browser scrolls the group's fallback into view, so a section below the
+// fold costs nothing on a visit that never reaches it. The fallback marks
+// itself with DeferFallback, or is a Skeleton whose For names the group;
+// a group whose fallback is never marked never loads. A group waits when
+// any of its fields says so. A page rendered without a live session (a
+// form posted without script) loads it before it renders, as it does every
+// group, and so does a page backed by its island, whose component asks for
+// its groups itself.
+func (d Defer) WhenSeen() DeferWhenSeen { return DeferWhenSeen{Group: string(d)} }
+
+// DeferWhenSeen is @ui.Defer("comments").WhenSeen(): the field's group,
+// loaded once its fallback is seen.
+type DeferWhenSeen struct{ Group string }
+
+func (d DeferWhenSeen) Apply(o *FieldOptions) { o.Defer, o.WhenSeen = d.Group, true }
+
+// DeferFallback is the attributes that mark an element as the fallback of
+// the deferred group, one loading when seen (Defer.WhenSeen): the browser
+// asks for the group once the element scrolls into view.
+//
+//	if Loading("comments") {
+//		<div class="h-64" {ui.DeferFallback("comments")...}>Loading…</div>
+//	}
+//
+// On a group that loads at once it does nothing.
+func DeferFallback(group string) []Attr {
+	return []Attr{{Name: "data-vk-seen", Value: group}}
+}
 
 // Field adds attributes to the field ptr points to, one of the page's own
 // fields.

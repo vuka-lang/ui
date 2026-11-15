@@ -26,6 +26,7 @@ import (
 type deferGroup struct {
 	name   string
 	fields []IslandField
+	seen   bool // it loads once its fallback is seen (Defer.WhenSeen)
 }
 
 type deferResult struct {
@@ -65,6 +66,12 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 	}
 	var groups []deferGroup
 	at := map[string]int{}
+	// A page backed by its island has its component ask for its groups, so
+	// only a component rendered by its own markup waits for a fallback.
+	var schema *LiveSchema
+	if !IsIsland(t) {
+		schema = liveSchemaOf(t)
+	}
 	for _, f := range fields {
 		if f.Defer == "" {
 			continue
@@ -76,6 +83,9 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 			groups = append(groups, deferGroup{name: f.Defer})
 		}
 		groups[i].fields = append(groups[i].fields, f)
+		if schema != nil && schema.fields[f.Index].WhenSeen {
+			groups[i].seen = true
+		}
 	}
 	for _, g := range groups {
 		if hasLoads(t, g.name) {
@@ -317,12 +327,17 @@ func (d *DeferredLoad) Err() error { return d.err }
 // Start starts the deferred groups of x (a pointer to an island's struct)
 // not started yet: each a DeferredLoad on its own copy of x, taken now.
 func (l *Loads) Start(x reflect.Value) []*DeferredLoad {
+	return l.start(x, func(deferGroup) bool { return true })
+}
+
+// start starts the groups of x that pick picks, not started yet.
+func (l *Loads) start(x reflect.Value, pick func(deferGroup) bool) []*DeferredLoad {
 	groups, _ := deferGroups(x.Type())
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	var out []*DeferredLoad
 	for _, g := range groups {
-		if l.started[g.name] {
+		if l.started[g.name] || !pick(g) {
 			continue
 		}
 		l.started[g.name] = true
@@ -358,14 +373,43 @@ func (l *Loads) Load(ctx context.Context, x reflect.Value, text func(error) stri
 }
 
 // StartDeferred starts the deferred groups of c, a live page or component,
-// not started yet: package live runs each once the page joins, and applies
-// it where its events run.
+// not started yet, but for those loading when seen (StartSeen): package
+// live runs each once the page joins, and applies it where its events run.
 func StartDeferred(c Stateful) []*DeferredLoad {
+	return startDeferred(c, func(g deferGroup) bool { return !g.seen })
+}
+
+// StartSeen starts the groups of c loading when seen (Defer.WhenSeen) that
+// groups names, not started yet: the browser names them as their
+// fallbacks scroll into view. A name c defers no such group by, or one
+// started already, starts nothing, so a browser asking twice, or for what
+// it shouldn't, is answered by nothing.
+func StartSeen(c Stateful, groups []string) []*DeferredLoad {
+	want := map[string]bool{}
+	for _, g := range groups {
+		if isIdent(g) {
+			want[groupName(g)] = true
+		}
+	}
+	if len(want) == 0 {
+		return nil
+	}
+	return startDeferred(c, func(g deferGroup) bool { return g.seen && want[g.name] })
+}
+
+// StartAllDeferred starts every deferred group of c not started yet, those
+// loading when seen too: for a page rendered for a client with no
+// connection to ask for them over.
+func StartAllDeferred(c Stateful) []*DeferredLoad {
+	return startDeferred(c, func(deferGroup) bool { return true })
+}
+
+func startDeferred(c Stateful, pick func(deferGroup) bool) []*DeferredLoad {
 	x := reflect.ValueOf(c)
 	if groups, err := deferGroups(x.Type()); err != nil || len(groups) == 0 {
 		return nil
 	}
-	return liveLoads(c).Start(x)
+	return liveLoads(c).start(x, pick)
 }
 
 // loadNow loads the deferred groups of c, a component rendered without a

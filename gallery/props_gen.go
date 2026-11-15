@@ -286,9 +286,10 @@ var typeDocs = map[string]typeDoc{
 		{Name: "Class", Attr: "class", Type: "string", Default: "", Doc: ""},
 		{Name: "Attrs", Attr: "attrs", Type: "[]Attr", Default: "", Doc: "Attrs are extra attributes on the control."},
 	}},
-	"Skeleton": {Doc: "Skeleton is a placeholder bone, the shape of content still loading — the\nfallback of a deferred part or a <ui.Suspense>:\n\n\t<ui.Fallback for={posts}><ui.Skeleton lines={3}/></ui.Fallback>\n\t<ui.Skeleton class=\"h-32\"/>\n\nor in Go, ui.Skeleton{Lines: 3}. It is muted and pulses (not under\nprefers-reduced-motion), and hidden from assistive technology.", Fields: []Prop{
+	"Skeleton": {Doc: "Skeleton is a placeholder bone, the shape of content still loading — the\nfallback of a deferred part or a <ui.Suspense>:\n\n\t<ui.Fallback for={posts}><ui.Skeleton lines={3}/></ui.Fallback>\n\t<ui.Skeleton class=\"h-32\"/>\n\nor in Go, ui.Skeleton{Lines: 3}. It is muted and pulses (not under\nprefers-reduced-motion), and hidden from assistive technology. As the\nfallback of a group loading when seen (ui.Defer.WhenSeen), For names the\ngroup, so the browser asks for it once the skeleton scrolls into view:\n\n\tif Loading(\"comments\") {\n\t\t<ui.Skeleton for=\"comments\" lines={4}/>\n\t}", Fields: []Prop{
 		{Name: "Lines", Attr: "lines", Type: "int", Default: "", Doc: "Lines stacks that many lines of text, the last one shorter; 0 is a\nsingle bone, sized by Class."},
 		{Name: "Class", Attr: "class", Type: "string", Default: "", Doc: "Class is added to the bone's classes, or to the lines' wrapper."},
+		{Name: "For", Attr: "for", Type: "string", Default: "", Doc: "For is the deferred group the skeleton stands in for, when it loads\nonce seen: the skeleton is its fallback (DeferFallback)."},
 		{Name: "Attrs", Attr: "attrs", Type: "[]Attr", Default: "", Doc: "Attrs are any extra attributes."},
 	}},
 	"Submit": {Doc: "Submit is a form's submit button: the Button in its primary variant, type\nsubmit. It shows its busy state while the live form waits for the submit's\nreply. Set Form to submit a form it sits outside (a dialog footer):\n\n\t<ui.Submit>Save</ui.Submit>", Fields: []Prop{

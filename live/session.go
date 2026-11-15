@@ -546,7 +546,20 @@ func (s *Session) Info(topic string, msg any) (Patch, error) {
 // transport runs each (Run, with a context ending when the page does) once
 // the page has joined, and after each event for the components it mounted,
 // and hands it to Loaded.
-func (s *Session) Deferred() []*ui.DeferredLoad {
+func (s *Session) Deferred() []*ui.DeferredLoad { return s.deferred(ui.StartDeferred) }
+
+// DeferredSeen starts, as Deferred does, the deferred groups loading when
+// seen (ui.Defer.WhenSeen) that groups names, of every page and component
+// the session holds that defers one by that name: the browser names them
+// once their fallbacks scroll into view. A group started already, loading
+// at once, or deferred by none starts nothing.
+func (s *Session) DeferredSeen(groups []string) []*ui.DeferredLoad {
+	return s.deferred(func(c ui.Stateful) []*ui.DeferredLoad { return ui.StartSeen(c, groups) })
+}
+
+// deferred starts what start starts of each page and component, keeping
+// each load's instance for Loaded.
+func (s *Session) deferred(start func(ui.Stateful) []*ui.DeferredLoad) []*ui.DeferredLoad {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for d, in := range s.loading {
@@ -559,7 +572,7 @@ func (s *Session) Deferred() []*ui.DeferredLoad {
 		if in.comp == nil {
 			continue
 		}
-		for _, d := range ui.StartDeferred(in.comp) {
+		for _, d := range start(in.comp) {
 			if s.loading == nil {
 				s.loading = map[*ui.DeferredLoad]*instance{}
 			}
@@ -599,12 +612,13 @@ func (s *Session) apply(d *ui.DeferredLoad) bool {
 	return true
 }
 
-// LoadDeferred runs the deferred loads not started yet, concurrently, with
+// LoadDeferred runs the deferred loads not started yet, those loading when
+// seen too, concurrently, with
 // ctx, applies them and renders the page again: a page rendered for a
 // client that has no connection to receive them over later (a form posted
 // without script) shows them loaded, or failed.
 func (s *Session) LoadDeferred(ctx context.Context) error {
-	ds := s.Deferred()
+	ds := s.deferred(ui.StartAllDeferred)
 	if len(ds) == 0 {
 		return nil
 	}

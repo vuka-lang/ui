@@ -15,15 +15,24 @@ import (
 //	<ui.Skeleton class="h-32"/>
 //
 // or in Go, ui.Skeleton{Lines: 3}. It is muted and pulses (not under
-// prefers-reduced-motion), and hidden from assistive technology.
+// prefers-reduced-motion), and hidden from assistive technology. As the
+// fallback of a group loading when seen (ui.Defer.WhenSeen), For names the
+// group, so the browser asks for it once the skeleton scrolls into view:
 //
-//line skeleton.vuka.html:12
+//	if Loading("comments") {
+//		<ui.Skeleton for="comments" lines={4}/>
+//	}
+//
+//line skeleton.vuka.html:18
 type Skeleton struct {
 	// Lines stacks that many lines of text, the last one shorter; 0 is a
 	// single bone, sized by Class.
 	Lines int
 	// Class is added to the bone's classes, or to the lines' wrapper.
 	Class string
+	// For is the deferred group the skeleton stands in for, when it loads
+	// once seen: the skeleton is its fallback (DeferFallback).
+	For string
 	// Attrs are any extra attributes.
 	Attrs []Attr
 }
@@ -38,6 +47,14 @@ func (s Skeleton) classes() string {
 	return withClass(skeletonBone+" min-h-4", s.Class)
 }
 
+// attrs are Attrs, and the mark of For's fallback.
+func (s Skeleton) attrs() []Attr {
+	if s.For == "" {
+		return s.Attrs
+	}
+	return append(DeferFallback(s.For), s.Attrs...)
+}
+
 // line is the classes of line i, the last of several shorter.
 func (s Skeleton) line(i int) string {
 	if s.Lines > 1 && i == s.Lines-1 {
@@ -46,16 +63,16 @@ func (s Skeleton) line(i int) string {
 	return skeletonBone + " vk-skeleton--line h-4"
 }
 
-//line skeleton.vuka.html:41
+//line skeleton.vuka.html:58
 func (s Skeleton) View() Node {
 	var divs []Node
-//line skeleton.vuka.html:42
+//line skeleton.vuka.html:59
 	for i := range s.Lines {
 		divs = append(divs, HTML(`<div class={s.line(i)}/>`, s.line(i)))
 	}
-//line skeleton.vuka.html:41
-	return HTML(`<div class={s.classes()} aria-hidden="true" {s.Attrs...}>{divs}</div>`, s.classes(), s.Attrs, divs)
+//line skeleton.vuka.html:58
+	return HTML(`<div class={s.classes()} aria-hidden="true" {s.attrs()...}>{divs}</div>`, s.classes(), s.attrs(), divs)
 }
 
-//line skeleton.vuka.html:45
+//line skeleton.vuka.html:62
 func (s Skeleton) Render(ctx context.Context, w io.Writer) error { return s.View().Render(ctx, w) }
