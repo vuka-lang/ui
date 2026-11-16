@@ -442,6 +442,10 @@ func (t *tmpl) check(s *tslot, i int, v any) (any, bool, error) {
 			cp := *x
 			cp.site = t.sites[i]
 			return &cp, true, nil
+		case *guarded:
+			cp := *x
+			cp.slot = t.sites[i]
+			return &cp, true, nil
 		case Node:
 			if n, ok := asWidget(v); ok {
 				return n, true, nil

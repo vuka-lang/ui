@@ -873,8 +873,15 @@ type instance struct {
 	call *openCall      // a stateful component a Call opened: its render is in its presentation
 	acts map[string]any // the Action props of the Calls its render shows, by their place (CallAction)
 
-	dups     keyDups // the keys its render met more than once (keyedHandler)
-	pageKeys int     // the pages it stayed mounted across (keyPath)
+	dups keyDups // the keys its render met more than once (keyedHandler)
+
+	renders  int              // its renders so far
+	effects  int              // what its renders did beyond naming handlers (guard.go)
+	keyLog   []keyedRec       // the handlers its render under way named under a key
+	guards   map[uint64]*kept // what its guarded parts built, by site (guard.go)
+	guardN   map[uint64]int   // the guarded parts its render under way met, by site
+	kept     []any            // the values of those it kept
+	pageKeys int              // the pages it stayed mounted across (keyPath)
 }
 
 func (in *instance) ID() string { return in.id }
@@ -958,11 +965,12 @@ type scope struct {
 	n    *int   // the handlers named under path, by this key's element
 }
 
-func (sc *scope) ContextRead() { sc.in.contextual = true }
+func (sc *scope) ContextRead() { sc.in.contextual = true; sc.in.effects++ }
 
 // VarRead records a template variable the instance's render read
 // (ui.ReadVar), at its version.
 func (sc *scope) VarRead(name string, ver uint64) {
+	sc.in.effects++
 	if sc.in.vars == nil {
 		sc.in.vars = map[string]uint64{}
 	}
@@ -972,6 +980,7 @@ func (sc *scope) VarRead(name string, ver uint64) {
 // Form keeps the submit handler of a form the instance renders, for a
 // plain POST of it (Submit).
 func (sc *scope) Form(id string, submit any) {
+	sc.in.effects++
 	if sc.push {
 		return
 	}
@@ -984,6 +993,7 @@ func (sc *scope) Form(id string, submit any) {
 // ClaimForm notes the form the instance's render shows under identity,
 // reporting false when another form of the render has it.
 func (sc *scope) ClaimForm(identity string, form uintptr) bool {
+	sc.in.effects++
 	if sc.push {
 		return true
 	}
@@ -1005,6 +1015,7 @@ func (sc *scope) ClaimForm(identity string, form uintptr) bool {
 // outside any key ("c1:7").
 func (sc *scope) Handler(_ context.Context, fn any) string {
 	if sc.push {
+		sc.in.effects++
 		return sc.in.pushHandler(fn)
 	}
 	if sc.path != "" {
@@ -1042,6 +1053,7 @@ func (in *instance) pushHandler(fn any) string {
 // StateKey names a state the instance renders: its id, the state's site,
 // and how many of the site's states it rendered before in this render.
 func (sc *scope) StateKey(_ context.Context, site string) string {
+	sc.in.effects++
 	occ := "\x00state " + site
 	sc.in.occ[occ]++
 	return sc.in.id + ":" + site + ":" + strconv.Itoa(sc.in.occ[occ])
@@ -1050,17 +1062,22 @@ func (sc *scope) StateKey(_ context.Context, site string) string {
 // LazyKey names a lazy region the instance renders: the keys around it and
 // how many it rendered before under them in this render.
 func (sc *scope) LazyKey(context.Context) string {
+	sc.in.effects++
 	occ := "\x00lazy " + sc.keys
 	sc.in.occ[occ]++
 	return sc.keys + strconv.Itoa(sc.in.occ[occ])
 }
 
 // LazyShown reports whether the browser showed the region key names.
-func (sc *scope) LazyShown(key string) bool { return sc.in.lazy[key] }
+func (sc *scope) LazyShown(key string) bool {
+	sc.in.effects++
+	return sc.in.lazy[key]
+}
 
 // ShowLazy notes that the browser showed the region key names: its content
 // renders from now on.
 func (sc *scope) ShowLazy(key string) {
+	sc.in.effects++
 	if sc.in.lazy == nil {
 		sc.in.lazy = map[string]bool{}
 	}
@@ -1102,6 +1119,7 @@ func (sc *scope) ComponentRef(ctx context.Context, n *ui.ComponentNode) (string,
 // place finds (or mounts) the instance at a tag's place, sets its props and
 // renders it, unless Assign tracking says its output can't have changed.
 func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
+	sc.in.effects++
 	if n.Props == nil {
 		return nil, nil
 	}
@@ -1347,6 +1365,11 @@ func (s *Session) renderInst(in *instance) (err error) {
 	defer ui.Catch(&err) // a (T, error) call in its markup failing
 	in.seen, in.rendered, in.idn = s.pass, true, 0
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
+	in.renders++
+	in.keyLog = in.keyLog[:0]
+	clear(in.guardN)
+	clear(in.kept)
+	in.kept = in.kept[:0]
 	in.called.Store(false)
 	clear(in.keyed)
 	in.dups.begin()
@@ -1389,7 +1412,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 			return err
 		}
 		s.stableTreeIDs(in, t)
-		in.tree, in.own = splitMarkers(t), "" // an adopted session's HTML render is the tree's now
+		in.tree, in.own = in.splitMarkers(t), "" // an adopted session's HTML render is the tree's now
 		return nil
 	}
 	var b strings.Builder
@@ -1400,7 +1423,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 	}
 	own := s.stableIDs(in, b.String())
 	if s.trees {
-		in.tree = splitMarkers(ui.OpaqueTree(own))
+		in.tree = in.splitMarkers(ui.OpaqueTree(own))
 		return nil
 	}
 	in.changed = in.changed || in.fresh || own != in.own // changed stays until settle: renderAll may render twice

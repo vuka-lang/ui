@@ -25,7 +25,8 @@ const (
 
 type sframe struct {
 	key uint64
-	d   []any // sstr, *sframe, *slist, ui.TreeRef
+	d   []any    // sstr, *sframe, *slist, ui.TreeRef
+	src *ui.Tree // the frame it was made of: a kept part's (ui.Guard) is the next render's too
 }
 
 type sstr struct {
@@ -37,6 +38,7 @@ type slist struct {
 	items []*sframe
 	keys  []string
 	temp  string // a Temporary region's ui.TreeList.Temp
+	src   *ui.TreeList
 }
 
 var seed = maphash.MakeSeed()
@@ -46,15 +48,40 @@ func sig(s string) uint64 { return maphash.String(seed, s) }
 var emptyShadow = sstr{h: sig("")}
 
 // shadow is what a connection keeps of t once the client holds it.
-func shadow(t *ui.Tree) *sframe {
-	f := &sframe{key: t.Key, d: make([]any, len(t.Dyn))}
+func shadow(t *ui.Tree) *sframe { return shadowFrom(nil, t) }
+
+// shadowFrom is shadow(t), taking from old, the shadow of the tree t replaces,
+// what it kept of the frames t has too: the parts the render kept (ui.Guard).
+func shadowFrom(old *sframe, t *ui.Tree) *sframe {
+	if old != nil && old.src == t {
+		return old
+	}
+	f := &sframe{key: t.Key, d: make([]any, len(t.Dyn)), src: t}
+	if old != nil && (old.key != t.Key || len(old.d) != len(t.Dyn)) {
+		old = nil
+	}
 	for i, d := range t.Dyn {
-		f.d[i] = shadowDyn(d)
+		var o any
+		if old != nil {
+			o = old.d[i]
+		}
+		f.d[i] = shadowDynFrom(o, d)
 	}
 	return f
 }
 
-func shadowDyn(d any) any {
+func shadowDyn(d any) any { return shadowDynFrom(nil, d) }
+
+func shadowDynFrom(old, d any) any {
+	switch d := d.(type) {
+	case *ui.Tree:
+		o, _ := old.(*sframe)
+		return shadowFrom(o, d)
+	case *ui.TreeList:
+		if o, ok := old.(*slist); ok && o.src == d {
+			return o
+		}
+	}
 	switch d := d.(type) {
 	case string:
 		if d == "" {
@@ -68,7 +95,7 @@ func shadowDyn(d any) any {
 	case *ui.Tree:
 		return shadow(d)
 	case *ui.TreeList:
-		l := &slist{items: make([]*sframe, len(d.Items)), keys: d.Keys, temp: d.Temp}
+		l := &slist{items: make([]*sframe, len(d.Items)), keys: d.Keys, temp: d.Temp, src: d}
 		for i, it := range d.Items {
 			l.items[i] = shadow(it)
 		}
@@ -314,11 +341,17 @@ func (e *enc) dynChange(a, b any) bool {
 		e.str(b)
 	case *ui.Tree:
 		if old, ok := a.(*sframe); ok && old.key == b.Key {
+			if old.src == b {
+				return false
+			}
 			return e.frameChange(old, b)
 		}
 		e.frame(b)
 	case *ui.TreeList:
 		if old, ok := a.(*slist); ok {
+			if old.src == b {
+				return false
+			}
 			return e.listChange(old, b)
 		}
 		e.list(b)

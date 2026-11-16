@@ -66,19 +66,20 @@ func newNonce() string {
 }
 
 // CallBinding is what the tokens of the session's Calls are bound to.
-func (sc *scope) CallBinding() string { return sc.in.s.callNonce }
+func (sc *scope) CallBinding() string { sc.in.effects++; return sc.in.s.callNonce }
 
 // CallOwner is the instance whose render shows the Call.
-func (sc *scope) CallOwner() string { return sc.in.id }
+func (sc *scope) CallOwner() string { sc.in.effects++; return sc.in.id }
 
 // CallTarget is the handler a Call step's open event names.
-func (sc *scope) CallTarget() string { return RootID + ":" + callOpen }
+func (sc *scope) CallTarget() string { sc.in.effects++; return RootID + ":" + callOpen }
 
 // CallAction keeps fn, an Action prop of a Call the instance renders, under
 // its place in the render (the keys around it, and how many came before):
 // the same at each render while the markup around it is, as a handler's
 // key is.
 func (sc *scope) CallAction(_ context.Context, fn any) string {
+	sc.in.effects++
 	occ := "\x00act " + sc.keys
 	sc.in.occ[occ]++
 	k := sc.keys + "a" + strconv.Itoa(sc.in.occ[occ])

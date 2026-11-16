@@ -382,6 +382,14 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 			return "", nil
 		}
 		return b.tempTree(ctx, n)
+	case *guarded:
+		if n == nil {
+			return "", nil
+		}
+		if gh, ok := liveHost(ctx).(GuardHost); ok {
+			return gh.Guarded(ctx, n.site, n.deps, func() (any, error) { return b.value(ctx, n.View()) })
+		}
+		return b.value(ctx, n.View())
 	case *list:
 		var ns []Node
 		if n.items == nil && len(n.nodes) > 0 {

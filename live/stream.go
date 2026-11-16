@@ -24,6 +24,7 @@ import (
 // method of its component, which the instance then takes by name.
 func (sc *scope) StreamPush(_ context.Context, fn any) (string, error) {
 	in := sc.in
+	in.effects++
 	name, ok := ownerMethod(in, fn)
 	if !ok {
 		return "", diag.New("E0358", "a Push in a stream row calls %s, which isn't a method of the stream's owner", funcText(fn)).
