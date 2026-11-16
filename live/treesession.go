@@ -47,7 +47,7 @@ func (s *Session) treeUpdates() []TreeUpdate {
 			}
 		}
 		u.Tree = e.b
-		in.shadow = shadow(in.tree)
+		in.shadow = shadowFrom(in.shadow, in.tree)
 		ups = append(ups, u)
 	}
 	return ups
@@ -112,18 +112,21 @@ func (in *instance) treeHTML(b *strings.Builder) {
 // splitMarkers turns markup holding instances' markers (an opaque node
 // rendering a stateful component) into frames of the markup around
 // references to them.
-func splitMarkers(t *ui.Tree) *ui.Tree {
+func (in *instance) splitMarkers(t *ui.Tree) *ui.Tree {
 	for i, d := range t.Dyn {
+		if in.reused(d) {
+			continue // a kept part (ui.Guard) has none
+		}
 		switch d := d.(type) {
 		case string:
 			if strings.Contains(d, "\x00vk:") {
 				t.Dyn[i] = markerTree(d)
 			}
 		case *ui.Tree:
-			splitMarkers(d)
+			in.splitMarkers(d)
 		case *ui.TreeList:
 			for _, it := range d.Items {
-				splitMarkers(it)
+				in.splitMarkers(it)
 			}
 		}
 	}

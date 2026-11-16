@@ -61,9 +61,14 @@ func (s *Session) stableIDs(in *instance, text string) string {
 // HTML has them.
 func (s *Session) stableTreeIDs(in *instance, t *ui.Tree) {
 	for i, d := range t.Dyn {
+		if in.reused(d) {
+			continue // a kept part (ui.Guard) has none
+		}
 		switch d := d.(type) {
 		case string:
-			t.Dyn[i] = s.stableIDs(in, d)
+			if nextRandomID(d, 0) >= 0 {
+				t.Dyn[i] = s.stableIDs(in, d)
+			}
 		case *ui.Tree:
 			s.stableTreeIDs(in, d)
 		case *ui.TreeList:
@@ -200,12 +205,14 @@ func (in *instance) keyedHandler(sc *scope, fn any) string {
 		name := id[len(in.id)+1:]
 		if _, taken := in.keyed[name]; !taken {
 			in.keyed[name] = fn
+			in.keyLog = append(in.keyLog, keyedRec{name: name, path: sc.path, fn: fn})
 			*sc.n++
 			return id
 		}
 	}
 	name := in.dups.next(sc.path, in.s.pass)
 	in.keyed[name] = fn
+	in.keyLog = append(in.keyLog, keyedRec{name: name, path: sc.path, fn: fn, dup: true})
 	return in.id + ":" + name
 }
 

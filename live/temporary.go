@@ -10,7 +10,7 @@ import "github.com/vuka-lang/ui/v2"
 // mark, as flushStreams empties a stream's rows.
 
 // TempRegion notes that the instance's render has a Temporary region.
-func (sc *scope) TempRegion() { sc.in.temps = true }
+func (sc *scope) TempRegion() { sc.in.temps = true; sc.in.effects++ }
 
 // flushTemps drops the content of the Temporary regions the reply just
 // written carried, or left as the browser has them, from the trees and

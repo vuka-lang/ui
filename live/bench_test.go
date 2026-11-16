@@ -57,6 +57,22 @@ func BenchmarkCellTable(b *testing.B) {
 	versions(b, page, func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) + ":0" })
 }
 
+// A 1000-row table rendered by one component under a title, the title
+// changing per event: the table's loop, guarded (ui.Guard), keeps its last
+// frame; unguarded, it renders again.
+func BenchmarkGuardTable(b *testing.B) {
+	for _, unguarded := range []bool{false, true} {
+		name := map[bool]string{false: "guarded", true: "unguarded"}[unguarded]
+		page := func(context.Context) ui.Node {
+			return ui.Component("b#1", nil, &demo.GuardTable{N: 1000, Unguarded: unguarded})
+		}
+		b.Run(name+"/title", func(b *testing.B) { bench(b, page, 2, func(int) string { return "c1:0" }) })
+		b.Run(name+"/cell", func(b *testing.B) {
+			bench(b, page, 2, func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) + ":0" })
+		})
+	}
+}
+
 // A 1000-row table of row components, one row changing per event: rows with
 // Assign state are skipped unless clicked; plain rows render every time.
 func BenchmarkRowTable(b *testing.B) {
