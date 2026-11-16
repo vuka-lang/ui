@@ -169,6 +169,7 @@ func (s *Session) RenderTrees() ([]TreeUpdate, error) {
 	}
 	s.js = append(s.js, js...)
 	ups := s.treeUpdates()
+	s.flushTemps()
 	s.settle()
 	s.flushStreams()
 	return ups, nil
@@ -849,6 +850,7 @@ type instance struct {
 	shadow     *sframe           // what the client holds of it; nil: nothing yet
 	trimmed    bool              // its shadow was released: tree is what the client holds (Trim)
 	rendered   bool              // rendered this pass (not skipped)
+	temps      bool              // its renders had a Temporary region (temporary.go)
 	contextual bool              // context-dependent output must not use state-only render reuse
 	vars       map[string]uint64 // the template variables its last render read, at their versions
 	idn        int               // the random ids its render named so far (ids.go)
@@ -1417,6 +1419,7 @@ func (s *Session) patch() (Patch, error) {
 	s.streamChecks()
 	if s.trees {
 		p.Trees = s.treeUpdates()
+		s.flushTemps()
 		s.settle()
 		p.Streams = s.flushStreams()
 		return p, nil

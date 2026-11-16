@@ -36,6 +36,7 @@ type sstr struct {
 type slist struct {
 	items []*sframe
 	keys  []string
+	temp  string // a Temporary region's ui.TreeList.Temp
 }
 
 var seed = maphash.MakeSeed()
@@ -67,7 +68,7 @@ func shadowDyn(d any) any {
 	case *ui.Tree:
 		return shadow(d)
 	case *ui.TreeList:
-		l := &slist{items: make([]*sframe, len(d.Items)), keys: d.Keys}
+		l := &slist{items: make([]*sframe, len(d.Items)), keys: d.Keys, temp: d.Temp}
 		for i, it := range d.Items {
 			l.items[i] = shadow(it)
 		}
@@ -210,7 +211,7 @@ func (e *enc) dyn(d any) {
 }
 
 func (e *enc) list(l *ui.TreeList) {
-	if l.Stream && !e.stream {
+	if (l.Stream || l.Temp != "") && !e.stream {
 		e.stream = true
 		defer func() { e.stream = false }()
 	}
@@ -341,6 +342,16 @@ type step struct {
 // listChange writes {"k":[…]} (or the whole list, when no item stays), the
 // change from a to b, if any.
 func (e *enc) listChange(a *slist, b *ui.TreeList) bool {
+	if b.Temp != "" {
+		// a Temporary region: the browser keeps what it was sent, which
+		// the session forgot (flushTemps); it is sent whole when it shows
+		// another value
+		if a.temp == b.Temp {
+			return false
+		}
+		e.list(b)
+		return true
+	}
 	if b.Stream && !e.stream {
 		e.stream = true
 		defer func() { e.stream = false }()

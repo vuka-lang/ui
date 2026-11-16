@@ -35,6 +35,11 @@ type TreeList struct {
 	// render, which the session empties once the reply carrying it is
 	// written, so the next render diffs against no rows.
 	Stream bool
+	// Temp marks a Temporary region: its content, which the session sends
+	// when Temp — what the region shows (TemporaryProps.Of) — isn't what it
+	// last sent at the same place, and empties once the reply carrying it
+	// is written, keeping only Temp.
+	Temp string
 }
 
 // TreeRef is a stateful component instance in a render tree: its id.
@@ -372,6 +377,11 @@ func (b *treeBuilder) value(ctx context.Context, n Node) (any, error) {
 			return "", nil
 		}
 		return b.streamTree(ctx, n)
+	case *tempRegion:
+		if n == nil {
+			return "", nil
+		}
+		return b.tempTree(ctx, n)
 	case *list:
 		var ns []Node
 		if n.items == nil && len(n.nodes) > 0 {

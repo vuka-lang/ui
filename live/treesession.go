@@ -25,7 +25,10 @@ func (s *Session) treeUpdates() []TreeUpdate {
 			e.frame(in.tree)
 		case !e.frameChange(in.shadow, in.tree):
 			continue
-		case len(e.b) > fallbackAt && !hasRefs(in.tree):
+		case len(e.b) > fallbackAt && !in.temps && !hasRefs(in.tree):
+			// (not for an instance with a Temporary region: the HTML would
+			// leave the client no tree, and its next reply would send the
+			// region again)
 			var b strings.Builder
 			in.tree.HTML(&b, nil)
 			if b.Len() < len(e.b) {
