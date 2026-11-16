@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"maps"
 	"net/url"
@@ -67,6 +68,16 @@ type Session struct {
 	callNonce string      // what its Calls' tokens are bound to (call.go)
 	calls     []*openCall // the components the page opened, in order
 	callSeq   int         // the server's opens so far (ui.Call), naming them
+
+	reloads []regionReload // the regions handlers asked to render again (ui.Live.Reload)
+}
+
+// regionReload is a region a handler asked to render again in its reply:
+// the selector, and the instance that asked, whose JS a region the render
+// hasn't falls back to.
+type regionReload struct {
+	in  *instance
+	sel string
 }
 
 // Patch is what an event or message changed: the HTML of each component whose
@@ -139,6 +150,7 @@ func (s *Session) Render() (string, error) {
 	if err := s.renderAll(); err != nil {
 		return "", err
 	}
+	s.reloads = nil // a mount's Reload: the whole page rendered
 	js, err := s.pushed()
 	if err != nil {
 		return "", err
@@ -163,6 +175,7 @@ func (s *Session) RenderTrees() ([]TreeUpdate, error) {
 	if err := s.renderAll(); err != nil {
 		return nil, err
 	}
+	s.reloads = nil // a mount's Reload: the whole page rendered
 	js, err := s.pushed()
 	if err != nil {
 		return nil, err
@@ -876,6 +889,47 @@ func (in *instance) Subscribe(topics ...string) {
 
 func (in *instance) PushJS(c ui.Commands) { in.js = append(in.js, c) }
 
+func (in *instance) Reload(sel string) {
+	in.s.reloads = append(in.s.reloads, regionReload{in, sel})
+}
+
+// applyReloads marks the instances whose last renders have the elements
+// handlers asked to reload (ui.Live.Reload) to render again, before the
+// reply's render decides what to keep. A region the last render hasn't is
+// handed to the browser as the pushed command would be, which reports it
+// in development.
+func (s *Session) applyReloads() {
+	for _, r := range s.reloads {
+		if in := s.ownerOf(strings.TrimPrefix(r.sel, "#")); in != nil {
+			renderAgain(in)
+		} else {
+			r.in.js = append(r.in.js, ui.JS.Reload(r.sel))
+		}
+	}
+	s.reloads = nil
+}
+
+// ownerOf is the instance whose own last render — the markup around the
+// instances it renders — has the element with the id; nil when none has.
+func (s *Session) ownerOf(id string) *instance {
+	needle := ` id="` + html.EscapeString(id) + `"`
+	for _, in := range s.order() {
+		if s.trees {
+			if in.tree == nil {
+				continue
+			}
+			var b strings.Builder
+			in.tree.HTML(&b, nil)
+			if strings.Contains(b.String(), needle) {
+				return in
+			}
+		} else if strings.Contains(in.own, needle) {
+			return in
+		}
+	}
+	return nil
+}
+
 // pushed encodes the commands instances pushed, in render order, each Push
 // step's handler registered with its instance after its render's own.
 func (s *Session) pushed() ([]JSPush, error) {
@@ -1408,6 +1462,7 @@ func (in *instance) html() string {
 
 // patch renders the page again and collects the outermost changed instances.
 func (s *Session) patch() (Patch, error) {
+	s.applyReloads()
 	if err := s.renderAll(); err != nil {
 		return Patch{}, err
 	}

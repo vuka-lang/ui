@@ -22,6 +22,13 @@ type LazyProps struct {
 	// When shows already (a component's lazy attribute: <Modal show={open}
 	// lazy>): the region only waits to render its content.
 	Bare bool
+	// Seen also waits for the region to scroll near the viewport: the
+	// content renders the first time the browser sees the region, not as
+	// soon as the page shows it far below the fold — what WhenSeen is to a
+	// deferred field group (ui.Defer). A browser without
+	// IntersectionObserver asks as soon as the region shows, so the content
+	// loads as an unseen region's does rather than never.
+	Seen bool
 	// Loading is what shows until the content arrives: by default an empty
 	// placeholder, busy, saying "Loading…" to assistive technology.
 	Loading  Node
@@ -66,6 +73,9 @@ func Lazy(p LazyProps) Node {
 		}
 		waiting := func(more ...Attr) Node {
 			attrs = append(attrs, Attr{"data-vk-init", true}, Attr{"aria-busy", "true"})
+			if p.Seen {
+				attrs = append(attrs, Attr{"data-vk-when-seen", true})
+			}
 			return El("vk-lazy", append(attrs, more...), lazyLoading(ctx, p.Loading))
 		}
 		if eager(ctx) {
@@ -81,7 +91,7 @@ func Lazy(p LazyProps) Node {
 			switch {
 			case h.want == id:
 				return h.capture(ctx, El("vk-lazy", attrs, content))
-			case open || strings.HasPrefix(h.want, id+"."):
+			case open && !p.Seen || strings.HasPrefix(h.want, id+"."):
 				return El("vk-lazy", attrs, content)
 			}
 			h.info.JS = true // the runtime asks for the content
@@ -91,7 +101,7 @@ func Lazy(p LazyProps) Node {
 				break // a row the server forgets: nothing to render it into later
 			}
 			key := h.LazyKey(ctx)
-			if open {
+			if open && !p.Seen {
 				h.ShowLazy(key)
 			}
 			shown := On(InitHandler(func(context.Context) error { h.ShowLazy(key); return nil }))

@@ -37,6 +37,7 @@ type LiveInstance interface {
 	ID() string
 	Subscribe(topics ...string)
 	PushJS(c Commands)
+	Reload(sel string)
 }
 
 // ID is the instance's id in its session, the value of its root element's
@@ -63,6 +64,23 @@ func (l *Live) Subscribe(topics ...string) {
 func (l *Live) PushJS(ch JSChain) {
 	if l.inst != nil {
 		l.inst.PushJS(ch.jsChain())
+	}
+}
+
+// Reload renders a region of the page again in the reply to the current
+// event (or message): the instance whose render has the element with the
+// id (sel, "#orders", as JS.Reload takes it) renders again with the
+// components inside it, mounted as they are, and the reply carries what
+// changed — where PushJS(JS.Reload(sel)) has the browser ask for the
+// render in a round trip of its own. An id the last render hasn't is left
+// to the browser, as the pushed command: an error in development, nothing
+// outside it. Without a session it does nothing.
+func (l *Live) Reload(sel string) {
+	if id, ok := strings.CutPrefix(sel, "#"); !ok || id == "" || strings.ContainsAny(id, " \t\n\f\r") {
+		panic(fmt.Sprintf("ui: Reload takes a region, an element's id as \"#orders\", not %q", sel))
+	}
+	if l.inst != nil {
+		l.inst.Reload(sel)
 	}
 }
 

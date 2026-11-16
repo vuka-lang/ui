@@ -26,6 +26,7 @@ func orderList() ui.Node {
 type lazyPage struct {
 	ui.Live
 	each, open bool
+	seen       bool
 	fail       bool
 }
 
@@ -40,7 +41,7 @@ func (p *lazyPage) Render() ui.Node {
 	}
 	return ui.El("main", nil,
 		ui.El("button", []ui.Attr{{Name: "onClick", Value: ui.On(p.Edit)}}, ui.Text("edit")),
-		ui.Lazy(ui.LazyProps{When: p.open, Each: p.each, Children: content}))
+		ui.Lazy(ui.LazyProps{When: p.open, Each: p.each, Seen: p.seen, Children: content}))
 }
 
 func joinLazy(t *testing.T, p *lazyPage) *livetest.Client {
@@ -106,6 +107,39 @@ func TestLazyLive(t *testing.T) {
 	c = joinLazy(t, &lazyPage{open: true})
 	if html := c.HTML(); lazyRenders != 1 || !strings.Contains(html, "order 7") || strings.Contains(html, "data-vk-init") {
 		t.Errorf("shown at first: %d renders\n%s", lazyRenders, html)
+	}
+}
+
+// TestLazySeen: a region loading when seen is marked data-vk-when-seen
+// while it waits — the browser then asks only once it scrolls near the
+// viewport — and the mark goes with the wait once the content renders. On
+// a page that isn't live the shell carries the mark the same way, and the
+// region's render hasn't it.
+func TestLazySeen(t *testing.T) {
+	lazyRenders = 0
+	c := joinLazy(t, &lazyPage{open: true, seen: true})
+	html := c.HTML()
+	m := initOn.FindStringSubmatch(html)
+	if lazyRenders != 0 || m == nil || !strings.Contains(html, "data-vk-when-seen") {
+		t.Fatalf("a seen region isn't marked: %d renders\n%s", lazyRenders, html)
+	}
+	if _, err := c.Event(ui.Event{Target: m[1], Type: "vkinit"}); err != nil {
+		t.Fatal(err)
+	}
+	if html = c.HTML(); lazyRenders != 1 || !strings.Contains(html, "order 7") || strings.Contains(html, "data-vk-when-seen") {
+		t.Fatalf("seen: %d renders\n%s", lazyRenders, html)
+	}
+
+	page := func() ui.Node {
+		return ui.El("main", nil, ui.Lazy(ui.LazyProps{When: true, Seen: true, Children: orderList()}))
+	}
+	var b strings.Builder
+	if _, err := ui.RenderPage(context.Background(), page(), &b); err != nil || !strings.Contains(b.String(), `data-vk-region="0" data-vk-init aria-busy="true" data-vk-when-seen`) {
+		t.Fatalf("a page that isn't live: %v\n%s", err, b.String())
+	}
+	got, err := ui.RenderRegion(context.Background(), page(), "0")
+	if err != nil || !strings.Contains(got, "order 7") || strings.Contains(got, "data-vk-when-seen") {
+		t.Errorf("its region: %v: %s", err, got)
 	}
 }
 
