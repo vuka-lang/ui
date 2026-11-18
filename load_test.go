@@ -2,6 +2,7 @@ package ui_test
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"testing"
 
@@ -112,5 +113,51 @@ func TestLoadPageKeyOnce(t *testing.T) {
 func TestLoadPageError(t *testing.T) {
 	if _, err := ui.LoadPage(context.Background(), ui.TableQuery{Page: 1, Size: 10}, ui.Source[Book]{}); err == nil {
 		t.Fatal("no database: want an error")
+	}
+}
+
+// Source.Count supplies the number of rows instead of counting them: All is
+// its number, with a search too, where Total is still the search's own
+// count; its error is LoadPage's.
+func TestLoadPageCount(t *testing.T) {
+	ctx := books(t)
+	for _, c := range []struct {
+		name       string
+		q          ui.TableQuery
+		total, all int
+		calls      int
+	}{
+		{"no search", ui.TableQuery{Page: 1, Size: 2, Sort: "title"}, 99, 99, 1},
+		{"searched", ui.TableQuery{Page: 1, Size: 10, Search: "AUST", Sort: "title"}, 2, 99, 1},
+		{"nothing found", ui.TableQuery{Page: 1, Size: 10, Search: "nobody"}, 0, 99, 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			calls := 0
+			p, err := ui.LoadPage(ctx, c.q, ui.Source[Book]{
+				Search: byAuthor,
+				Sorts:  map[string]string{"title": "title"},
+				Count:  func(context.Context) (int, error) { calls++; return 99, nil },
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if p.Total != c.total || p.All != c.all || calls != c.calls {
+				t.Fatalf("total %d all %d, Count called %d times; want %d, %d, %d", p.Total, p.All, calls, c.total, c.all, c.calls)
+			}
+		})
+	}
+
+	// The rows are cut as before, whatever Count says.
+	p, err := ui.LoadPage(ctx, ui.TableQuery{Page: 2, Size: 2, Sort: "title"}, ui.Source[Book]{
+		Sorts: map[string]string{"title": "title"},
+		Count: func(context.Context) (int, error) { return 5, nil },
+	})
+	if err != nil || !slices.Equal(titles(p), []string{"Emma", "Persuasion"}) || p.Pages != 3 {
+		t.Errorf("page 2: %v %d pages %v", titles(p), p.Pages, err)
+	}
+
+	boom := errors.New("boom")
+	if _, err := ui.LoadPage(ctx, ui.TableQuery{Page: 1, Size: 2}, ui.Source[Book]{Count: func(context.Context) (int, error) { return 0, boom }}); !errors.Is(err, boom) {
+		t.Errorf("Count's error: %v", err)
 	}
 }

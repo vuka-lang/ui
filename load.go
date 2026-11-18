@@ -32,10 +32,16 @@ type Source[T any] struct {
 	// Default orders the rows when no sort applies: a field name, a leading
 	// - for descending.
 	Default string
+	// Count supplies the number of Rows without a search (Page.All) instead
+	// of counting them, for an app that keeps a large table's total for a
+	// while. With a search, All is still Count's, and Total the search's own
+	// count; without one, Total is Count's too and the page costs no count
+	// at all. Without Count the rows are counted.
+	Count func(ctx context.Context) (int, error)
 }
 
 // LoadPage is the page q asks for of src's rows: counted before the search
-// (Page.All) and after it (Page.Total), ordered by the sort the table sent
+// (Page.All, or src.Count's) and after it (Page.Total), ordered by the sort the table sent
 // or Default, and cut by the database to q's page, the last page when q
 // asks for one past it.
 func LoadPage[T any](ctx context.Context, q TableQuery, src Source[T]) (Page[T], error) {
@@ -43,7 +49,15 @@ func LoadPage[T any](ctx context.Context, q TableQuery, src Source[T]) (Page[T],
 	if src.Rows != nil {
 		rows = *src.Rows
 	}
-	all, err := rows.Count(ctx)
+	var all int64
+	var err error
+	if src.Count != nil {
+		var n int
+		n, err = src.Count(ctx)
+		all = int64(n)
+	} else {
+		all, err = rows.Count(ctx)
+	}
 	if err != nil {
 		return Page[T]{}, err
 	}
