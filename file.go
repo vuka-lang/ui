@@ -354,7 +354,7 @@ func expiry() string { return strconv.FormatInt(time.Now().Add(FileTTL).Unix(), 
 // ticket is what the upload of a File field's file presents: the form and
 // field it is for, its largest size and what it accepts.
 func (b boundField) ticket(ctx context.Context) string {
-	return seal(formKeyOf(ctx), "vk-upload", b.st.identity(), b.f.path, strconv.FormatInt(b.f.fileMax, 10), b.f.accept, expiry())
+	return seal(formKeyOf(ctx), "vk-upload", b.st.identity(), b.f.path, strconv.FormatInt(b.f.fileMax, 10), b.f.accept, hourExpiry(FileTTL))
 }
 
 // An Uploaded is a file Upload stored: the reference its field takes, its
