@@ -150,6 +150,7 @@ func (s *Session) finishURL(e *urlEdit) {
 			if _, ok := q[k]; ok && !now[k] {
 				delete(q, k)
 				e.write = true
+				s.urlDropped = true
 			}
 		}
 	}

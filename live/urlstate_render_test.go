@@ -84,3 +84,26 @@ func TestURLTableParamsDropWithTable(t *testing.T) {
 		})
 	}
 }
+
+// The links a render builds after an event that drops a table's parameters
+// from the address carry none of them: the parameters of the batch that was
+// closed don't come back with the next page of the one opened.
+func TestURLLinksLackDroppedParams(t *testing.T) {
+	for _, v := range []int{1, 2} {
+		t.Run(fmt.Sprint("v", v), func(t *testing.T) {
+			render := func() ui.Node { return ui.El("main", nil, ui.Component("batches", nil, &Batches{})) }
+			s, c := urlSession(t, v, "/p?advert=7&batch=1&b1.page=2", render)
+			h, _ := c.Attr("#open2", "data-vk-on-click")
+			if _, err := s.Event(ui.Event{Type: "click", Target: h}); err != nil {
+				t.Fatal(err)
+			}
+			html := s.HTML()
+			if !strings.Contains(html, "b2.page") {
+				t.Fatalf("no pager links:\n%s", html)
+			}
+			if strings.Contains(html, "b1.") {
+				t.Fatalf("a link carries the dropped parameters:\n%s", html)
+			}
+		})
+	}
+}

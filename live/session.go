@@ -54,6 +54,7 @@ type Session struct {
 	js       []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
 	router   Router
 
+	urlDropped  bool                           // finishURL took parameters out of the address: what the render built from it is stale
 	afterRender []func()                       // what the patch under way does once it rendered, before it collects the commands pushed
 	prior       map[string]*instance           // during a patch, the instances it replaces, by place: they hand a new one what they loaded
 	loading     map[*ui.DeferredLoad]*instance // the deferred loads Deferred started, by the instance they load
@@ -1522,6 +1523,15 @@ func (s *Session) patch() (Patch, error) {
 		f()
 	}
 	s.afterRender = nil
+	if s.urlDropped {
+		// The links and fields the render built read the address with the
+		// parameters of components it then stopped rendering; render again
+		// with the address finishURL left.
+		s.urlDropped = false
+		if err := s.renderAll(); err != nil {
+			return Patch{}, err
+		}
+	}
 	js, err := s.pushed()
 	if err != nil {
 		return Patch{}, err
