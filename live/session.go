@@ -54,8 +54,9 @@ type Session struct {
 	js       []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
 	router   Router
 
-	prior   map[string]*instance           // during a patch, the instances it replaces, by place: they hand a new one what they loaded
-	loading map[*ui.DeferredLoad]*instance // the deferred loads Deferred started, by the instance they load
+	afterRender []func()                       // what the patch under way does once it rendered, before it collects the commands pushed
+	prior       map[string]*instance           // during a patch, the instances it replaces, by place: they hand a new one what they loaded
+	loading     map[*ui.DeferredLoad]*instance // the deferred loads Deferred started, by the instance they load
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
 	uerr    error               // what their Update methods returned
@@ -274,9 +275,9 @@ func (s *Session) run(fn any, ev ui.Event) (Patch, error) {
 			}
 		}
 	}
-	s.root.js = append(s.root.js, s.endURL(edit)...)
+	s.endURL(edit)
 	if to, ok := ui.RedirectOf(herr); ok && ui.LoadableURL(to) {
-		s.root.js = append(s.root.js, ui.JS.Navigate(to))
+		s.afterRender = append(s.afterRender, func() { s.root.js = append(s.root.js, ui.JS.Navigate(to)) })
 	}
 	p, err := s.patch()
 	p.Err = herr
@@ -549,7 +550,7 @@ func (s *Session) Info(topic string, msg any) (Patch, error) {
 	if !called {
 		return Patch{}, herr
 	}
-	s.root.js = append(s.root.js, s.endURL(edit)...)
+	s.endURL(edit)
 	p, err := s.patch()
 	if herr != nil {
 		p.Error = s.errorText(herr)
@@ -1512,8 +1513,13 @@ func (in *instance) html() string {
 func (s *Session) patch() (Patch, error) {
 	s.applyReloads()
 	if err := s.renderAll(); err != nil {
+		s.afterRender = nil
 		return Patch{}, err
 	}
+	for _, f := range s.afterRender {
+		f()
+	}
+	s.afterRender = nil
 	js, err := s.pushed()
 	if err != nil {
 		return Patch{}, err

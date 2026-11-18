@@ -24,7 +24,9 @@ import (
 // parameter of the field's name instead, read only.
 //
 // An instance with a urlKey (<Table urlKey="requests" />) keeps its keys
-// under that name: "requests.page".
+// under that name: "requests.page". A parameter belongs to its component
+// while it renders: an event after which the component isn't rendered
+// takes it out of the address, unless the field is marked Keep.
 
 type pageURLKey struct{}
 
@@ -121,11 +123,25 @@ func EventQuery(ctx context.Context) url.Values {
 type URLDefault struct {
 	Name  string
 	Value any
+	Kept  bool
+	none  bool // Keep without Default
 }
 
 func (d URLDefault) Apply(o *FieldOptions) {
-	o.URL, o.URLBound, o.URLDefault, o.HasURLDefault = d.Name, true, d.Value, true
+	o.URL, o.URLBound, o.URLKeep = d.Name, true, d.Kept
+	if !d.none {
+		o.URLDefault, o.HasURLDefault = d.Value, true
+	}
 }
+
+// Keep is the URL attribute whose parameter stays in the address after
+// the component stops rendering; by default a patch that no longer renders
+// the component takes its parameters out: @ui.URL("page").Default(1).Keep().
+func (d URLDefault) Keep() URLDefault { d.Kept = true; return d }
+
+// Keep is the URL attribute whose parameter stays in the address after the
+// component stops rendering: @ui.URL("tab").Keep().
+func (u URL) Keep() URLDefault { return URLDefault{Name: string(u), Kept: true, none: true} }
 
 // Default is the URL attribute with the value the field takes when the
 // URL has no parameter for it: @ui.URL("page").Default(1).
@@ -141,6 +157,7 @@ type urlField struct {
 	defVals  []string
 	typ      reflect.Type // the value's type: an Assign's element
 	assign   bool         // an Assign: read with Get, written with Set
+	keep     bool         // its parameter outlives the component's render
 }
 
 var urlFieldCache sync.Map // reflect.Type (struct) → []urlField
@@ -164,7 +181,7 @@ func urlFieldsOf(t reflect.Type) []urlField {
 				continue
 			}
 			f := t.Field(i)
-			uf := urlField{index: i, name: o.URL, exported: f.IsExported(), typ: f.Type}
+			uf := urlField{index: i, name: o.URL, exported: f.IsExported(), typ: f.Type, keep: o.URLKeep}
 			if et, ok := assignElem(f.Type); ok {
 				uf.typ, uf.assign = et, true
 			}
@@ -565,6 +582,20 @@ func (u *URLFields) Changes(c, tag Stateful, prefix string, q url.Values) bool {
 		changed = true
 	}
 	return changed
+}
+
+// URLParams are the query parameters c keeps in the address under prefix
+// that belong to it while it renders: not a path parameter, a prop the
+// parent passes (tag), or one marked Keep.
+func URLParams(c, tag Stateful, prefix string) []string {
+	var out []string
+	tv := reflect.ValueOf(tag)
+	for _, uf := range urlFieldsOf(reflect.TypeOf(c)) {
+		if !uf.path && !uf.keep && !uf.explicit(tv) {
+			out = append(out, uf.key(prefix))
+		}
+	}
+	return out
 }
 
 // URLKey is the stateful component c (a component, or a ui.Key of one)
