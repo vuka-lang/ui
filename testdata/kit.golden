@@ -389,7 +389,8 @@
 dialog.vk-dialog,dialog.vk-call{box-sizing:border-box;margin:auto;width:min(32rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;overflow:auto;
   background:var(--ui-bg);color:var(--ui-fg);border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
 dialog.vk-dialog::backdrop,dialog.vk-call::backdrop{background:var(--ui-overlay)}
-.vk-dialog--sm{width:min(24rem,calc(100vw - 2rem))} .vk-dialog--lg{width:min(48rem,calc(100vw - 2rem))}
+dialog.vk-dialog--sm{width:min(24rem,calc(100vw - 2rem))} dialog.vk-dialog--lg{width:min(48rem,calc(100vw - 2rem))}
+dialog.vk-dialog--xl{width:min(72rem,calc(100vw - 2rem))} dialog.vk-dialog--full{width:calc(100vw - 2rem);height:calc(100vh - 2rem)}
 .vk-dialog__header{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--ui-space) * 4);padding:calc(var(--ui-space) * 4) calc(var(--ui-space) * 5);border-bottom:var(--ui-border-width) solid var(--ui-border)}
 .vk-dialog__title{margin:0;font-size:var(--ui-font-heading);font-weight:var(--ui-weight-semibold)}
 .vk-dialog__body,.vk-call__body{padding:calc(var(--ui-space) * 5)}
@@ -860,7 +861,8 @@ dialog.vk-popover{position:fixed;margin:0;padding:0;max-width:min(22rem,calc(100
 dialog.vk-dialog,dialog.vk-call{box-sizing:border-box;margin:auto;width:min(32rem,calc(100vw - 2rem));max-height:calc(100vh - 2rem);padding:0;overflow:auto;
   background:var(--ui-bg);color:var(--ui-fg);border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
 dialog.vk-dialog::backdrop,dialog.vk-call::backdrop{background:var(--ui-overlay)}
-.vk-dialog--sm{width:min(24rem,calc(100vw - 2rem))} .vk-dialog--lg{width:min(48rem,calc(100vw - 2rem))}
+dialog.vk-dialog--sm{width:min(24rem,calc(100vw - 2rem))} dialog.vk-dialog--lg{width:min(48rem,calc(100vw - 2rem))}
+dialog.vk-dialog--xl{width:min(72rem,calc(100vw - 2rem))} dialog.vk-dialog--full{width:calc(100vw - 2rem);height:calc(100vh - 2rem)}
 .vk-dialog__header{display:flex;align-items:center;justify-content:space-between;gap:calc(var(--ui-space) * 4);padding:calc(var(--ui-space) * 4) calc(var(--ui-space) * 5);border-bottom:var(--ui-border-width) solid var(--ui-border)}
 .vk-dialog__title{margin:0;font-size:var(--ui-font-heading);font-weight:var(--ui-weight-semibold)}
 .vk-dialog__body,.vk-call__body{padding:calc(var(--ui-space) * 5)}

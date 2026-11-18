@@ -25,7 +25,9 @@ type Dialog struct {
 	Footer Node
 	// Open renders a dialog outside a Call open; a Call's shows on its own.
 	Open bool
-	// Size is "sm", "" / "md" (default) or "lg".
+	// Size is "sm", "" / "md" (default), "lg", "xl" (up to 72rem wide) or
+	// "full" (the viewport less a margin, wide and tall: a document's
+	// preview). Another value is the default.
 	Size     string
 	Class    string
 	Children Node
@@ -36,7 +38,7 @@ func (d Dialog) View() Node {
 		call, ctx := callRoot(ctx, "modal")
 		class := "vk-dialog"
 		switch d.Size {
-		case "sm", "lg":
+		case "sm", "lg", "xl", "full":
 			class += " vk-dialog--" + d.Size
 		}
 		if d.Open && call == nil {
