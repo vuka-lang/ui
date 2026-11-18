@@ -708,6 +708,11 @@ type Route struct {
 	// giving the page below the layout a ui.Keyed key of its own per
 	// page, so that the page's components mount afresh.
 	Keep bool
+	// URLOnly says the navigation changes only parameters the page's
+	// components keep in the address (URLParams): a patch with it keeps
+	// every instance, without an Update, as the components' @ui.URL fields
+	// and DataTables read the new address as they render.
+	URLOnly bool
 	// URL is the page's URL, what its components' @ui.URL fields read,
 	// when Ctx doesn't carry it (ui.WithPageURL); the navigate message
 	// sets it.
@@ -783,7 +788,8 @@ func (s *Session) navigateTo(rt Route, patch bool) (Patch, error) {
 		}
 		walk(s.root)
 	}
-	if !rt.Keep && (!patch || len(rt.Updates) == 0) {
+	whole := !patch || len(rt.Updates) == 0 && !rt.URLOnly
+	if !rt.Keep && whole {
 		for _, in := range s.order()[1:] {
 			unmount(in)
 		}
@@ -791,7 +797,7 @@ func (s *Session) navigateTo(rt Route, patch bool) (Patch, error) {
 		s.byID = map[string]*instance{RootID: s.root}
 		s.root.children, s.root.kids = map[string]*instance{}, nil
 	}
-	if !patch || len(rt.Updates) == 0 {
+	if whole {
 		// another page: its keys are its own, whatever the last one's were
 		for _, in := range s.byID {
 			if len(in.keyed) > 0 {

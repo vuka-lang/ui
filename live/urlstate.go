@@ -47,6 +47,14 @@ func (s *Session) tableParams() map[string]bool {
 	return out
 }
 
+// URLParams are the query parameters the page's rendered components keep in
+// the address: their @ui.URL fields' and their DataTables'.
+func (s *Session) URLParams() map[string]bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.urlParams()
+}
+
 // query is the page's query, parsed once per URL.
 func (s *Session) query() url.Values {
 	if s.q == nil {
