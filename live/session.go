@@ -54,6 +54,7 @@ type Session struct {
 	js       []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
 	router   Router
 
+	prior   map[string]*instance           // during a patch, the instances it replaces, by place: they hand a new one what they loaded
 	loading map[*ui.DeferredLoad]*instance // the deferred loads Deferred started, by the instance they load
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
@@ -766,6 +767,20 @@ func (s *Session) navigateTo(rt Route, patch bool) (Patch, error) {
 			s.setURL(u)
 		}
 	}
+	if patch {
+		s.prior = map[string]*instance{}
+		defer func() { s.prior = nil }()
+		var walk func(*instance)
+		walk = func(in *instance) {
+			for _, c := range in.children {
+				if c.at != "" {
+					s.prior[c.at] = c
+				}
+				walk(c)
+			}
+		}
+		walk(s.root)
+	}
 	if !rt.Keep && (!patch || len(rt.Updates) == 0) {
 		for _, in := range s.order()[1:] {
 			unmount(in)
@@ -858,6 +873,7 @@ type instance struct {
 	key      any          // its tag's key, written on its root as data-vk-key
 	url      ui.URLFields // its @ui.URL fields' bookkeeping
 	urlKey   string       // its tag's urlKey
+	at       string       // its place under the root, the places of its parents and its own
 
 	tree       *ui.Tree          // its last render, on a v2 connection
 	shadow     *sframe           // what the client holds of it; nil: nothing yet
@@ -1133,6 +1149,8 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 	}
 	typ := reflect.TypeOf(n.Props)
 	in := parent.children[place]
+	at := parent.at + "/" + place
+	var prev *instance
 	msg, upd := s.updates[n.Props]
 	if upd {
 		delete(s.updates, n.Props)
@@ -1141,7 +1159,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			// the new URL; this one mounts again, for Mount to see it
 			unmount(in)
 			delete(s.byID, in.id)
-			in = nil
+			prev, in = in, nil
 		}
 	}
 	if s.from != nil && in != nil && in.typ == typ {
@@ -1157,6 +1175,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			// mounted ahead (NavigateFrom): it takes its tag's props as a
 			// kept instance does, and renders whole, as a new one does
 			in = a
+			in.at = at
 			parent.children[place] = in
 			s.byID[in.id] = in
 			in.takeProps(n, s.adopting)
@@ -1166,12 +1185,18 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		if err := ui.CheckStateful(n.Props); err != nil {
 			return nil, err
 		}
-		in = &instance{s: s, id: "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true}
+		in = &instance{s: s, id: "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true, at: at}
 		ui.AttachLive(in.comp, in)
 		in.trackMethods(n.Props)
 		s.fillURL(in, n)
 		if err := mount(s.ctx, in.comp); err != nil {
 			return nil, err
+		}
+		if prev == nil {
+			prev = s.prior[at]
+		}
+		if prev != nil && prev.typ == typ {
+			ui.CarryLoads(in.comp, prev.comp)
 		}
 		parent.children[place] = in
 		s.byID[in.id] = in
