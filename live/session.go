@@ -847,6 +847,7 @@ func (s *Session) close() {
 // instance is a stateful component in the session, or the page itself (comp nil).
 type instance struct {
 	s        *Session
+	tables   *ui.TableUse // the DataTables its last render resolved
 	id       string
 	comp     ui.Stateful
 	typ      reflect.Type
@@ -1403,7 +1404,8 @@ func (s *Session) renderInst(in *instance) (err error) {
 	clear(in.forms)
 	clear(in.claimed)
 	clear(in.acts)
-	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
+	ctx := ui.WithLiveHost(s.pageCtx(), &scope{in: in})
+	ctx, in.tables = ui.WithTableUse(ctx)
 	in.contextual = false
 	clear(in.vars)
 	var node ui.Node

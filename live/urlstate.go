@@ -22,6 +22,31 @@ func (s *Session) pageURL() *url.URL {
 	return ui.PageURL(s.ctx)
 }
 
+// pageCtx is the session's context with the page's URL as an event left
+// it, so what a render builds from the URL (pagers, sort links) is current.
+func (s *Session) pageCtx() context.Context {
+	if s.url != nil {
+		return ui.WithPageURLReplaced(s.ctx, s.url)
+	}
+	return s.ctx
+}
+
+// tableParams are the parameters the DataTables the rendered instances
+// resolved keep in the address.
+func (s *Session) tableParams() map[string]bool {
+	out := map[string]bool{}
+	for _, in := range s.order() {
+		if in.tables != nil {
+			for k := range in.tables.Keys() {
+				for _, p := range ui.TableParams(k) {
+					out[p] = true
+				}
+			}
+		}
+	}
+	return out
+}
+
 // query is the page's query, parsed once per URL.
 func (s *Session) query() url.Values {
 	if s.q == nil {
@@ -78,6 +103,9 @@ func (s *Session) urlParams() map[string]bool {
 				out[k] = true
 			}
 		}
+	}
+	for k := range s.tableParams() {
+		out[k] = true
 	}
 	return out
 }

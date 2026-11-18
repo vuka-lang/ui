@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding"
 	"fmt"
+	"maps"
 	"net/url"
 	"reflect"
 	"slices"
@@ -613,4 +614,53 @@ func URLKey(key string, c any) Node {
 		return &ComponentNode{Props: x, URLKey: key}
 	}
 	panic(fmt.Sprintf("ui: URLKey is given %T, not a live component", c))
+}
+
+// WithPageURLReplaced is ctx with the page's URL u in place of the one it
+// carries, its route's path parameters kept: what a live page renders with
+// after an event changed its address.
+func WithPageURLReplaced(ctx context.Context, u *url.URL) context.Context {
+	p, _ := ctx.Value(pageURLKey{}).(pageURL)
+	return WithPageURL(ctx, u, p.param)
+}
+
+type tableUseKey struct{}
+
+// TableUse collects the Keys of the DataTables kept in the URL that a render
+// resolved.
+type TableUse struct {
+	mu   sync.Mutex
+	keys map[string]bool
+}
+
+// WithTableUse is ctx recording in the returned TableUse each DataTable
+// kept in the URL that renders with it.
+func WithTableUse(ctx context.Context) (context.Context, *TableUse) {
+	u := &TableUse{keys: map[string]bool{}}
+	return context.WithValue(ctx, tableUseKey{}, u), u
+}
+
+// Keys are the Keys recorded ("" for a table without one).
+func (u *TableUse) Keys() map[string]bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return maps.Clone(u.keys)
+}
+
+func noteTable(ctx context.Context, key string) {
+	if u, _ := ctx.Value(tableUseKey{}).(*TableUse); u != nil {
+		u.mu.Lock()
+		u.keys[key] = true
+		u.mu.Unlock()
+	}
+}
+
+// TableParams are the query parameters a DataTable keeps in the address
+// under key.
+func TableParams(key string) []string {
+	out := make([]string, 0, 5)
+	for _, n := range []string{"q", "page", "size", "sort", "dir"} {
+		out = append(out, tableURL{key: key}.param(n))
+	}
+	return out
 }
