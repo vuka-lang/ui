@@ -28,8 +28,8 @@ import (
 // A fragment answers no events: its state is every viewer's, so a handler,
 // a form or a pushed command in it is a render error, and an event naming
 // one of its instances is refused (SharedEventError). Per-viewer interaction
-// is browser-side state, or a per-page component that passes the fragment
-// props; a change for everyone is a broadcast.
+// is browser-side state, or a per-page component wrapping the fragment; a
+// change for everyone is a broadcast. Experimental, with ui.SharedLive.
 
 // SharedStaticsBase is where the process-wide statics ids of shared
 // fragments start: far above the per-connection ids a page's frames number
@@ -327,7 +327,7 @@ func (s *Session) checkFragment() error {
 
 func (s *Session) refuseShared(what string) {
 	if s.fragErr == nil {
-		s.fragErr = fmt.Errorf("live: the shared <%s> uses %s, which a shared component may not: its state is every viewer's, so it answers no events and holds nothing per viewer; its topics are the topic tag of ui.SharedLive, per-viewer interaction belongs in browser-side state or in a per-page component, and a change for everyone is a broadcast", s.frag.name, what)
+		s.fragErr = fmt.Errorf("live: the shared <%s> uses %s, which a shared component may not: its state is every viewer's, so it answers no events and holds nothing per viewer; it is changed by ui.Broadcast to its type, per-viewer interaction belongs in browser-side state or in a per-page component, and a change for everyone is a broadcast", s.frag.name, what)
 	}
 }
 
