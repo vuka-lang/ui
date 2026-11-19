@@ -477,7 +477,7 @@ func islandFields(v any) (fields []islandField, funcs []islandEmit, ok bool) {
 	rt := rv.Type()
 	for i := 0; i < rt.NumField(); i++ {
 		f := rt.Field(i)
-		if !f.IsExported() || f.Anonymous && f.Type == liveType {
+		if !f.IsExported() || f.Anonymous && IsLiveType(f.Type) {
 			continue
 		}
 		name, opts, _ := strings.Cut(f.Tag.Get("json"), ",")

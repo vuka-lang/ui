@@ -264,7 +264,7 @@ func encodeCallProps(ctx context.Context, host LiveHost, ch CallHost, probe *pag
 	for i := range t.NumField() {
 		f := t.Field(i)
 		fv := v.Field(i)
-		if !f.IsExported() || f.Type == liveType || fv.IsZero() {
+		if !f.IsExported() || IsLiveType(f.Type) || fv.IsZero() {
 			continue
 		}
 		switch {

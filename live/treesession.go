@@ -9,7 +9,7 @@ import (
 
 // treeUpdates is what a v2 client needs after a render: each instance's
 // whole tree when it holds none, else the change, in render order.
-func (s *Session) treeUpdates() []TreeUpdate {
+func (s *Session) treeUpdates() ([]TreeUpdate, error) {
 	defer func() { s.undiffed = false }()
 	var ups []TreeUpdate
 	for _, in := range s.order() {
@@ -50,7 +50,8 @@ func (s *Session) treeUpdates() []TreeUpdate {
 		in.shadow = shadowFrom(in.shadow, in.tree)
 		ups = append(ups, u)
 	}
-	return ups
+	more, err := s.syncShared()
+	return append(ups, more...), err
 }
 
 // Trim releases what the session can rebuild, for a page sitting idle: each
@@ -157,11 +158,10 @@ func markerTree(s string) *ui.Tree {
 // is the same too.
 func sameProps(to, from ui.Stateful) bool {
 	dst, src := reflect.ValueOf(to).Elem(), reflect.ValueOf(from).Elem()
-	live := reflect.TypeFor[ui.Live]()
 	mto, mfrom := ui.MethodPropsOf(to), ui.MethodPropsOf(from)
 	for i := 0; i < dst.NumField(); i++ {
 		f := dst.Type().Field(i)
-		if !f.IsExported() || f.Type == live || ui.IsFormField(f.Type) || ui.IsDeferred(reflect.TypeOf(to), i) {
+		if !f.IsExported() || ui.IsLiveType(f.Type) || ui.IsFormField(f.Type) || ui.IsDeferred(reflect.TypeOf(to), i) {
 			continue
 		}
 		if f.Type.Kind() == reflect.Func && len(mfrom) > 0 && sameMethod(mto, mfrom, f.Name) {

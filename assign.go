@@ -43,12 +43,11 @@ func stateOf(t reflect.Type) stateFields {
 		return v.(stateFields)
 	}
 	sf := stateFields{tracked: true}
-	live := reflect.TypeFor[Live]()
 	states := reflect.TypeFor[stateOps]()
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		switch {
-		case f.IsExported() || f.Type == live || f.Tag.Get("vuka") == "-":
+		case f.IsExported() || IsLiveType(f.Type) || f.Tag.Get("vuka") == "-":
 		case f.Type.Implements(states), f.Type.Implements(anyStateType):
 			// A ui.State field is the browser's: the server holds its
 			// handle, which a render reads the same way every time.

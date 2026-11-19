@@ -381,8 +381,8 @@ func (l *Loads) start(x reflect.Value, pick func(deferGroup) bool) []*DeferredLo
 		cp := reflect.New(x.Type().Elem())
 		cp.Elem().Set(x.Elem())
 		for i := 0; i < cp.Elem().NumField(); i++ {
-			if f := cp.Type().Elem().Field(i); f.Anonymous && f.Type == liveType {
-				cp.Elem().Field(i).Set(reflect.Zero(liveType))
+			if f := cp.Type().Elem().Field(i); f.Anonymous && IsLiveType(f.Type) {
+				cp.Elem().Field(i).Set(reflect.Zero(f.Type))
 			}
 		}
 		// a stream's copy starts with nothing queued: Apply puts what its

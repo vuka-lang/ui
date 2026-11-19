@@ -111,14 +111,23 @@ type conn struct {
 	strs    map[uint64]int // markup sig → id
 	newIDs  []uint64       // what the encoding under way added, for a rollback
 	newStrs []uint64
+	global  bool  // a shared fragment's: statics ids come from the process-wide table, markup is never kept by reference
+	uses    []int // global: the statics ids the frames encoded use
+	mark    int
 }
 
-func (c *conn) reset() { *c = conn{ids: map[uint64]int{}, strs: map[uint64]int{}} }
+func (c *conn) reset() {
+	*c = conn{ids: map[uint64]int{}, strs: map[uint64]int{}, global: c.global}
+}
 
 // begin starts an entry's encoding; rollback undoes what it allocated.
-func (c *conn) begin() { c.newIDs, c.newStrs = c.newIDs[:0], c.newStrs[:0] }
+func (c *conn) begin() {
+	c.newIDs, c.newStrs = c.newIDs[:0], c.newStrs[:0]
+	c.mark = len(c.uses)
+}
 
 func (c *conn) rollback() {
+	c.uses = c.uses[:c.mark]
 	for _, k := range c.newIDs {
 		delete(c.ids, k)
 	}
@@ -132,6 +141,8 @@ type enc struct {
 	c       *conn
 	b       []byte
 	stream  bool // writing a stream's rows: sent once, never kept by reference
+	inline  bool // global: each frame's statics go with its first frame in the encoding
+	sent    map[int]bool
 	compact bool // stream containers' attributes in their compact form (ExtStream)
 }
 
@@ -192,11 +203,26 @@ func (e *enc) quote(s string) {
 
 // frame writes a whole frame.
 func (e *enc) frame(t *ui.Tree) {
-	id, known := e.c.ids[t.Key]
-	if !known {
-		id = len(e.c.ids)
-		e.c.ids[t.Key] = id
-		e.c.newIDs = append(e.c.newIDs, t.Key)
+	var id int
+	var known bool
+	if e.c.global {
+		id = sharedStatics.intern(t)
+		e.c.uses = append(e.c.uses, id)
+		known = true
+		if e.inline {
+			if e.sent == nil {
+				e.sent = map[int]bool{}
+			}
+			known = e.sent[id]
+			e.sent[id] = true
+		}
+	} else {
+		id, known = e.c.ids[t.Key]
+		if !known {
+			id = len(e.c.ids)
+			e.c.ids[t.Key] = id
+			e.c.newIDs = append(e.c.newIDs, t.Key)
+		}
 	}
 	e.raw(`{"t":`)
 	e.int(id)
@@ -260,7 +286,7 @@ func (e *enc) str(s string) {
 		}
 		return
 	}
-	if len(s) < refMinLen || e.stream || hasStream(s) {
+	if len(s) < refMinLen || e.stream || e.c.global || hasStream(s) {
 		e.quote(s)
 		return
 	}

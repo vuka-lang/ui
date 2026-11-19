@@ -264,7 +264,7 @@ func lookup(form url.Values, name string) []string {
 func callUpdate(ctx context.Context, c ui.Stateful, msg any) (called bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			called, err = true, fmt.Errorf("live: %T's Update panicked: %v", c, r)
+			called, err = true, panicError(r, "live: %T's Update panicked: %v", c)
 		}
 	}()
 	m, err := updateMethod(c, msg)
@@ -338,8 +338,17 @@ func updateMethod(c ui.Stateful, msg any) (reflect.Value, error) {
 func mount(ctx context.Context, c ui.Stateful) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("live: %T's Mount panicked: %v", c, r)
+			err = panicError(r, "live: %T's Mount panicked: %v", c)
 		}
 	}()
 	return ui.MountLive(ctx, c)
+}
+
+// panicError is the error a recovered panic r is: the error of a failed Must
+// as it is, any other as format says, with c and r.
+func panicError(r any, format string, c any) error {
+	if err, ok := ui.Failed(r); ok {
+		return err
+	}
+	return fmt.Errorf(format, c, r)
 }

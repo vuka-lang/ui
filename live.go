@@ -136,6 +136,54 @@ func (l *Live) LoadErr(group string) error {
 
 func (l *Live) vukaLive() *Live { return l }
 
+// SharedLive, embedded in place of Live, makes a component that renders once
+// for every page that shows it (package live, Shared): one instance per
+// process, whose output goes to every viewer. Because everything it renders is
+// every viewer's, a shared component holds nothing of a viewer and answers no
+// event.
+//
+//	type PriceBoard struct {
+//		ui.SharedLive
+//		prices []Price
+//	}
+//
+//	func (b *PriceBoard) Update(ctx context.Context, p Price) { b.prices = upsert(b.prices, p) }
+//
+//	ui.Broadcast[*PriceBoard](ctx, Price{"TZS", 2510}) // anywhere in the app
+//
+// Its changes are broadcasts to its type, delivered to its Update methods as a
+// live component's are, and it is mounted, once per process, by the first page
+// that shows it or the first broadcast to it. It is used as any component,
+// <PriceBoard />, with no props: a prop is the way a page would put something
+// of itself into what every page shows, so a tag with one fails the render.
+// It does not call Subscribe (it fails the mount), and reads no request,
+// session or identity (a read fails the render in development); it has no
+// event handler, form or pushed command (a render error); a stream and a
+// nested shared component are not allowed. Per-viewer interaction is browser
+// state (ui.State, JS commands) or a per-page component that wraps it; a
+// change for everyone is a Broadcast, never an event.
+type SharedLive struct{ Live }
+
+func (*SharedLive) vukaShared() {}
+
+// Subscribe fails: a shared component is reached by Broadcast to its type.
+func (s *SharedLive) Subscribe(topics ...string) {
+	Must(struct{}{}, fmt.Errorf("ui: a shared component does not call Subscribe: change it with ui.Broadcast to its type"))
+}
+
+// IsShared reports whether c embeds SharedLive.
+func IsShared(c Stateful) bool {
+	_, ok := c.(interface{ vukaShared() })
+	return ok
+}
+
+// IsLiveType reports whether t is the type of an embedded Live or SharedLive,
+// the field a stateful component's own bookkeeping lives in, which a tag
+// never sets.
+func IsLiveType(t reflect.Type) bool { return t == liveType || t == sharedType }
+
+var sharedType = reflect.TypeFor[SharedLive]()
+
 // Stateful is a stateful component: a pointer to a struct embedding Live, with
 // a Render method.
 type Stateful interface {
