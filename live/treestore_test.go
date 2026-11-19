@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -494,4 +495,40 @@ func BenchmarkSharedRenderParallel(b *testing.B) {
 			}
 		})
 	})
+}
+
+// A shared fragment's frames and snapshots, and the pages that show it, are
+// the same bytes with trees stored once as without, .
+func TestSharedFragmentsThroughStore(t *testing.T) {
+	defer func(v bool) { live.ShareTrees = v }(live.ShareTrees)
+	run := func(share bool) (out []string) {
+		live.ShareTrees = share
+		set := newSet(true)
+		var pages []*live.Session
+		for range 3 {
+			s := sharedPage(set, &links{}, func() ui.Node {
+				return ui.El("main", nil, ui.Component("b", nil, &PriceBoard{}))
+			})
+			m := s.Handle(live.ClientMessage{Type: live.Join, V: 2})
+			out = append(out, sj(m.Trees))
+			pages = append(pages, s)
+		}
+		f := set.Fragments()[0]
+		for n := 1; n <= 3; n++ {
+			err := f.Publish([]live.Delivery{live.Message(n)}, func(fr live.SharedFrame) {
+				out = append(out, string(fr.Msg), string(fr.Snapshot().Msg))
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, p := range pages {
+			p.Close()
+		}
+		return out
+	}
+	on, off := run(true), run(false)
+	if strings.Join(on, "\n") != strings.Join(off, "\n") {
+		t.Errorf("shared fragments differ with the store:\n%q\n%q", on, off)
+	}
 }
