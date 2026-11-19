@@ -444,4 +444,5 @@ func init() {
 	ui.RegisterPush((*Docs).Older)
 	ui.RegisterPush((*Docs).Newer)
 	ui.RegisterPush((*Docs).Details)
+	ui.RegisterCall(PetEditor{})
 }
