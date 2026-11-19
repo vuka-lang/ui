@@ -125,7 +125,7 @@ var typeDocs = map[string]typeDoc{
 		{Name: "Title", Attr: "title", Type: "Node", Default: "", Doc: "Title is the header's heading; omitted when nil."},
 		{Name: "Footer", Attr: "footer", Type: "Node", Default: "", Doc: "Footer is the footer's content (buttons); omitted when nil."},
 		{Name: "Open", Attr: "open", Type: "bool", Default: "false", Doc: "Open renders a dialog outside a Call open; a Call's shows on its own."},
-		{Name: "Size", Attr: "size", Type: "string", Default: "\"md\"", Doc: "Size is \"sm\", \"\" / \"md\" (default) or \"lg\"."},
+		{Name: "Size", Attr: "size", Type: "string", Default: "\"md\"", Doc: "Size is \"sm\", \"\" / \"md\" (default), \"lg\", \"xl\" (up to 72rem wide) or\n\"full\" (the viewport less a margin, wide and tall: a document's\npreview). Another value is the default."},
 		{Name: "Class", Attr: "class", Type: "string", Default: "", Doc: ""},
 		{Name: "Children", Attr: "children", Type: "Node", Default: "", Doc: ""},
 	}},
