@@ -60,6 +60,7 @@ func (s *Session) stableIDs(in *instance, text string) string {
 // stableTreeIDs renames the random ids in t's dynamics, in the order its
 // HTML has them.
 func (s *Session) stableTreeIDs(in *instance, t *ui.Tree) {
+	mustOwn(&t.Share)
 	for i, d := range t.Dyn {
 		if in.reused(d) {
 			continue // a kept part (ui.Guard) has none

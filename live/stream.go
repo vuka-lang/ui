@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 
@@ -128,7 +129,7 @@ func (s *Session) flushStreams() []StreamBatch {
 			out = append(out, StreamBatch{ID: in.id, Component: typeName(in.typ), StreamBatch: b})
 		}
 		if s.trees {
-			emptyStreams(in.tree, in.shadow)
+			in.emptied(emptyStreams)
 		} else {
 			in.own = ui.FlushedHTML(in.own)
 		}
@@ -136,60 +137,88 @@ func (s *Session) flushStreams() []StreamBatch {
 	return out
 }
 
-// emptyStreams empties the stream blocks of t, and of sh, its shadow, and
-// takes what each batch added off its container's attributes.
-func emptyStreams(t *ui.Tree, sh *sframe) {
+// emptyStreams is t with the stream blocks emptied, and what each batch added
+// taken off its container's attributes: t itself when it holds none, else a
+// copy of the frames down to them. A stored tree is never changed.
+func emptyStreams(t *ui.Tree) *ui.Tree {
 	if t == nil {
-		return
+		return nil
 	}
-	if sh != nil && (sh.key != t.Key || len(sh.d) != len(t.Dyn)) {
-		sh = nil
+	var dyn []any
+	cur := func(i int) any {
+		if dyn != nil {
+			return dyn[i]
+		}
+		return t.Dyn[i]
+	}
+	set := func(i int, v any) {
+		if dyn == nil {
+			dyn = slices.Clone(t.Dyn)
+		}
+		dyn[i] = v
 	}
 	for i, d := range t.Dyn {
-		var sd any
-		if sh != nil {
-			sd = sh.d[i]
-		}
 		switch d := d.(type) {
 		case string:
 			// a container in markup rendered as one piece: a component in
 			// Go, a templ component
 			if f := ui.FlushedHTML(d); f != d {
-				t.Dyn[i] = f
-				if sh != nil {
-					sh.d[i] = shadowDyn(f)
-				}
+				set(i, f)
 			}
 		case *ui.Tree:
-			f, _ := sd.(*sframe)
-			emptyStreams(d, f)
+			if n := emptyStreams(d); n != d {
+				set(i, n)
+			}
 		case *ui.TreeList:
 			if !d.Stream {
-				l, _ := sd.(*slist)
+				var items []*ui.Tree
 				for j, it := range d.Items {
-					var f *sframe
-					if l != nil && j < len(l.items) {
-						f = l.items[j]
+					if n := emptyStreams(it); n != it {
+						if items == nil {
+							items = slices.Clone(d.Items)
+						}
+						items[j] = n
 					}
-					emptyStreams(it, f)
+				}
+				if items != nil {
+					set(i, &ui.TreeList{Items: items, Keys: d.Keys, Temp: d.Temp})
 				}
 				continue
 			}
-			t.Dyn[i] = &ui.TreeList{Stream: true}
-			if sh != nil {
-				sh.d[i] = &slist{}
+			if len(d.Items) > 0 || d.Keys != nil {
+				set(i, &ui.TreeList{Stream: true})
 			}
 			for j := i - 1; j >= 0; j-- {
-				if a, ok := t.Dyn[j].(string); ok && ui.IsStreamAttrs(a) {
-					a = ui.FlushedAttrs(a)
-					t.Dyn[j] = a
-					if sh != nil {
-						sh.d[j] = shadowDyn(a)
-					}
+				if a, ok := cur(j).(string); ok && ui.IsStreamAttrs(a) {
+					set(j, ui.FlushedAttrs(a))
 					break
 				}
 			}
 		}
+	}
+	if dyn == nil {
+		return t
+	}
+	return &ui.Tree{Key: t.Key, Statics: t.Statics, Dyn: dyn}
+}
+
+// emptied makes empty, applied to the instance's tree and to its shadow, their
+// replacements.
+func (in *instance) emptied(empty func(*ui.Tree) *ui.Tree) {
+	t := empty(in.tree)
+	sh := in.shadow
+	switch {
+	case sh == nil:
+	case sh == in.tree:
+		sh = t
+	default:
+		sh = empty(sh)
+	}
+	if t != in.tree {
+		in.setTree(t)
+	}
+	if sh != in.shadow {
+		in.setShadow(sh)
 	}
 }
 

@@ -50,8 +50,9 @@ type Session struct {
 	trees    bool        // a v2 connection: instances render to trees
 	c        conn
 	verify   bool
-	whole    bool     // each instance one dynamic of its HTML: wholeTrees's
-	js       []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
+	whole    bool       // each instance one dynamic of its HTML: wholeTrees's
+	nodes    *treeStore // where its trees are stored once for every session: nil when it doesn't share (ShareTrees at its start)
+	js       []JSPush   // pushed by Render or RenderTrees since JS last drained them, for the join
 	router   Router
 
 	urlDropped  bool                           // finishURL took parameters out of the address: what the render built from it is stale
@@ -149,6 +150,9 @@ func NewSession(ctx context.Context, render func(ctx context.Context) ui.Node) *
 
 func newSession(ctx context.Context, render func(ctx context.Context) ui.Node, idp string) *Session {
 	s := &Session{ctx: ctx, render: render, byID: map[string]*instance{}, verify: Verify, whole: wholeTrees, callNonce: newNonce(), idp: idp}
+	if ShareTrees {
+		s.nodes = &treeNodes
+	}
 	s.root = &instance{s: s, id: idp + RootID, children: map[string]*instance{}}
 	s.byID[s.root.id] = s.root
 	return s
@@ -243,7 +247,8 @@ func (s *Session) Adopt(ctx context.Context, render func(ctx context.Context) ui
 func (s *Session) refresh() {
 	s.trimmed = false
 	for _, in := range s.byID {
-		in.fresh, in.shadow, in.trimmed = true, nil, false
+		in.fresh, in.trimmed = true, false
+		in.setShadow(nil)
 	}
 }
 
@@ -922,8 +927,8 @@ type instance struct {
 	at       string       // its place under the root, the places of its parents and its own
 
 	shared     []*Shared         // the shared fragments its last render shows
-	tree       *ui.Tree          // its last render, on a v2 connection
-	shadow     *sframe           // what the client holds of it; nil: nothing yet
+	tree       *ui.Tree          // its last render, on a v2 connection (treestore.go)
+	shadow     *ui.Tree          // what the client holds of it, a tree of the store; nil: nothing yet
 	trimmed    bool              // its shadow was released: tree is what the client holds (Trim)
 	rendered   bool              // rendered this pass (not skipped)
 	temps      bool              // its renders had a Temporary region (temporary.go)
@@ -1467,6 +1472,10 @@ func (s *Session) keep(in *instance) error {
 // output differs from the last.
 func (s *Session) verifySkip(in *instance) error {
 	own, tree := in.own, in.tree
+	if s.nodes != nil {
+		retainTree(tree)
+		defer s.nodes.release(tree)
+	}
 	if err := s.renderInst(in); err != nil {
 		return err
 	}
@@ -1529,7 +1538,8 @@ func (s *Session) renderInst(in *instance) (err error) {
 			return err
 		}
 		s.stableTreeIDs(in, t)
-		in.tree, in.own = in.splitMarkers(t), "" // an adopted session's HTML render is the tree's now
+		in.setTree(in.splitMarkers(t))
+		in.own = "" // an adopted session's HTML render is the tree's now
 		return nil
 	}
 	var b strings.Builder
@@ -1540,7 +1550,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 	}
 	own := s.stableIDs(in, b.String())
 	if s.trees {
-		in.tree = in.splitMarkers(ui.OpaqueTree(own))
+		in.setTree(in.splitMarkers(ui.OpaqueTree(own)))
 		return nil
 	}
 	in.changed = in.changed || in.fresh || own != in.own // changed stays until settle: renderAll may render twice
@@ -1672,6 +1682,7 @@ func (s *Session) order() []*instance {
 }
 
 func unmount(in *instance) {
+	in.dropTrees()
 	if u, ok := in.comp.(interface{ Unmount() }); ok {
 		u.Unmount()
 	}
