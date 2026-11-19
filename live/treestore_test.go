@@ -498,7 +498,7 @@ func BenchmarkSharedRenderParallel(b *testing.B) {
 }
 
 // A shared fragment's frames and snapshots, and the pages that show it, are
-// the same bytes with trees stored once as without, .
+// the same bytes with trees stored once as without.
 func TestSharedFragmentsThroughStore(t *testing.T) {
 	defer func(v bool) { live.ShareTrees = v }(live.ShareTrees)
 	run := func(share bool) (out []string) {
