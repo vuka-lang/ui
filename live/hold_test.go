@@ -252,3 +252,39 @@ func TestAwaitAnd(t *testing.T) {
 		}
 	}
 }
+
+// A patch that mounts the component afresh keeps the section's content, in
+// its region, while the loader runs again: the timings change none of it.
+func TestAwaitKeepsContentOnPatch(t *testing.T) {
+	var runs atomic.Int32
+	render := func(ctx context.Context) ui.Node {
+		return ui.El("main", nil, ui.Component("card", nil, &slowCard{minShow: time.Second, runs: &runs}))
+	}
+	s := NewSession(context.Background(), render)
+	defer s.Close()
+	if _, err := s.Render(); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range s.Deferred() {
+		d.Run(context.Background())
+		if _, err := s.Loaded(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := s.Navigate(Route{Render: render}, true); err != nil {
+		t.Fatal(err)
+	}
+	got := s.HTML()
+	if strings.Contains(got, "loading") || !strings.Contains(got, `data-vk-await="done"`) || !strings.Contains(got, "<li>a</li>") {
+		t.Fatalf("after the patch:\n%s", got)
+	}
+	for _, d := range s.Deferred() {
+		d.Run(context.Background())
+		if _, err := s.Loaded(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if got := s.HTML(); strings.Contains(got, "loading") || !strings.Contains(got, `data-vk-await="done"`) {
+		t.Fatalf("after the loader ran again:\n%s", got)
+	}
+}
