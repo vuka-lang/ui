@@ -36,7 +36,7 @@ func Props(v any) string {
 	for i := range t.NumField() {
 		f := t.Field(i)
 		ft := f.Type
-		if !f.IsExported() || f.Anonymous && ft == reflect.TypeFor[Live]() || ft.Kind() == reflect.Func || ft.Kind() == reflect.Chan || ft.Implements(node) || ft.Kind() == reflect.Interface && node.Implements(ft) {
+		if !f.IsExported() || f.Anonymous && IsLiveType(ft) || ft.Kind() == reflect.Func || ft.Kind() == reflect.Chan || ft.Implements(node) || ft.Kind() == reflect.Interface && node.Implements(ft) {
 			continue
 		}
 		name, opts, _ := strings.Cut(f.Tag.Get("json"), ",")

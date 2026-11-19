@@ -85,7 +85,7 @@ func islandFieldsFor(t reflect.Type) ([]IslandField, error) {
 			hasBind = false
 		}
 		name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
-		prop := f.IsExported() && !(f.Anonymous && f.Type == liveType) && name != "-" &&
+		prop := f.IsExported() && !(f.Anonymous && IsLiveType(f.Type)) && name != "-" &&
 			f.Type != nodeType && !(f.Type.Kind() == reflect.Interface && f.Type.Implements(nodeType)) &&
 			f.Type.Kind() != reflect.Func && !f.Type.Implements(jsChainType) && !f.Type.Implements(anyStateType)
 		if !prop {

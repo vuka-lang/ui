@@ -73,6 +73,13 @@ type Session struct {
 	callSeq   int         // the server's opens so far (ui.Call), naming them
 
 	reloads []regionReload // the regions handlers asked to render again (ui.Live.Reload)
+
+	idp      string      // the prefix of its instances' ids: "" for a page's, "s1." for a shared fragment's
+	frag     *Shared     // the fragment this session renders, nil for a page's
+	fragErr  error       // what a fragment's render did that a fragment may not
+	shared   *SharedSet  // the fragments pages may show
+	links    SharedLinks // where the page attaches to the fragments it shows
+	attached []*Shared   // the fragments the browser holds for this page
 }
 
 // regionReload is a region a handler asked to render again in its reply:
@@ -137,9 +144,13 @@ const RootID = "c0"
 // NewSession is a session rendering the page render returns. ctx is the
 // context of Mount, handlers and Update methods, and of every render.
 func NewSession(ctx context.Context, render func(ctx context.Context) ui.Node) *Session {
-	s := &Session{ctx: ctx, render: render, byID: map[string]*instance{}, verify: Verify, whole: wholeTrees, callNonce: newNonce()}
-	s.root = &instance{s: s, id: RootID, children: map[string]*instance{}}
-	s.byID[RootID] = s.root
+	return newSession(ctx, render, "")
+}
+
+func newSession(ctx context.Context, render func(ctx context.Context) ui.Node, idp string) *Session {
+	s := &Session{ctx: ctx, render: render, byID: map[string]*instance{}, verify: Verify, whole: wholeTrees, callNonce: newNonce(), idp: idp}
+	s.root = &instance{s: s, id: idp + RootID, children: map[string]*instance{}}
+	s.byID[s.root.id] = s.root
 	return s
 }
 
@@ -174,6 +185,7 @@ func (s *Session) RenderTrees() ([]TreeUpdate, error) {
 	defer s.mu.Unlock()
 	s.trees = true
 	s.c.reset()
+	s.detachAll()
 	s.refresh()
 	if err := s.renderAll(); err != nil {
 		return nil, err
@@ -184,7 +196,10 @@ func (s *Session) RenderTrees() ([]TreeUpdate, error) {
 		return nil, err
 	}
 	s.js = append(s.js, js...)
-	ups := s.treeUpdates()
+	ups, err := s.treeUpdates()
+	if err != nil {
+		return nil, err
+	}
 	s.flushTemps()
 	s.settle()
 	s.flushStreams()
@@ -427,6 +442,8 @@ func (s *Session) noHandler(target string) error {
 	keyed := strings.IndexByte(n, ':') >= 0
 	const gone = "its last render has none under that key (the item is gone, or its handlers changed)"
 	switch {
+	case in == nil && isSharedID(id):
+		return &SharedEventError{Target: target}
 	case in == nil:
 		e.reason = fmt.Sprintf("no component %s is mounted (it was unmounted, or the page navigated)", id)
 		return e
@@ -531,22 +548,41 @@ func pushable(c ui.Stateful, name string) any {
 	return m.Interface()
 }
 
+// Delivery is a message for the instances subscribed to Topic ("" for all).
+type Delivery struct {
+	Topic string
+	Msg   any
+}
+
 // Info delivers msg to the Update method fitting its type of every instance
 // subscribed to topic (of every instance, for ""), renders the page again if
 // any took it, and returns what changed. An Update's error is the patch's Error.
 func (s *Session) Info(topic string, msg any) (Patch, error) {
+	return s.InfoBatch([]Delivery{{topic, msg}})
+}
+
+// InfoBatch delivers each of ds, in order, as Info does, and renders the page
+// once for all of them: the Update methods see every message and see them in
+// the order given, and one patch says what the batch changed. The instances
+// that take a message are those mounted when the batch begins, so a component
+// the batch's render mounts hears of none of its messages, and one it
+// unmounts hears them all.
+func (s *Session) InfoBatch(ds []Delivery) (Patch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var herr error
 	called := false
 	ctx, edit := s.beginURL(s.ctx)
-	for _, in := range s.order() {
-		if in.comp == nil || topic != "" && !slices.Contains(in.topics, topic) {
-			continue
+	order := s.order()
+	for _, d := range ds {
+		for _, in := range order {
+			if in.comp == nil || d.Topic != "" && !slices.Contains(in.topics, d.Topic) {
+				continue
+			}
+			ok, err := callUpdate(ctx, in.comp, d.Msg)
+			called = called || ok
+			herr = errors.Join(herr, err)
 		}
-		ok, err := callUpdate(ctx, in.comp, msg)
-		called = called || ok
-		herr = errors.Join(herr, err)
 	}
 	if !called {
 		return Patch{}, herr
@@ -794,7 +830,7 @@ func (s *Session) navigateTo(rt Route, patch bool) (Patch, error) {
 			unmount(in)
 		}
 		s.calls = nil
-		s.byID = map[string]*instance{RootID: s.root}
+		s.byID = map[string]*instance{s.root.id: s.root}
 		s.root.children, s.root.kids = map[string]*instance{}, nil
 	}
 	if whole {
@@ -816,7 +852,7 @@ func (s *Session) navigateTo(rt Route, patch bool) (Patch, error) {
 			unmount(in)
 		}
 		s.calls = nil
-		s.byID = map[string]*instance{RootID: s.root}
+		s.byID = map[string]*instance{s.root.id: s.root}
 		s.root.children, s.root.kids, s.root.handlers, s.root.keyed = map[string]*instance{}, nil, nil, nil
 		return Patch{}, err
 	}
@@ -849,6 +885,7 @@ func (s *Session) close() {
 		unmount(in)
 	}
 	s.byID, s.loading, s.closed = map[string]*instance{}, nil, true
+	s.detachAll()
 }
 
 // instance is a stateful component in the session, or the page itself (comp nil).
@@ -884,6 +921,7 @@ type instance struct {
 	urlKey   string       // its tag's urlKey
 	at       string       // its place under the root, the places of its parents and its own
 
+	shared     []*Shared         // the shared fragments its last render shows
 	tree       *ui.Tree          // its last render, on a v2 connection
 	shadow     *sframe           // what the client holds of it; nil: nothing yet
 	trimmed    bool              // its shadow was released: tree is what the client holds (Trim)
@@ -912,6 +950,10 @@ type instance struct {
 func (in *instance) ID() string { return in.id }
 
 func (in *instance) Subscribe(topics ...string) {
+	if in.s.frag != nil {
+		in.s.refuseShared("Subscribe")
+		return
+	}
 	for _, t := range topics {
 		if !slices.Contains(in.topics, t) {
 			in.topics = append(in.topics, t)
@@ -919,9 +961,19 @@ func (in *instance) Subscribe(topics ...string) {
 	}
 }
 
-func (in *instance) PushJS(c ui.Commands) { in.js = append(in.js, c) }
+func (in *instance) PushJS(c ui.Commands) {
+	if in.s.frag != nil {
+		in.s.refuseShared("PushJS")
+		return
+	}
+	in.js = append(in.js, c)
+}
 
 func (in *instance) Reload(sel string) {
+	if in.s.frag != nil {
+		in.s.refuseShared("Reload")
+		return
+	}
 	in.s.reloads = append(in.s.reloads, regionReload{in, sel})
 }
 
@@ -1009,6 +1061,10 @@ func (sc *scope) Form(id string, submit any) {
 	if sc.push {
 		return
 	}
+	if sc.in.s.frag != nil {
+		sc.in.s.refuseShared("a form")
+		return
+	}
 	if sc.in.forms == nil {
 		sc.in.forms = map[string]any{}
 	}
@@ -1039,6 +1095,10 @@ func (sc *scope) ClaimForm(identity string, form uintptr) bool {
 // item or nothing. Elsewhere it is its number among the render's handlers
 // outside any key ("c1:7").
 func (sc *scope) Handler(_ context.Context, fn any) string {
+	if sc.in.s.frag != nil {
+		sc.in.s.refuseShared("an event handler")
+		return ""
+	}
 	if sc.push {
 		sc.in.effects++
 		return sc.in.pushHandler(fn)
@@ -1123,6 +1183,18 @@ func keyText(k any) string { return ui.KeyText(k) }
 // a new one, mounted, with the tag's props; its HTML is a marker the
 // session replaces.
 func (sc *scope) Component(ctx context.Context, n *ui.ComponentNode, w io.Writer) error {
+	if sc.sharedTag(n) {
+		sh, err := sc.sharedFragment(n)
+		if err != nil {
+			return err
+		}
+		if sc.in.s.trees {
+			_, err = io.WriteString(w, marker(sh.RootID()))
+		} else {
+			_, err = io.WriteString(w, sh.HTML())
+		}
+		return err
+	}
 	in, err := sc.place(n)
 	if in == nil || err != nil {
 		return err
@@ -1134,6 +1206,13 @@ func (sc *scope) Component(ctx context.Context, n *ui.ComponentNode, w io.Writer
 // ComponentRef renders a stateful component's tag in a render tree: its
 // instance's id.
 func (sc *scope) ComponentRef(ctx context.Context, n *ui.ComponentNode) (string, error) {
+	if sc.sharedTag(n) {
+		sh, err := sc.sharedFragment(n)
+		if err != nil {
+			return "", err
+		}
+		return sh.RootID(), nil
+	}
 	in, err := sc.place(n)
 	if in == nil || err != nil {
 		return "", err
@@ -1194,7 +1273,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		if err := ui.CheckStateful(n.Props); err != nil {
 			return nil, err
 		}
-		in = &instance{s: s, id: "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true, at: at}
+		in = &instance{s: s, id: s.idp + "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true, at: at}
 		ui.AttachLive(in.comp, in)
 		in.trackMethods(n.Props)
 		s.fillURL(in, n)
@@ -1261,9 +1340,8 @@ func marker(id string) string { return "\x00vk:" + id + "\x00" }
 // (ui.IsDeferred), which its loader sets.
 func copyProps(to, from ui.Stateful) {
 	dst, src := reflect.ValueOf(to).Elem(), reflect.ValueOf(from).Elem()
-	live := reflect.TypeFor[ui.Live]()
 	for i := 0; i < dst.NumField(); i++ {
-		if f := dst.Type().Field(i); f.IsExported() && f.Type != live && !ui.IsFormField(f.Type) && !ui.IsDeferred(reflect.TypeOf(to), i) {
+		if f := dst.Type().Field(i); f.IsExported() && !ui.IsLiveType(f.Type) && !ui.IsFormField(f.Type) && !ui.IsDeferred(reflect.TypeOf(to), i) {
 			dst.Field(i).Set(src.Field(i))
 		}
 	}
@@ -1313,6 +1391,9 @@ func (s *Session) renderAll() error {
 			return err
 		}
 		s.sweep()
+	}
+	if s.frag != nil {
+		return s.checkFragment()
 	}
 	return nil
 }
@@ -1399,6 +1480,7 @@ func (s *Session) renderInst(in *instance) (err error) {
 	defer ui.Catch(&err) // a (T, error) call in its markup failing
 	in.seen, in.rendered, in.idn = s.pass, true, 0
 	in.handlers, in.kids, in.occ = in.handlers[:0], in.kids[:0], map[string]int{}
+	in.shared = in.shared[:0]
 	in.renders++
 	in.keyLog = in.keyLog[:0]
 	clear(in.guardN)
@@ -1545,7 +1627,9 @@ func (s *Session) patch() (Patch, error) {
 	p := Patch{JS: js}
 	s.streamChecks()
 	if s.trees {
-		p.Trees = s.treeUpdates()
+		if p.Trees, err = s.treeUpdates(); err != nil {
+			return Patch{}, err
+		}
 		s.flushTemps()
 		s.settle()
 		p.Streams = s.flushStreams()
