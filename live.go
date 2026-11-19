@@ -162,6 +162,9 @@ func (l *Live) vukaLive() *Live { return l }
 // nested shared component are not allowed. Per-viewer interaction is browser
 // state (ui.State, JS commands) or a per-page component that wraps it; a
 // change for everyone is a Broadcast, never an event.
+//
+// Experimental: kept pending a comparison with automatic shared HTML, and may
+// be removed.
 type SharedLive struct{ Live }
 
 func (*SharedLive) vukaShared() {}

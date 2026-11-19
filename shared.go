@@ -99,6 +99,8 @@ func WithSharedBroadcaster(ctx context.Context, b SharedBroadcaster) context.Con
 //	ui.Broadcast[*PriceBoard](ctx, Price{"TZS", 2510})
 //
 // ctx is a request's or a live event's.
+//
+// Experimental, with SharedLive.
 func Broadcast[T SharedComponent](ctx context.Context, msg any) error {
 	typ := reflect.TypeFor[T]()
 	b, _ := ctx.Value(broadcasterKey{}).(SharedBroadcaster)
