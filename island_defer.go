@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/vuka-lang/vuka/v2/diag"
@@ -162,7 +163,8 @@ type Loads struct {
 	started map[string]bool
 	done    map[string]bool
 	errs    map[string]*IslandError
-	causes  map[string]error // the loaders' errors, as they returned them
+	causes  map[string]error         // the loaders' errors, as they returned them
+	waits   map[string]time.Duration // how long a render holds for a group (Await.Wait)
 }
 
 func newLoads() *Loads {
@@ -273,10 +275,26 @@ type DeferredLoad struct {
 	page  reflect.Value
 	copy  reflect.Value
 	err   error
+	wait  time.Duration
+	begun sync.Once
+	fin   chan struct{}
 }
 
-// Run runs the group's loader with ctx; a ctx done first is its error.
+// Run runs the group's loader with ctx; a ctx done first is its error. A
+// load runs once: a second Run, while the first runs or after it, waits
+// for it and returns what it returned.
 func (d *DeferredLoad) Run(ctx context.Context) error {
+	first := false
+	d.begun.Do(func() { first = true })
+	if !first {
+		select {
+		case <-d.fin:
+			return d.err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	defer close(d.fin)
 	if err := ctx.Err(); err != nil {
 		d.err = err
 		return err
@@ -361,6 +379,13 @@ next:
 // Err is what Run returned.
 func (d *DeferredLoad) Err() error { return d.err }
 
+// Done is closed when the load has run.
+func (d *DeferredLoad) Done() <-chan struct{} { return d.fin }
+
+// Wait is how long a render holds for the load: the Wait of the Await that
+// reads its group, 0 when none does.
+func (d *DeferredLoad) Wait() time.Duration { return d.wait }
+
 // Start starts the deferred groups of x (a pointer to an island's struct)
 // not started yet: each a DeferredLoad on its own copy of x, taken now.
 func (l *Loads) Start(x reflect.Value) []*DeferredLoad {
@@ -389,9 +414,19 @@ func (l *Loads) start(x reflect.Value, pick func(deferGroup) bool) []*DeferredLo
 		// loader queues before what the page queues meanwhile
 		streamsOf(x, func(_ string, s streamer) { s.deferStart() })
 		streamsOf(cp, func(_ string, s streamer) { s.deferCopy() })
-		out = append(out, &DeferredLoad{Group: g.name, l: l, g: g, page: x, copy: cp})
+		out = append(out, &DeferredLoad{Group: g.name, l: l, g: g, page: x, copy: cp, fin: make(chan struct{})})
 	}
 	return out
+}
+
+// noteWait records that a render of the group's Await holds for it up to d.
+func (l *Loads) noteWait(group string, d time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.waits == nil {
+		l.waits = map[string]time.Duration{}
+	}
+	l.waits[groupName(group)] = max(l.waits[groupName(group)], d)
 }
 
 // Load runs the deferred groups of x not loaded yet, concurrently, and
@@ -414,6 +449,23 @@ func (l *Loads) Load(ctx context.Context, x reflect.Value, text func(error) stri
 // live runs each once the page joins, and applies it where its events run.
 func StartDeferred(c Stateful) []*DeferredLoad {
 	return startDeferred(c, func(g deferGroup) bool { return !g.seen })
+}
+
+// StartWaited starts the deferred groups of c that an Await asked a render
+// to wait for (Await.Wait), not started yet and not loading when seen; each
+// load's Wait says how long.
+func StartWaited(c Stateful) []*DeferredLoad {
+	l := c.vukaLive().loads
+	if l == nil {
+		return nil
+	}
+	ds := startDeferred(c, func(g deferGroup) bool { return !g.seen && l.waits[g.name] > 0 })
+	for _, d := range ds {
+		l.mu.Lock()
+		d.wait = l.waits[d.g.name]
+		l.mu.Unlock()
+	}
+	return ds
 }
 
 // StartSeen starts the groups of c loading when seen (Defer.WhenSeen) that

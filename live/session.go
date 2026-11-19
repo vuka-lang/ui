@@ -59,6 +59,8 @@ type Session struct {
 	afterRender []func()                       // what the patch under way does once it rendered, before it collects the commands pushed
 	prior       map[string]*instance           // during a patch, the instances it replaces, by place: they hand a new one what they loaded
 	loading     map[*ui.DeferredLoad]*instance // the deferred loads Deferred started, by the instance they load
+	held        []*ui.DeferredLoad             // loads a render held for that were still running: Deferred hands them over
+	stops       []context.CancelFunc           // what ends the loads a render held for (Close)
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
 	uerr    error               // what their Update methods returned
@@ -168,6 +170,12 @@ func (s *Session) Render() (string, error) {
 	if err := s.renderAll(); err != nil {
 		return "", err
 	}
+	if s.holdRender() {
+		s.refresh()
+		if err := s.renderAll(); err != nil {
+			return "", err
+		}
+	}
 	s.reloads = nil // a mount's Reload: the whole page rendered
 	js, err := s.pushed()
 	if err != nil {
@@ -193,6 +201,12 @@ func (s *Session) RenderTrees() ([]TreeUpdate, error) {
 	s.refresh()
 	if err := s.renderAll(); err != nil {
 		return nil, err
+	}
+	if s.holdRender() {
+		s.refresh()
+		if err := s.renderAll(); err != nil {
+			return nil, err
+		}
 	}
 	s.reloads = nil // a mount's Reload: the whole page rendered
 	js, err := s.pushed()
@@ -621,6 +635,12 @@ func (s *Session) DeferredSeen(groups []string) []*ui.DeferredLoad {
 func (s *Session) deferred(start func(ui.Stateful) []*ui.DeferredLoad) []*ui.DeferredLoad {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.deferredLocked(start, true)
+}
+
+// deferredLocked is deferred with the session locked; handOver adds the
+// loads a render held for that are still running.
+func (s *Session) deferredLocked(start func(ui.Stateful) []*ui.DeferredLoad, handOver bool) []*ui.DeferredLoad {
 	if s.closed {
 		return nil // what it held is unmounted, or another session's now
 	}
@@ -630,6 +650,14 @@ func (s *Session) deferred(start func(ui.Stateful) []*ui.DeferredLoad) []*ui.Def
 		}
 	}
 	var out []*ui.DeferredLoad
+	if handOver {
+		for _, d := range s.held {
+			if _, ok := s.loading[d]; ok {
+				out = append(out, d)
+			}
+		}
+		s.held = nil
+	}
 	for _, in := range s.order() {
 		if in.comp == nil {
 			continue
@@ -889,7 +917,11 @@ func (s *Session) close() {
 	for _, in := range s.byID {
 		unmount(in)
 	}
-	s.byID, s.loading, s.closed = map[string]*instance{}, nil, true
+	s.byID, s.loading, s.held, s.closed = map[string]*instance{}, nil, nil, true
+	for _, stop := range s.stops {
+		stop()
+	}
+	s.stops = nil
 	s.detachAll()
 }
 

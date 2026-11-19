@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/vuka-lang/vuka/v2/diag"
 )
@@ -135,6 +136,13 @@ func (l *Live) LoadErr(group string) error {
 }
 
 func (l *Live) vukaLive() *Live { return l }
+
+// holdFor records that a render holds up to d for the group's loader.
+func (l *Live) holdFor(group string, d time.Duration) {
+	if l.loads != nil {
+		l.loads.noteWait(group, d)
+	}
+}
 
 // SharedLive, embedded in place of Live, makes a component that renders once
 // for every page that shows it (package live, Shared): one instance per
