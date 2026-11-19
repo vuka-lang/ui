@@ -531,22 +531,41 @@ func pushable(c ui.Stateful, name string) any {
 	return m.Interface()
 }
 
+// Delivery is a message for the instances subscribed to Topic ("" for all).
+type Delivery struct {
+	Topic string
+	Msg   any
+}
+
 // Info delivers msg to the Update method fitting its type of every instance
 // subscribed to topic (of every instance, for ""), renders the page again if
 // any took it, and returns what changed. An Update's error is the patch's Error.
 func (s *Session) Info(topic string, msg any) (Patch, error) {
+	return s.InfoBatch([]Delivery{{topic, msg}})
+}
+
+// InfoBatch delivers each of ds, in order, as Info does, and renders the page
+// once for all of them: the Update methods see every message and see them in
+// the order given, and one patch says what the batch changed. The instances
+// that take a message are those mounted when the batch begins, so a component
+// the batch's render mounts hears of none of its messages, and one it
+// unmounts hears them all.
+func (s *Session) InfoBatch(ds []Delivery) (Patch, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var herr error
 	called := false
 	ctx, edit := s.beginURL(s.ctx)
-	for _, in := range s.order() {
-		if in.comp == nil || topic != "" && !slices.Contains(in.topics, topic) {
-			continue
+	order := s.order()
+	for _, d := range ds {
+		for _, in := range order {
+			if in.comp == nil || d.Topic != "" && !slices.Contains(in.topics, d.Topic) {
+				continue
+			}
+			ok, err := callUpdate(ctx, in.comp, d.Msg)
+			called = called || ok
+			herr = errors.Join(herr, err)
 		}
-		ok, err := callUpdate(ctx, in.comp, msg)
-		called = called || ok
-		herr = errors.Join(herr, err)
 	}
 	if !called {
 		return Patch{}, herr
