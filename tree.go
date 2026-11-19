@@ -23,6 +23,16 @@ type Tree struct {
 	Key     uint64
 	Statics []string
 	Dyn     []any
+	Share   Share
+}
+
+// Share is what the live runtime keeps in a tree it stores once for every
+// session that renders it: the hash of its content and the number of holders
+// (sessions and stored trees containing it). A tree with no holders is not
+// stored. The runtime owns it; a stored tree is never changed.
+type Share struct {
+	Hash uint64
+	Refs int32
 }
 
 // TreeList is a {for}, {if} or {match} block's items, a frame per iteration
@@ -39,7 +49,8 @@ type TreeList struct {
 	// when Temp — what the region shows (TemporaryProps.Of) — isn't what it
 	// last sent at the same place, and empties once the reply carrying it
 	// is written, keeping only Temp.
-	Temp string
+	Temp  string
+	Share Share
 }
 
 // TreeRef is a stateful component instance in a render tree: its id.

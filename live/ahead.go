@@ -159,12 +159,14 @@ func (f *aheadTake) move(a *instance, ap aheadPlace, place string) {
 			live.loading[d] = a
 		}
 	}
+	a.dropTrees()
+	a.guards = nil // its kept parts were nodes of the tree it dropped
 	live.next++
 	a.s, a.id = live, "c"+strconv.Itoa(live.next)
 	f.at[a] = aheadPlace{a, a.children}
 	a.children, a.kids = map[string]*instance{}, nil
 	a.seen, a.fresh, a.changed, a.rendered, a.set = 0, true, false, false, false
-	a.own, a.tree, a.shadow, a.trimmed = "", nil, nil, false
+	a.own = ""
 	a.handlers, a.keyed, a.forms, a.claimed, a.acts = nil, nil, nil, nil, nil
 	a.pushes, a.pushIDs, a.pushSeq = nil, nil, 0
 	a.dups, a.pageKeys = keyDups{}, 0

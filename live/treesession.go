@@ -20,10 +20,11 @@ func (s *Session) treeUpdates() ([]TreeUpdate, error) {
 		s.c.begin()
 		u := TreeUpdate{ID: in.id}
 		switch {
-		case in.shadow == nil || in.shadow.key != in.tree.Key:
+		case in.shadow == nil || in.shadow.Key != in.tree.Key:
 			u.Full = true
 			e.frame(in.tree)
 		case !e.frameChange(in.shadow, in.tree):
+			in.setShadow(in.tree)
 			continue
 		case len(e.b) > fallbackAt && !in.temps && !hasRefs(in.tree):
 			// (not for an instance with a Temporary region: the HTML would
@@ -41,23 +42,25 @@ func (s *Session) treeUpdates() ([]TreeUpdate, error) {
 					e.frame(in.tree)
 					break
 				}
-				in.shadow = nil
+				in.setShadow(nil)
 				ups = append(ups, TreeUpdate{ID: in.id, HTML: b.String()})
 				continue
 			}
 		}
 		u.Tree = e.b
-		in.shadow = shadowFrom(in.shadow, in.tree)
+		in.setShadow(in.tree)
 		ups = append(ups, u)
 	}
 	more, err := s.syncShared()
 	return append(ups, more...), err
 }
 
-// Trim releases what the session can rebuild, for a page sitting idle: each
-// instance's shadow, which its next render makes again from its last tree. It
-// changes no reply. It does nothing to a session whose last render failed, whose
-// trees aren't what the client holds.
+// Trim releases what the session can rebuild, for a page sitting idle: a
+// shadow that holds memory of its own, which its next render makes again from
+// its last tree. The shadow is the tree the client holds, stored with the
+// session's own, so there is rarely one: it frees nothing for a page whose
+// tree the client holds. It changes no reply. It does nothing to a session
+// whose last render failed, whose trees aren't what the client holds.
 func (s *Session) Trim() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -65,15 +68,16 @@ func (s *Session) Trim() {
 		return
 	}
 	for _, in := range s.byID {
-		if in.shadow != nil {
-			in.shadow, in.trimmed = nil, true
+		if in.shadow != nil && in.shadow != in.tree {
+			in.setShadow(nil)
+			in.trimmed = true
 			s.trimmed = true
 		}
 	}
 }
 
-// untrim rebuilds the shadows Trim released, before a render replaces the trees
-// they are made from.
+// untrim makes again the shadows Trim released, before a render replaces the
+// trees they are made from.
 func (s *Session) untrim() {
 	if !s.trimmed {
 		return
@@ -81,7 +85,8 @@ func (s *Session) untrim() {
 	s.trimmed = false
 	for _, in := range s.byID {
 		if in.trimmed {
-			in.shadow, in.trimmed = shadow(in.tree), false
+			in.setShadow(in.tree)
+			in.trimmed = false
 		}
 	}
 }
@@ -114,6 +119,7 @@ func (in *instance) treeHTML(b *strings.Builder) {
 // rendering a stateful component) into frames of the markup around
 // references to them.
 func (in *instance) splitMarkers(t *ui.Tree) *ui.Tree {
+	mustOwn(&t.Share)
 	for i, d := range t.Dyn {
 		if in.reused(d) {
 			continue // a kept part (ui.Guard) has none

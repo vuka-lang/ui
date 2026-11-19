@@ -1,6 +1,10 @@
 package live
 
-import "github.com/vuka-lang/ui/v2"
+import (
+	"slices"
+
+	"github.com/vuka-lang/ui/v2"
+)
 
 // Temporary regions (ui.Temporary): the browser keeps a region's content
 // and the session forgets it. Each render builds it, marked with what it
@@ -21,48 +25,53 @@ func (s *Session) flushTemps() {
 	}
 	for _, in := range s.byID {
 		if in.temps {
-			emptyTemps(in.tree, in.shadow)
+			in.emptied(emptyTemps)
 		}
 	}
 }
 
-// emptyTemps empties the Temporary regions of t, and of sh, its shadow.
-func emptyTemps(t *ui.Tree, sh *sframe) {
+// emptyTemps is t with the Temporary regions emptied: t itself when it holds
+// none with content, else a copy of the frames down to them.
+func emptyTemps(t *ui.Tree) *ui.Tree {
 	if t == nil {
-		return
+		return nil
 	}
-	if sh != nil && (sh.key != t.Key || len(sh.d) != len(t.Dyn)) {
-		sh = nil
+	var dyn []any
+	set := func(i int, v any) {
+		if dyn == nil {
+			dyn = slices.Clone(t.Dyn)
+		}
+		dyn[i] = v
 	}
 	for i, d := range t.Dyn {
-		var sd any
-		if sh != nil {
-			sd = sh.d[i]
-		}
 		switch d := d.(type) {
 		case *ui.Tree:
-			f, _ := sd.(*sframe)
-			emptyTemps(d, f)
+			if n := emptyTemps(d); n != d {
+				set(i, n)
+			}
 		case *ui.TreeList:
 			if d.Temp != "" {
 				if len(d.Items) > 0 {
-					t.Dyn[i] = &ui.TreeList{Temp: d.Temp}
-				}
-				if sh != nil {
-					if l, ok := sd.(*slist); !ok || l.temp != d.Temp || len(l.items) > 0 {
-						sh.d[i] = &slist{temp: d.Temp}
-					}
+					set(i, &ui.TreeList{Temp: d.Temp})
 				}
 				continue
 			}
-			l, _ := sd.(*slist)
+			var items []*ui.Tree
 			for j, it := range d.Items {
-				var f *sframe
-				if l != nil && j < len(l.items) {
-					f = l.items[j]
+				if n := emptyTemps(it); n != it {
+					if items == nil {
+						items = slices.Clone(d.Items)
+					}
+					items[j] = n
 				}
-				emptyTemps(it, f)
+			}
+			if items != nil {
+				set(i, &ui.TreeList{Items: items, Keys: d.Keys, Stream: d.Stream})
 			}
 		}
 	}
+	if dyn == nil {
+		return t
+	}
+	return &ui.Tree{Key: t.Key, Statics: t.Statics, Dyn: dyn}
 }

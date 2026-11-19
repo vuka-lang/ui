@@ -23,86 +23,9 @@ const (
 	fallbackAt = 256  // changes this long are compared with the instance's HTML
 )
 
-type sframe struct {
-	key uint64
-	d   []any    // sstr, *sframe, *slist, ui.TreeRef
-	src *ui.Tree // the frame it was made of: a kept part's (ui.Guard) is the next render's too
-}
-
-type sstr struct {
-	h    uint64
-	long string
-}
-
-type slist struct {
-	items []*sframe
-	keys  []string
-	temp  string // a Temporary region's ui.TreeList.Temp
-	src   *ui.TreeList
-}
-
 var seed = maphash.MakeSeed()
 
 func sig(s string) uint64 { return maphash.String(seed, s) }
-
-var emptyShadow = sstr{h: sig("")}
-
-// shadow is what a connection keeps of t once the client holds it.
-func shadow(t *ui.Tree) *sframe { return shadowFrom(nil, t) }
-
-// shadowFrom is shadow(t), taking from old, the shadow of the tree t replaces,
-// what it kept of the frames t has too: the parts the render kept (ui.Guard).
-func shadowFrom(old *sframe, t *ui.Tree) *sframe {
-	if old != nil && old.src == t {
-		return old
-	}
-	f := &sframe{key: t.Key, d: make([]any, len(t.Dyn)), src: t}
-	if old != nil && (old.key != t.Key || len(old.d) != len(t.Dyn)) {
-		old = nil
-	}
-	for i, d := range t.Dyn {
-		var o any
-		if old != nil {
-			o = old.d[i]
-		}
-		f.d[i] = shadowDynFrom(o, d)
-	}
-	return f
-}
-
-func shadowDyn(d any) any { return shadowDynFrom(nil, d) }
-
-func shadowDynFrom(old, d any) any {
-	switch d := d.(type) {
-	case *ui.Tree:
-		o, _ := old.(*sframe)
-		return shadowFrom(o, d)
-	case *ui.TreeList:
-		if o, ok := old.(*slist); ok && o.src == d {
-			return o
-		}
-	}
-	switch d := d.(type) {
-	case string:
-		if d == "" {
-			return emptyShadow
-		}
-		s := sstr{h: sig(d)}
-		if len(d) >= longMarkup {
-			s.long = d
-		}
-		return s
-	case *ui.Tree:
-		return shadow(d)
-	case *ui.TreeList:
-		l := &slist{items: make([]*sframe, len(d.Items)), keys: d.Keys, temp: d.Temp, src: d}
-		for i, it := range d.Items {
-			l.items[i] = shadow(it)
-		}
-		return l
-	}
-	return d
-}
 
 // conn is a v2 connection's state beyond the shadows: the statics and the
 // long markup the client holds, by id.
@@ -313,7 +236,7 @@ func (e *enc) str(s string) {
 
 // frameChange writes {"u":{…}}, the change from a to b (frames with the same
 // statics), and reports whether there is one; if not it writes nothing.
-func (e *enc) frameChange(a *sframe, b *ui.Tree) bool {
+func (e *enc) frameChange(a, b *ui.Tree) bool {
 	start := len(e.b)
 	e.raw(`{"u":`)
 	if !e.changes(a, b) {
@@ -325,7 +248,7 @@ func (e *enc) frameChange(a *sframe, b *ui.Tree) bool {
 }
 
 // changes writes the map of b's changed dynamics, {"i":change,…}.
-func (e *enc) changes(a *sframe, b *ui.Tree) bool {
+func (e *enc) changes(a, b *ui.Tree) bool {
 	start := len(e.b)
 	e.raw("{")
 	n := 0
@@ -337,7 +260,7 @@ func (e *enc) changes(a *sframe, b *ui.Tree) bool {
 		e.raw(`"`)
 		e.int(i)
 		e.raw(`":`)
-		if e.dynChange(a.d[i], d) {
+		if e.dynChange(a.Dyn[i], d) {
 			n++
 		} else {
 			e.b = e.b[:at]
@@ -351,31 +274,31 @@ func (e *enc) changes(a *sframe, b *ui.Tree) bool {
 	return true
 }
 
-// dynChange writes the change from a dynamic's shadow a to b, if any.
+// dynChange writes the change from a dynamic a the client holds to b, if any.
 func (e *enc) dynChange(a, b any) bool {
 	switch b := b.(type) {
 	case string:
-		old, ok := a.(sstr)
-		if ok && old.h == sig(b) {
+		old, ok := a.(string)
+		if ok && old == b {
 			return false
 		}
-		if ok && old.long != "" && len(b) >= longMarkup && !ui.IsStreamAttrs(b) {
-			if e.tokenPatch(old.long, b) {
+		if ok && len(old) >= longMarkup && len(b) >= longMarkup && !ui.IsStreamAttrs(b) {
+			if e.tokenPatch(old, b) {
 				return true
 			}
 		}
 		e.str(b)
 	case *ui.Tree:
-		if old, ok := a.(*sframe); ok && old.key == b.Key {
-			if old.src == b {
+		if old, ok := a.(*ui.Tree); ok && old.Key == b.Key {
+			if old == b {
 				return false
 			}
 			return e.frameChange(old, b)
 		}
 		e.frame(b)
 	case *ui.TreeList:
-		if old, ok := a.(*slist); ok {
-			if old.src == b {
+		if old, ok := a.(*ui.TreeList); ok {
+			if old == b {
 				return false
 			}
 			return e.listChange(old, b)
@@ -400,12 +323,12 @@ type step struct {
 
 // listChange writes {"k":[…]} (or the whole list, when no item stays), the
 // change from a to b, if any.
-func (e *enc) listChange(a *slist, b *ui.TreeList) bool {
+func (e *enc) listChange(a, b *ui.TreeList) bool {
 	if b.Temp != "" {
 		// a Temporary region: the browser keeps what it was sent, which
 		// the session forgot (flushTemps); it is sent whole when it shows
 		// another value
-		if a.temp == b.Temp {
+		if a.Temp == b.Temp {
 			return false
 		}
 		e.list(b)
@@ -426,7 +349,7 @@ func (e *enc) listChange(a *slist, b *ui.TreeList) bool {
 		}
 	}
 	if taken == 0 {
-		if len(a.items) == 0 && len(b.Items) == 0 {
+		if len(a.Items) == 0 && len(b.Items) == 0 {
 			return false
 		}
 		e.list(b)
@@ -434,7 +357,7 @@ func (e *enc) listChange(a *slist, b *ui.TreeList) bool {
 	}
 	start := len(e.b)
 	e.raw(`{"k":[`)
-	n, keep, changed := 0, 0, taken < len(a.items)
+	n, keep, changed := 0, 0, taken < len(a.Items)
 	sep := func() {
 		if n > 0 {
 			e.raw(",")
@@ -452,7 +375,7 @@ func (e *enc) listChange(a *slist, b *ui.TreeList) bool {
 		switch s.op {
 		case '=':
 			at := len(e.b)
-			if e.frameChange(a.items[s.old], b.Items[s.new]) {
+			if e.frameChange(a.Items[s.old], b.Items[s.new]) {
 				ch := append([]byte(nil), e.b[at:]...)
 				e.b = e.b[:at]
 				flush()
@@ -467,7 +390,7 @@ func (e *enc) listChange(a *slist, b *ui.TreeList) bool {
 			sep()
 			e.raw(`{"m":`)
 			e.int(s.old)
-			if e.b = append(e.b, `,"u":`...); !e.changes(a.items[s.old], b.Items[s.new]) {
+			if e.b = append(e.b, `,"u":`...); !e.changes(a.Items[s.old], b.Items[s.new]) {
 				e.b = e.b[:len(e.b)-len(`,"u":`)]
 			}
 			e.raw("}")
@@ -494,13 +417,13 @@ func (e *enc) listChange(a *slist, b *ui.TreeList) bool {
 }
 
 // positionalPlan pairs items by position.
-func positionalPlan(a *slist, b *ui.TreeList) []step {
+func positionalPlan(a, b *ui.TreeList) []step {
 	var plan []step
 	for j, it := range b.Items {
 		switch {
-		case j >= len(a.items):
+		case j >= len(a.Items):
 			plan = append(plan, step{op: '+', new: j})
-		case a.items[j].key == it.Key:
+		case a.Items[j].Key == it.Key:
 			plan = append(plan, step{op: '=', old: j, new: j})
 		default:
 			plan = append(plan, step{op: '+', new: j}, step{op: '-', old: 1})
@@ -511,12 +434,12 @@ func positionalPlan(a *slist, b *ui.TreeList) []step {
 
 // keyedPlan pairs items by key, keeping the longest run of items in order
 // and moving the others; nil when the lists aren't both keyed uniquely.
-func keyedPlan(a *slist, b *ui.TreeList) []step {
-	if a.keys == nil || b.Keys == nil || len(a.keys) != len(a.items) {
+func keyedPlan(a, b *ui.TreeList) []step {
+	if a.Keys == nil || b.Keys == nil || len(a.Keys) != len(a.Items) {
 		return nil
 	}
-	oldAt := make(map[string]int, len(a.keys))
-	for i, k := range a.keys {
+	oldAt := make(map[string]int, len(a.Keys))
+	for i, k := range a.Keys {
 		if _, dup := oldAt[k]; dup {
 			return nil
 		}
@@ -530,7 +453,7 @@ func keyedPlan(a *slist, b *ui.TreeList) []step {
 		}
 		seen[k] = true
 		from[j] = -1
-		if i, ok := oldAt[k]; ok && a.items[i].key == b.Items[j].Key {
+		if i, ok := oldAt[k]; ok && a.Items[i].Key == b.Items[j].Key {
 			from[j] = i
 		}
 	}
@@ -689,9 +612,9 @@ func sameTree(a, b *ui.Tree) bool {
 	c := conn{}
 	c.reset()
 	e := enc{c: &c}
-	return !e.changesOrKey(shadow(a), b)
+	return !e.changesOrKey(a, b)
 }
 
-func (e *enc) changesOrKey(a *sframe, b *ui.Tree) bool {
-	return a.key != b.Key || e.changes(a, b)
+func (e *enc) changesOrKey(a, b *ui.Tree) bool {
+	return a.Key != b.Key || e.changes(a, b)
 }
