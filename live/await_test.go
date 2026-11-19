@@ -60,7 +60,7 @@ func (c *ordersCard) Render() ui.Node {
 	var section ui.Node
 	switch {
 	case c.await:
-		section = ui.Await{Of: c, Key: "orders", Pending: c.pending(), Error: c.failed, Children: c.rows}
+		section = ui.Await{Of: c, Key: "orders", Delay: ui.Instant, Pending: c.pending(), Error: c.failed, Children: c.rows}
 	case c.Loading("orders"):
 		section = c.pending()
 	default:
