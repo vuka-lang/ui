@@ -3,12 +3,15 @@ package ui_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vuka-lang/ui/v2"
 	"github.com/vuka-lang/ui/v2/live"
@@ -94,6 +97,36 @@ func TestFileFieldRenders(t *testing.T) {
 	}
 	if !regexp.MustCompile(`<label class="vk-field__label" for="([^"]+)">Avatar.*id="([^"]+)"[^>]*name="_vk_file\.avatar"`).MatchString(html) {
 		t.Errorf("the label isn't for the file input:\n%s", html)
+	}
+}
+
+// A File field renders the same ticket through the hour, so a live page's
+// patches leave its hidden input as it is; the ticket still lasts FileTTL.
+func TestFileTicketSameThroughTheHour(t *testing.T) {
+	ticket := func() (string, time.Time) {
+		_, _, c, _, _ := avatarSession(t)
+		return unescape(ticketRef.FindStringSubmatch(c.HTML())[1]), time.Now()
+	}
+	first, at := ticket()
+	time.Sleep(1100 * time.Millisecond)
+	second, now := ticket()
+	if at.Truncate(time.Hour) != now.Truncate(time.Hour) {
+		first, at = second, now
+		time.Sleep(1100 * time.Millisecond)
+		second, _ = ticket()
+	}
+	if first != second {
+		t.Errorf("the ticket changed between renders a second apart:\n%s\n%s", first, second)
+	}
+	body, _, _ := strings.Cut(first, ".")
+	raw, err := base64.RawURLEncoding.DecodeString(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := strings.Split(string(raw), "\x00")
+	exp, _ := strconv.ParseInt(parts[len(parts)-1], 10, 64)
+	if e := time.Unix(exp, 0); e.Truncate(time.Hour) != e || e.Before(at.Add(ui.FileTTL)) || e.After(at.Add(ui.FileTTL+time.Hour)) {
+		t.Errorf("expires %v: want on the hour, FileTTL to FileTTL+1h after %v", e, at)
 	}
 }
 

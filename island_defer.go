@@ -321,6 +321,43 @@ func (d *DeferredLoad) Apply(text func(error) string) {
 	delete(d.l.causes, d.g.name)
 }
 
+// CarryLoads gives to, a component mounted afresh in the place of from (a
+// patch of the page's URL), the deferred fields from loaded, and marks those
+// groups loaded though their loaders will run again: the component shows
+// the last content until the new arrives, not its fallback. A group
+// loading when seen, or holding a stream, starts over.
+func CarryLoads(to, from Stateful) {
+	t := reflect.TypeOf(to)
+	if t != reflect.TypeOf(from) {
+		return
+	}
+	groups, _ := deferGroups(t)
+	fl, tl := from.vukaLive().loads, liveLoads(to)
+	if len(groups) == 0 || fl == nil {
+		return
+	}
+	src, dst := reflect.ValueOf(from), reflect.ValueOf(to)
+	fl.mu.Lock()
+	defer fl.mu.Unlock()
+	tl.mu.Lock()
+	defer tl.mu.Unlock()
+next:
+	for _, g := range groups {
+		if g.seen || !fl.done[g.name] || fl.errs[g.name] != nil {
+			continue
+		}
+		for _, f := range g.fields {
+			if _, ok := settable(dst.Elem().Field(f.Index)).Addr().Interface().(streamer); ok {
+				continue next
+			}
+		}
+		for _, f := range g.fields {
+			settable(dst.Elem().Field(f.Index)).Set(settable(src.Elem().Field(f.Index)))
+		}
+		tl.done[g.name] = true
+	}
+}
+
 // Err is what Run returned.
 func (d *DeferredLoad) Err() error { return d.err }
 

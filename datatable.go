@@ -100,6 +100,7 @@ func (d DataTable[T]) sizes() []int {
 // resolve is the table's content for the URL ctx renders: its query read,
 // the page loaded (the last page when the URL asks for one past it).
 func (d DataTable[T]) resolve(ctx context.Context) Node {
+	noteTable(ctx, d.Key)
 	u := urlOf(ctx, d.Key)
 	q := u.query(d.sizes(), d.sortable())
 	b := dataTableBody[T]{D: d, URL: u, Query: q, Server: true}

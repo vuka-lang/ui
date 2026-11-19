@@ -107,26 +107,19 @@ func (b *Board) Render() ui.Node {
   <button onClick={func() { b.Remove(it.ID) }}>x</button>
 </li>`, it.ID, it.Name, &Counter{Label: it.Name}, func() { b.Remove(it.ID) }))
 	}
-	lis2 := ui.Guard(0x823cb3de05cd4d3a, func() []ui.Node {
-		var lis2 []ui.Node
+	var lis2 []ui.Node
 //line board.vuka.html:106
-		for i, it := range b.items.Get() {
-			lis2 = append(lis2, ui.HTML(`<li key={it.ID}>{i}: {it.Name}</li>`, it.ID, i, it.Name))
-		}
-		return lis2
-	}, b.items.Version())
-	p := ui.GuardNode(0x823cb2de05cd4b87, func() ui.Node {
-		var p ui.Node
-//line board.vuka.html:110
-		if b.open.Get() {
-			p = ui.HTML(`<p onClick={b.Toggle}>open {b.note.Get()}</p>`, b.Toggle, b.note.Get())
-		} else if len(b.items.Get()) == 0 {
-			p = ui.HTML(`<p>empty</p>`)
-		} else {
-			p = ui.HTML(`<p>closed</p>`)
-		}
-		return p
-	}, b.items.Version(), b.note.Version(), b.open.Version())
+	for i, it := range b.items.Get() {
+		lis2 = append(lis2, ui.HTML(`<li key={it.ID}>{i}: {it.Name}</li>`, it.ID, i, it.Name))
+	}
+	var p ui.Node
+	if b.open.Get() {
+		p = ui.HTML(`<p onClick={b.Toggle}>open {b.note.Get()}</p>`, b.Toggle, b.note.Get())
+	} else if len(b.items.Get()) == 0 {
+		p = ui.HTML(`<p>empty</p>`)
+	} else {
+		p = ui.HTML(`<p>closed</p>`)
+	}
 	var b2 ui.Node
 //line board.vuka.html:117
 	switch b.mode.Get() {

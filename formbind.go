@@ -408,8 +408,31 @@ func selected(form reflect.Value, f *formField, option string) bool {
 	if v.Kind() == reflect.Bool {
 		return v.Bool() && (option == "" || option == "true" || option == "on")
 	}
-	s := valueText(v)
-	return s == option
+	return valueText(v) == option || zeroNumber(v) && numberText(v) == option
+}
+
+// zeroNumber reports whether v is a plain number holding 0, which valueText
+// leaves empty but a choice valued "0" still matches.
+func zeroNumber(v reflect.Value) bool {
+	switch {
+	case v.CanInt():
+		return v.Int() == 0
+	case v.CanUint():
+		return v.Uint() == 0
+	case v.CanFloat():
+		return v.Float() == 0
+	}
+	return false
+}
+
+// anySelected reports whether one of the options is the field's value.
+func anySelected(form reflect.Value, f *formField, opts []Option) bool {
+	for _, o := range opts {
+		if selected(form, f, o.Value) {
+			return true
+		}
+	}
+	return false
 }
 
 // digitsOnly reports whether s holds only digits (and spaces, which a

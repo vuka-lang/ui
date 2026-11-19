@@ -345,3 +345,56 @@ func TestTemplateDeferredNoLoader(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+// A patch that mounts a component afresh keeps showing what its groups
+// loaded until their loaders run again, never the fallback.
+func TestTemplateDeferredKeepsContentOnPatch(t *testing.T) {
+	var runs atomic.Int32
+	render := func(ctx context.Context) ui.Node {
+		return ui.El("main", nil, ui.Component("card", nil, &statsCard{Title: "Orders", loads: &runs}))
+	}
+	s := NewSession(context.Background(), render)
+	html, err := s.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(html, "stats loading") {
+		t.Fatalf("the first render has no fallback: %s", html)
+	}
+	for _, d := range s.Deferred() {
+		d.Run(context.Background())
+		if _, err := s.Loaded(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	p, err := s.Navigate(Route{Render: render}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.HTML(); strings.Contains(got, "loading") || !strings.Contains(got, "open 3") || !strings.Contains(got, "rows a,b") {
+		t.Fatalf("after the patch: %+v\n%s", p, got)
+	}
+	ds := s.Deferred()
+	if len(ds) != 2 {
+		t.Fatalf("the loaders ran again %d times", len(ds))
+	}
+	for _, d := range ds {
+		d.Run(context.Background())
+		if _, err := s.Loaded(d); err != nil {
+			t.Fatal(err)
+		}
+		if got := s.HTML(); strings.Contains(got, "loading") {
+			t.Fatalf("the fallback shows while reloading:\n%s", got)
+		}
+	}
+	if runs.Load() != 4 {
+		t.Errorf("loaders ran %d times, want 4", runs.Load())
+	}
+
+	if _, err := s.Navigate(Route{Render: render}, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.HTML(); !strings.Contains(got, "stats loading") {
+		t.Errorf("a navigation keeps the last page's content:\n%s", got)
+	}
+}

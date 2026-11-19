@@ -21,7 +21,7 @@ func TestGuardKeepsLoop(t *testing.T) {
 			live.Verify = verify
 			built := 0
 			s := joined(t, func(context.Context) ui.Node {
-				return ui.Component("b#1", nil, &demo.GuardTable{N: 5, Built: &built})
+				return ui.Component("b#1", nil, &GuardTable{N: 5, Built: &built})
 			}, 2)
 			if built != 1 {
 				t.Fatalf("join built the loop %d times", built)

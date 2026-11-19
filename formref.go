@@ -329,7 +329,7 @@ func (b boundField) options(ctx context.Context) Node {
 	}
 	form, f := b.value(), b.f
 	var out []Node
-	if !f.required() || optionText(form.FieldByIndex(f.index).Interface()) == "" {
+	if !f.required() || optionText(form.FieldByIndex(f.index).Interface()) == "" && !anySelected(form, f, opts) {
 		out = append(out, El("option", []Attr{{Name: "value", Value: ""}}, Text(tr(ctx, cmpOr(f.placeholder, "form.choose")))))
 	}
 	var group []Node

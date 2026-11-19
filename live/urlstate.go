@@ -22,6 +22,39 @@ func (s *Session) pageURL() *url.URL {
 	return ui.PageURL(s.ctx)
 }
 
+// pageCtx is the session's context with the page's URL as an event left
+// it, so what a render builds from the URL (pagers, sort links) is current.
+func (s *Session) pageCtx() context.Context {
+	if s.url != nil {
+		return ui.WithPageURLReplaced(s.ctx, s.url)
+	}
+	return s.ctx
+}
+
+// tableParams are the parameters the DataTables the rendered instances
+// resolved keep in the address.
+func (s *Session) tableParams() map[string]bool {
+	out := map[string]bool{}
+	for _, in := range s.order() {
+		if in.tables != nil {
+			for k := range in.tables.Keys() {
+				for _, p := range ui.TableParams(k) {
+					out[p] = true
+				}
+			}
+		}
+	}
+	return out
+}
+
+// URLParams are the query parameters the page's rendered components keep in
+// the address: their @ui.URL fields' and their DataTables'.
+func (s *Session) URLParams() map[string]bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.urlParams()
+}
+
 // query is the page's query, parsed once per URL.
 func (s *Session) query() url.Values {
 	if s.q == nil {
@@ -44,6 +77,8 @@ type urlEdit struct {
 	q       url.Values
 	changed bool
 	push    bool
+	had     map[string]bool // the parameters the instances rendered before the event keep
+	write   bool            // the edits changed the address
 }
 
 func (e *urlEdit) EditURL(edit func(url.Values), push bool) {
@@ -57,7 +92,8 @@ func (e *urlEdit) Query() url.Values { return cloneValues(e.q) }
 // beginURL starts an event: ctx carrying its editor, and each instance's
 // URL-bound fields recorded, to see which the event changes.
 func (s *Session) beginURL(ctx context.Context) (context.Context, *urlEdit) {
-	e := &urlEdit{s: s, q: cloneValues(s.query())}
+	e := &urlEdit{s: s, q: cloneValues(s.query()), had: s.urlParams()}
+	s.afterRender = nil
 	for _, in := range s.order() {
 		if in.comp != nil && ui.HasURLFields(in.comp) {
 			in.url.Snapshot(in.comp)
@@ -66,11 +102,27 @@ func (s *Session) beginURL(ctx context.Context) (context.Context, *urlEdit) {
 	return ui.WithURLEditor(ctx, e), e
 }
 
+// urlParams are the parameters the rendered instances keep in the address.
+func (s *Session) urlParams() map[string]bool {
+	out := map[string]bool{}
+	for _, in := range s.order() {
+		if in.comp != nil && ui.HasURLFields(in.comp) {
+			for _, k := range ui.URLParams(in.comp, in.src, in.urlKey) {
+				out[k] = true
+			}
+		}
+	}
+	for k := range s.tableParams() {
+		out[k] = true
+	}
+	return out
+}
+
 // endURL ends an event: the URL-bound fields it changed join its edits, and
 // when the query changed the session's URL is the new one, for the render
-// to read; the returned push is the patch to send once the reply is
-// applied, nil when there is none (or the page's URL isn't known).
-func (s *Session) endURL(e *urlEdit) []ui.Commands {
+// to read. The patch to send is queued for after the render (finishURL),
+// which takes out the parameters of the instances it no longer renders.
+func (s *Session) endURL(e *urlEdit) {
 	for _, in := range s.order() {
 		if in.comp != nil && ui.HasURLFields(in.comp) {
 			if in.url.Changes(in.comp, in.src, in.urlKey, e.q) {
@@ -79,20 +131,47 @@ func (s *Session) endURL(e *urlEdit) []ui.Commands {
 		}
 	}
 	cur := s.pageURL()
-	if !e.changed || cur == nil {
-		return nil
+	if cur == nil {
+		return
 	}
-	enc := e.q.Encode()
-	if enc == s.query().Encode() {
-		return nil
+	if e.changed {
+		if enc := e.q.Encode(); enc != s.query().Encode() {
+			s.setURL(&url.URL{Path: cur.Path, RawPath: cur.RawPath, RawQuery: enc})
+			e.write = true
+		}
 	}
-	next := &url.URL{Path: cur.Path, RawPath: cur.RawPath, RawQuery: enc}
+	s.afterRender = append(s.afterRender, func() { s.finishURL(e) })
+}
+
+// finishURL, once the event's render is done, drops from the address the
+// parameters of the instances that render no longer holds, and sends the
+// patch for it and the event's edits.
+func (s *Session) finishURL(e *urlEdit) {
+	cur := s.pageURL()
+	if cur == nil {
+		return
+	}
+	q := cloneValues(s.query())
+	if len(e.had) > 0 {
+		now := s.urlParams()
+		for k := range e.had {
+			if _, ok := q[k]; ok && !now[k] {
+				delete(q, k)
+				e.write = true
+				s.urlDropped = true
+			}
+		}
+	}
+	if !e.write {
+		return
+	}
+	next := &url.URL{Path: cur.Path, RawPath: cur.RawPath, RawQuery: q.Encode()}
 	s.setURL(next)
-	href := next.RequestURI()
 	if e.push {
-		return []ui.Commands{ui.JS.Patch(href)}
+		s.root.js = append(s.root.js, ui.JS.Patch(next.RequestURI()))
+		return
 	}
-	return []ui.Commands{ui.JS.PatchReplace(href)}
+	s.root.js = append(s.root.js, ui.JS.PatchReplace(next.RequestURI()))
 }
 
 // fillURL sets the URL-bound fields of in's component from the page's URL

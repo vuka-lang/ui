@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding"
 	"fmt"
+	"maps"
 	"net/url"
 	"reflect"
 	"slices"
@@ -24,7 +25,9 @@ import (
 // parameter of the field's name instead, read only.
 //
 // An instance with a urlKey (<Table urlKey="requests" />) keeps its keys
-// under that name: "requests.page".
+// under that name: "requests.page". A parameter belongs to its component
+// while it renders: an event after which the component isn't rendered
+// takes it out of the address, unless the field is marked Keep.
 
 type pageURLKey struct{}
 
@@ -121,11 +124,25 @@ func EventQuery(ctx context.Context) url.Values {
 type URLDefault struct {
 	Name  string
 	Value any
+	Kept  bool
+	none  bool // Keep without Default
 }
 
 func (d URLDefault) Apply(o *FieldOptions) {
-	o.URL, o.URLBound, o.URLDefault, o.HasURLDefault = d.Name, true, d.Value, true
+	o.URL, o.URLBound, o.URLKeep = d.Name, true, d.Kept
+	if !d.none {
+		o.URLDefault, o.HasURLDefault = d.Value, true
+	}
 }
+
+// Keep is the URL attribute whose parameter stays in the address after
+// the component stops rendering; by default a patch that no longer renders
+// the component takes its parameters out: @ui.URL("page").Default(1).Keep().
+func (d URLDefault) Keep() URLDefault { d.Kept = true; return d }
+
+// Keep is the URL attribute whose parameter stays in the address after the
+// component stops rendering: @ui.URL("tab").Keep().
+func (u URL) Keep() URLDefault { return URLDefault{Name: string(u), Kept: true, none: true} }
 
 // Default is the URL attribute with the value the field takes when the
 // URL has no parameter for it: @ui.URL("page").Default(1).
@@ -141,6 +158,7 @@ type urlField struct {
 	defVals  []string
 	typ      reflect.Type // the value's type: an Assign's element
 	assign   bool         // an Assign: read with Get, written with Set
+	keep     bool         // its parameter outlives the component's render
 }
 
 var urlFieldCache sync.Map // reflect.Type (struct) → []urlField
@@ -164,7 +182,7 @@ func urlFieldsOf(t reflect.Type) []urlField {
 				continue
 			}
 			f := t.Field(i)
-			uf := urlField{index: i, name: o.URL, exported: f.IsExported(), typ: f.Type}
+			uf := urlField{index: i, name: o.URL, exported: f.IsExported(), typ: f.Type, keep: o.URLKeep}
 			if et, ok := assignElem(f.Type); ok {
 				uf.typ, uf.assign = et, true
 			}
@@ -567,6 +585,20 @@ func (u *URLFields) Changes(c, tag Stateful, prefix string, q url.Values) bool {
 	return changed
 }
 
+// URLParams are the query parameters c keeps in the address under prefix
+// that belong to it while it renders: not a path parameter, a prop the
+// parent passes (tag), or one marked Keep.
+func URLParams(c, tag Stateful, prefix string) []string {
+	var out []string
+	tv := reflect.ValueOf(tag)
+	for _, uf := range urlFieldsOf(reflect.TypeOf(c)) {
+		if !uf.path && !uf.keep && !uf.explicit(tv) {
+			out = append(out, uf.key(prefix))
+		}
+	}
+	return out
+}
+
 // URLKey is the stateful component c (a component, or a ui.Key of one)
 // keeping its @ui.URL fields under key: a tag's urlKey attribute,
 // <Table urlKey="requests" />, whose page parameter becomes
@@ -582,4 +614,53 @@ func URLKey(key string, c any) Node {
 		return &ComponentNode{Props: x, URLKey: key}
 	}
 	panic(fmt.Sprintf("ui: URLKey is given %T, not a live component", c))
+}
+
+// WithPageURLReplaced is ctx with the page's URL u in place of the one it
+// carries, its route's path parameters kept: what a live page renders with
+// after an event changed its address.
+func WithPageURLReplaced(ctx context.Context, u *url.URL) context.Context {
+	p, _ := ctx.Value(pageURLKey{}).(pageURL)
+	return WithPageURL(ctx, u, p.param)
+}
+
+type tableUseKey struct{}
+
+// TableUse collects the Keys of the DataTables kept in the URL that a render
+// resolved.
+type TableUse struct {
+	mu   sync.Mutex
+	keys map[string]bool
+}
+
+// WithTableUse is ctx recording in the returned TableUse each DataTable
+// kept in the URL that renders with it.
+func WithTableUse(ctx context.Context) (context.Context, *TableUse) {
+	u := &TableUse{keys: map[string]bool{}}
+	return context.WithValue(ctx, tableUseKey{}, u), u
+}
+
+// Keys are the Keys recorded ("" for a table without one).
+func (u *TableUse) Keys() map[string]bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return maps.Clone(u.keys)
+}
+
+func noteTable(ctx context.Context, key string) {
+	if u, _ := ctx.Value(tableUseKey{}).(*TableUse); u != nil {
+		u.mu.Lock()
+		u.keys[key] = true
+		u.mu.Unlock()
+	}
+}
+
+// TableParams are the query parameters a DataTable keeps in the address
+// under key.
+func TableParams(key string) []string {
+	out := make([]string, 0, 5)
+	for _, n := range []string{"q", "page", "size", "sort", "dir"} {
+		out = append(out, tableURL{key: key}.param(n))
+	}
+	return out
 }

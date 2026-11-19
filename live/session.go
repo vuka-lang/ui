@@ -54,7 +54,10 @@ type Session struct {
 	js       []JSPush // pushed by Render or RenderTrees since JS last drained them, for the join
 	router   Router
 
-	loading map[*ui.DeferredLoad]*instance // the deferred loads Deferred started, by the instance they load
+	urlDropped  bool                           // finishURL took parameters out of the address: what the render built from it is stale
+	afterRender []func()                       // what the patch under way does once it rendered, before it collects the commands pushed
+	prior       map[string]*instance           // during a patch, the instances it replaces, by place: they hand a new one what they loaded
+	loading     map[*ui.DeferredLoad]*instance // the deferred loads Deferred started, by the instance they load
 
 	updates map[ui.Stateful]any // a navigation's messages for kept instances, by their tags' props
 	uerr    error               // what their Update methods returned
@@ -273,9 +276,9 @@ func (s *Session) run(fn any, ev ui.Event) (Patch, error) {
 			}
 		}
 	}
-	s.root.js = append(s.root.js, s.endURL(edit)...)
+	s.endURL(edit)
 	if to, ok := ui.RedirectOf(herr); ok && ui.LoadableURL(to) {
-		s.root.js = append(s.root.js, ui.JS.Navigate(to))
+		s.afterRender = append(s.afterRender, func() { s.root.js = append(s.root.js, ui.JS.Navigate(to)) })
 	}
 	p, err := s.patch()
 	p.Err = herr
@@ -548,7 +551,7 @@ func (s *Session) Info(topic string, msg any) (Patch, error) {
 	if !called {
 		return Patch{}, herr
 	}
-	s.root.js = append(s.root.js, s.endURL(edit)...)
+	s.endURL(edit)
 	p, err := s.patch()
 	if herr != nil {
 		p.Error = s.errorText(herr)
@@ -705,6 +708,11 @@ type Route struct {
 	// giving the page below the layout a ui.Keyed key of its own per
 	// page, so that the page's components mount afresh.
 	Keep bool
+	// URLOnly says the navigation changes only parameters the page's
+	// components keep in the address (URLParams): a patch with it keeps
+	// every instance, without an Update, as the components' @ui.URL fields
+	// and DataTables read the new address as they render.
+	URLOnly bool
 	// URL is the page's URL, what its components' @ui.URL fields read,
 	// when Ctx doesn't carry it (ui.WithPageURL); the navigate message
 	// sets it.
@@ -766,7 +774,22 @@ func (s *Session) navigateTo(rt Route, patch bool) (Patch, error) {
 			s.setURL(u)
 		}
 	}
-	if !rt.Keep && (!patch || len(rt.Updates) == 0) {
+	if patch {
+		s.prior = map[string]*instance{}
+		defer func() { s.prior = nil }()
+		var walk func(*instance)
+		walk = func(in *instance) {
+			for _, c := range in.children {
+				if c.at != "" {
+					s.prior[c.at] = c
+				}
+				walk(c)
+			}
+		}
+		walk(s.root)
+	}
+	whole := !patch || len(rt.Updates) == 0 && !rt.URLOnly
+	if !rt.Keep && whole {
 		for _, in := range s.order()[1:] {
 			unmount(in)
 		}
@@ -774,7 +797,7 @@ func (s *Session) navigateTo(rt Route, patch bool) (Patch, error) {
 		s.byID = map[string]*instance{RootID: s.root}
 		s.root.children, s.root.kids = map[string]*instance{}, nil
 	}
-	if !patch || len(rt.Updates) == 0 {
+	if whole {
 		// another page: its keys are its own, whatever the last one's were
 		for _, in := range s.byID {
 			if len(in.keyed) > 0 {
@@ -831,6 +854,7 @@ func (s *Session) close() {
 // instance is a stateful component in the session, or the page itself (comp nil).
 type instance struct {
 	s        *Session
+	tables   *ui.TableUse // the DataTables its last render resolved
 	id       string
 	comp     ui.Stateful
 	typ      reflect.Type
@@ -858,6 +882,7 @@ type instance struct {
 	key      any          // its tag's key, written on its root as data-vk-key
 	url      ui.URLFields // its @ui.URL fields' bookkeeping
 	urlKey   string       // its tag's urlKey
+	at       string       // its place under the root, the places of its parents and its own
 
 	tree       *ui.Tree          // its last render, on a v2 connection
 	shadow     *sframe           // what the client holds of it; nil: nothing yet
@@ -1133,6 +1158,8 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 	}
 	typ := reflect.TypeOf(n.Props)
 	in := parent.children[place]
+	at := parent.at + "/" + place
+	var prev *instance
 	msg, upd := s.updates[n.Props]
 	if upd {
 		delete(s.updates, n.Props)
@@ -1141,7 +1168,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			// the new URL; this one mounts again, for Mount to see it
 			unmount(in)
 			delete(s.byID, in.id)
-			in = nil
+			prev, in = in, nil
 		}
 	}
 	if s.from != nil && in != nil && in.typ == typ {
@@ -1157,6 +1184,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			// mounted ahead (NavigateFrom): it takes its tag's props as a
 			// kept instance does, and renders whole, as a new one does
 			in = a
+			in.at = at
 			parent.children[place] = in
 			s.byID[in.id] = in
 			in.takeProps(n, s.adopting)
@@ -1166,12 +1194,18 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 		if err := ui.CheckStateful(n.Props); err != nil {
 			return nil, err
 		}
-		in = &instance{s: s, id: "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true}
+		in = &instance{s: s, id: "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true, at: at}
 		ui.AttachLive(in.comp, in)
 		in.trackMethods(n.Props)
 		s.fillURL(in, n)
 		if err := mount(s.ctx, in.comp); err != nil {
 			return nil, err
+		}
+		if prev == nil {
+			prev = s.prior[at]
+		}
+		if prev != nil && prev.typ == typ {
+			ui.CarryLoads(in.comp, prev.comp)
 		}
 		parent.children[place] = in
 		s.byID[in.id] = in
@@ -1377,7 +1411,8 @@ func (s *Session) renderInst(in *instance) (err error) {
 	clear(in.forms)
 	clear(in.claimed)
 	clear(in.acts)
-	ctx := ui.WithLiveHost(s.ctx, &scope{in: in})
+	ctx := ui.WithLiveHost(s.pageCtx(), &scope{in: in})
+	ctx, in.tables = ui.WithTableUse(ctx)
 	in.contextual = false
 	clear(in.vars)
 	var node ui.Node
@@ -1487,7 +1522,21 @@ func (in *instance) html() string {
 func (s *Session) patch() (Patch, error) {
 	s.applyReloads()
 	if err := s.renderAll(); err != nil {
+		s.afterRender = nil
 		return Patch{}, err
+	}
+	for _, f := range s.afterRender {
+		f()
+	}
+	s.afterRender = nil
+	if s.urlDropped {
+		// The links and fields the render built read the address with the
+		// parameters of components it then stopped rendering; render again
+		// with the address finishURL left.
+		s.urlDropped = false
+		if err := s.renderAll(); err != nil {
+			return Patch{}, err
+		}
 	}
 	js, err := s.pushed()
 	if err != nil {

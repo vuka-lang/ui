@@ -602,7 +602,7 @@ func (b boundField) control(ctx context.Context, opts Field, input string, inval
 		var options Node
 		if len(opts.Options) > 0 {
 			var os []Node
-			if !f.required() || b.st.fieldText(b.value(), f) == "" {
+			if !f.required() || b.st.fieldText(b.value(), f) == "" && !anySelected(b.value(), f, opts.Options) {
 				os = append(os, El("option", []Attr{{"value", ""}}, Text(tr(ctx, f.placeholder))))
 			}
 			for _, o := range opts.Options {

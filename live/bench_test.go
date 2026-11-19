@@ -64,7 +64,7 @@ func BenchmarkGuardTable(b *testing.B) {
 	for _, unguarded := range []bool{false, true} {
 		name := map[bool]string{false: "guarded", true: "unguarded"}[unguarded]
 		page := func(context.Context) ui.Node {
-			return ui.Component("b#1", nil, &demo.GuardTable{N: 1000, Unguarded: unguarded})
+			return ui.Component("b#1", nil, &GuardTable{N: 1000, Unguarded: unguarded})
 		}
 		b.Run(name+"/title", func(b *testing.B) { bench(b, page, 2, func(int) string { return "c1:0" }) })
 		b.Run(name+"/cell", func(b *testing.B) {

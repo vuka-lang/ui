@@ -80,6 +80,7 @@ type FieldOptions struct {
 	// it (HasURLDefault): @ui.URL("page").Default(1).
 	URLDefault    any
 	HasURLDefault bool
+	URLKeep       bool     // its parameter stays in the address after the component stops rendering: @ui.URL("page").Keep()
 	Defer         string   // the group it loads in after the first render
 	WhenSeen      bool     // its group waits for its fallback to be seen: Defer.WhenSeen
 	Validate      []string // rules, as a validate tag writes them: "required", "max=50"

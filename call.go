@@ -182,11 +182,11 @@ const callPurpose = "vk-call"
 // session (see Commands.Call), so it ends with it.
 var CallTTL = 12 * time.Hour
 
-// callExpiry is a token's expiry: CallTTL from now, rounded up to the hour,
-// so a Call renders the same token through the hour and a live page's
+// hourExpiry is a rendered token's expiry: ttl from now, rounded up to the
+// hour, so the token renders the same through the hour and a live page's
 // patches don't resend it.
-func callExpiry() string {
-	t := time.Now().Add(CallTTL).Truncate(time.Hour).Add(time.Hour)
+func hourExpiry(ttl time.Duration) string {
+	t := time.Now().Add(ttl).Truncate(time.Hour).Add(time.Hour)
 	return strconv.FormatInt(t.Unix(), 10)
 }
 
@@ -235,7 +235,7 @@ func encodeCall(ctx context.Context, host LiveHost, st *callStep) ([]jsArg, erro
 	if err != nil {
 		return nil, err
 	}
-	kvs := []jsArg{{"t", seal(formKeyOf(ctx), callPurpose, bindingTag(binding), ct.id, string(props), strings.Join(names, ","), string(oj), callExpiry())}}
+	kvs := []jsArg{{"t", seal(formKeyOf(ctx), callPurpose, bindingTag(binding), ct.id, string(props), strings.Join(names, ","), string(oj), hourExpiry(CallTTL))}}
 	if len(reads) > 0 {
 		kvs = append(kvs, jsArg{"reads", reads})
 	}

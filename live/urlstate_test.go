@@ -240,3 +240,75 @@ func TestURLFieldChecked(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// OpenGroups shows the group its ?open names, whose Pager keeps its page under
+// the group's own key.
+type OpenGroups struct {
+	ui.Live
+	open string
+	keep bool
+}
+
+func (g *OpenGroups) LiveSchema(l *ui.LiveSchema) { l.Field(&g.open, ui.URL("open")) }
+func (g *OpenGroups) Render() ui.Node {
+	nodes := []ui.Node{}
+	for _, id := range []string{"A", "B"} {
+		nodes = append(nodes, ui.El("button", []ui.Attr{a("id", "open"+id), a("onClick", ui.On(func() { g.open = id }))}))
+	}
+	nodes = append(nodes, ui.El("button", []ui.Attr{a("id", "close"), a("onClick", ui.On(func() { g.open = "" }))}))
+	if g.open != "" {
+		nodes = append(nodes, ui.URLKey("g"+g.open, ui.Component("pager", g.open, &Pager{ID: "p" + g.open})))
+	}
+	if g.keep && g.open == "A" {
+		nodes = append(nodes, ui.URLKey("k", ui.Component("kept", nil, &KeptPage{ID: "k"})))
+	}
+	return ui.El("div", nil, nodes...)
+}
+
+// KeptPage keeps its page in the address past its render.
+type KeptPage struct {
+	ui.Live
+	ID   string
+	page int
+}
+
+func (k *KeptPage) LiveSchema(l *ui.LiveSchema) { l.Field(&k.page, ui.URL("page").Keep()) }
+func (k *KeptPage) Render() ui.Node {
+	return ui.El("p", []ui.Attr{a("id", k.ID)}, ui.Textf("%d", k.page))
+}
+
+func TestURLParamsDropWithComponent(t *testing.T) {
+	for _, v := range []int{1, 2} {
+		t.Run(fmt.Sprint("v", v), func(t *testing.T) {
+			render := func() ui.Node { return ui.El("main", nil, ui.Component("groups", nil, &OpenGroups{})) }
+			s, c := urlSession(t, v, "/p?open=A", render)
+			click := func(sel, want string) {
+				t.Helper()
+				if err := c.Click(sel); err != nil {
+					t.Fatal(err)
+				}
+				if c.URL() != want || c.HTML() != s.HTML() {
+					t.Fatalf("after %s at %q, want %q", sel, c.URL(), want)
+				}
+			}
+			click("#pA-next", "/p?gA.page=2&open=A")
+			click("#openB", "/p?open=B")
+			click("#pB-next", "/p?gB.page=2&open=B")
+			click("#pB-sort", "/p?gB.page=2&gB.sort=name&open=B")
+			click("#openA", "/p?open=A")
+			click("#pA-next", "/p?gA.page=2&open=A")
+			click("#close", "/p")
+		})
+	}
+}
+
+func TestURLKeepSurvivesRender(t *testing.T) {
+	render := func() ui.Node { return ui.El("main", nil, ui.Component("groups", nil, &OpenGroups{keep: true})) }
+	_, c := urlSession(t, 2, "/p?open=A&k.page=3", render)
+	if err := c.Click("#openB"); err != nil {
+		t.Fatal(err)
+	}
+	if c.URL() != "/p?k.page=3&open=B" {
+		t.Fatalf("at %q", c.URL())
+	}
+}
