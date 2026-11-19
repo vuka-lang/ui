@@ -398,6 +398,99 @@ func (st *treeStore) tree(t *ui.Tree) *ui.Tree {
 	return t
 }
 
+// treeVs is tree for a tree a render built to replace old, the stored tree the
+// session held at the same place. Parts that render as they did are found by
+// comparing with old, which hashes nothing and takes no lock: only a part that
+// changed goes through the table.
+func (st *treeStore) treeVs(t, old *ui.Tree) *ui.Tree {
+	if t == nil || old == nil || old.Key != t.Key || len(old.Dyn) != len(t.Dyn) || atomic.LoadInt32(&t.Share.Refs) != 0 || atomic.LoadInt32(&old.Share.Refs) <= 0 {
+		return st.tree(t)
+	}
+	same := true
+	for i, d := range t.Dyn {
+		od := old.Dyn[i]
+		switch d := d.(type) {
+		case string:
+			if o, ok := od.(string); !ok || o != d {
+				same = false
+			}
+		case ui.TreeRef:
+			if o, ok := od.(ui.TreeRef); !ok || o != d {
+				same = false
+			}
+		case *ui.Tree:
+			o, _ := od.(*ui.Tree)
+			c := st.treeVs(d, o)
+			t.Dyn[i] = c
+			same = same && c == o
+		case *ui.TreeList:
+			o, _ := od.(*ui.TreeList)
+			c := st.listVs(d, o)
+			t.Dyn[i] = c
+			same = same && c == o
+		default:
+			same = false
+		}
+	}
+	if same {
+		st.letGoKids(t)
+		atomic.AddInt32(&old.Share.Refs, 1)
+		return old
+	}
+	h := treeHash(t)
+	sh := st.shard(h)
+	sh.mu.Lock()
+	if c := sh.findTree(h, t); c != nil {
+		atomic.AddInt32(&c.Share.Refs, 1)
+		sh.mu.Unlock()
+		st.letGoKids(t)
+		return c
+	}
+	atomic.StoreInt32(&t.Share.Refs, 1)
+	sh.addTree(h, t)
+	sh.mu.Unlock()
+	return t
+}
+
+func (st *treeStore) listVs(l, old *ui.TreeList) *ui.TreeList {
+	if l == nil || old == nil || atomic.LoadInt32(&l.Share.Refs) != 0 || atomic.LoadInt32(&old.Share.Refs) <= 0 {
+		return st.list(l)
+	}
+	same := l.Stream == old.Stream && l.Temp == old.Temp && len(l.Items) == len(old.Items) && (l.Keys == nil) == (old.Keys == nil) && len(l.Keys) == len(old.Keys)
+	for i, k := range l.Keys {
+		if same && k != old.Keys[i] {
+			same = false
+		}
+	}
+	for i, it := range l.Items {
+		var o *ui.Tree
+		if i < len(old.Items) {
+			o = old.Items[i]
+		}
+		c := st.treeVs(it, o)
+		l.Items[i] = c
+		same = same && c == o
+	}
+	if same {
+		st.letGoKids(l)
+		atomic.AddInt32(&old.Share.Refs, 1)
+		return old
+	}
+	h := listHash(l)
+	sh := st.shard(h)
+	sh.mu.Lock()
+	if c := sh.findList(h, l); c != nil {
+		atomic.AddInt32(&c.Share.Refs, 1)
+		sh.mu.Unlock()
+		st.letGoKids(l)
+		return c
+	}
+	atomic.StoreInt32(&l.Share.Refs, 1)
+	sh.addList(h, l)
+	sh.mu.Unlock()
+	return l
+}
+
 // list is tree for a list.
 func (st *treeStore) list(l *ui.TreeList) *ui.TreeList {
 	if l == nil {
@@ -577,7 +670,7 @@ func (in *instance) setTree(t *ui.Tree) {
 		in.tree = t
 		return
 	}
-	in.tree = st.tree(t)
+	in.tree = st.treeVs(t, old)
 	st.release(old)
 	in.guardsStored(st)
 }

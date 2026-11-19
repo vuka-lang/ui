@@ -53,22 +53,6 @@ func Retained(s *Session) (frames, bytes int) {
 	return frames, bytes + len(s.c.strs)*8
 }
 
-// Holds is how many holds the session has on stored nodes: one for each
-// instance's tree and each shadow.
-func Holds(s *Session) (n int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, in := range s.byID {
-		if in.tree != nil {
-			n++
-		}
-		if in.shadow != nil {
-			n++
-		}
-	}
-	return n
-}
-
 // Store is a table of stored trees; a test gives its sessions one of their own.
 type Store = treeStore
 

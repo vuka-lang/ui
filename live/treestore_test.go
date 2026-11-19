@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"regexp"
+	"runtime"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/vuka-lang/ui/v2"
@@ -346,5 +349,149 @@ func FuzzSharedTrees(f *testing.F) {
 		if tr, li := live.StoreCounts(st); tr != 0 || li != 0 {
 			t.Errorf("closed sessions left %d trees, %d lists", tr, li)
 		}
+	})
+}
+
+func shareModes(b *testing.B, f func(b *testing.B)) {
+	for _, share := range []bool{false, true} {
+		b.Run(fmt.Sprintf("share=%v", share), func(b *testing.B) {
+			defer func(s, v bool) { live.ShareTrees, live.Verify = s, v }(live.ShareTrees, live.Verify)
+			live.ShareTrees, live.Verify = share, false
+			f(b)
+		})
+	}
+}
+
+// An event's reply on a page 50 other sessions render alike: what hashing and
+// finding the page's nodes adds to a render, and takes from its diff.
+func BenchmarkSharedRender(b *testing.B) {
+	pages := []struct {
+		name   string
+		page   func(context.Context) ui.Node
+		target func(i int) string
+	}{
+		{"celltable", func(context.Context) ui.Node { return ui.Component("b#1", nil, &demo.CellTable{N: 1000}) },
+			func(i int) string { return "c1:" + strconv.Itoa(i*37%1000) + ":0" }},
+		{"counters", demo.Counters(100), func(i int) string { return "c" + strconv.Itoa(1+i*7%100) + ":0" }},
+		{"boards", demo.Page, func(i int) string { return []string{"c1:0", "c1:1", "c3:0", "c4:0"}[i%4] }},
+	}
+	for _, p := range pages {
+		b.Run(p.name, func(b *testing.B) {
+			shareModes(b, func(b *testing.B) {
+				var others []*live.Session
+				for range 50 {
+					others = append(others, joined(b, p.page, 2))
+				}
+				s := joined(b, p.page, 2)
+				b.ResetTimer()
+				for i := 0; b.Loop(); i++ {
+					event(b, s, p.target(i))
+				}
+				b.StopTimer()
+				runtime.KeepAlive(others)
+			})
+		})
+	}
+}
+
+// A joined session's heap, with 200 sessions on the same page.
+func BenchmarkSessionBytes(b *testing.B) {
+	pages := map[string]func(context.Context) ui.Node{
+		"celltable": func(context.Context) ui.Node { return ui.Component("b#1", nil, &demo.CellTable{N: 200}) },
+		"counters":  demo.Counters(100),
+		"boards":    demo.Page,
+	}
+	for name, page := range pages {
+		b.Run(name, func(b *testing.B) {
+			shareModes(b, func(b *testing.B) {
+				const n = 200
+				heap := func() uint64 {
+					runtime.GC()
+					runtime.GC()
+					var m runtime.MemStats
+					runtime.ReadMemStats(&m)
+					return m.HeapAlloc
+				}
+				for b.Loop() {
+					before := heap()
+					ss := make([]*live.Session, n)
+					for i := range ss {
+						ss[i] = joined(b, page, 2)
+					}
+					after := heap()
+					b.ReportMetric(float64(after-before)/n, "B/session")
+					for _, s := range ss {
+						s.Close()
+					}
+				}
+			})
+		})
+	}
+}
+
+// Pages that move in from an ahead session, navigations and a close leave the
+// table holding exactly what the session reaches.
+func TestStoreAcrossNavigation(t *testing.T) {
+	st := live.NewStore()
+	app := &aheadApp{}
+	s := live.NewSession(context.Background(), app.route("go", 0, true).Render)
+	live.UseStore(s, st)
+	c, err := livetest.Join(s, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func() {
+		t.Helper()
+		if err := live.CheckStore(st, s); err != nil {
+			t.Fatal(err)
+		}
+	}
+	check()
+	for i, name := range []string{"rust", "go", "lobby"} {
+		rt := app.route(name, i+1, true)
+		ahead := live.NewSession(context.Background(), rt.Render)
+		live.UseStore(ahead, st)
+		if err := ahead.RenderAhead(); err != nil {
+			t.Fatal(err)
+		}
+		p, err := s.NavigateFrom(rt, ahead, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		apply(t, c, p)
+		check()
+		if err := c.Click("#toggle"); err != nil {
+			t.Fatal(err)
+		}
+		check()
+	}
+	p, err := s.Navigate(app.route("rust", 9, false), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	apply(t, c, p)
+	check()
+	s.Close()
+	if tr, li := live.StoreCounts(st); tr != 0 || li != 0 {
+		t.Errorf("a closed session left %d trees, %d lists", tr, li)
+	}
+}
+
+// Events on 400 sessions of one page from every core at once: the store's
+// locks and counts on nodes all of them hold.
+func BenchmarkSharedRenderParallel(b *testing.B) {
+	shareModes(b, func(b *testing.B) {
+		ss := make([]*live.Session, 400)
+		for i := range ss {
+			ss[i] = joined(b, demo.Counters(100), 2)
+		}
+		var n atomic.Int64
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				i := int(n.Add(1))
+				event(b, ss[i%len(ss)], "c"+strconv.Itoa(1+i*7%100)+":0")
+			}
+		})
 	})
 }
