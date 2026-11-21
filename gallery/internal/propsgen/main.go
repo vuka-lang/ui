@@ -21,7 +21,7 @@ import (
 
 // kitFiles hold components written in Go; the rest are compiled from
 // .vuka.html files (x_html.go).
-var kitFiles = []string{"button.go", "dialog.go", "field.go", "present.go"}
+var kitFiles = []string{"button.go", "datatable.go", "dialog.go", "field.go", "present.go", "table.go"}
 
 // kitFuncs are components the kit writes as functions.
 var kitFuncs = []string{"Actions", "Icon", "Spinner"}
