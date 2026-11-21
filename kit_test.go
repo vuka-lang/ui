@@ -224,6 +224,26 @@ func TestTableEmptyWithIcon(t *testing.T) {
 	contains(t, s, "vk-table--flush", "vk-table__empty", "vk-empty", "vk-empty__icon", `data-vk-icon="list-checks"`, "No tasks available.")
 }
 
+func TestLinkedRowControlsKeepTheirClicks(t *testing.T) {
+	table := func(href func(book) string) string {
+		return render(t, ui.Table[book]{
+			Columns:    []ui.Column[book]{{Header: txt("Title"), Cell: func(b book) ui.Node { return txt(b.Title) }}},
+			Rows:       []book{{ID: 1, Title: "Dune"}},
+			Selectable: true,
+			RowHref:    href,
+			RowActions: func(book) ui.Node { return ui.Button{Children: txt("Edit")} },
+		})
+	}
+	s := table(func(b book) string { return "/books/" + b.Title })
+	contains(t, s, `<td class="vk-col--center vk-col--select" data-vk-js-click="[]">`, `<td class="vk-col--right vk-col--actions" data-vk-js-click="[]">`)
+	if n := strings.Count(s, `data-vk-js-click="[]"`); n != 2 {
+		t.Fatalf("the select and actions cells answer their clicks, the data cells don't: %d\n%s", n, s)
+	}
+	if s := table(nil); strings.Contains(s, `data-vk-js-click`) {
+		t.Fatalf("a row without a link has no click: %s", s)
+	}
+}
+
 // --- Dialog (Modal) extras ------------------------------------------------
 
 func TestModalIconSubtitleSize(t *testing.T) {
