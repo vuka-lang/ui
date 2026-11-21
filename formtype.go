@@ -26,19 +26,19 @@ type formType struct {
 	stateAt uintptr // and its offset in the struct
 	fields  []*formField
 	byPath  map[string]*formField
-	clean   *reflect.Method            // Clean(ctx, deps…) error
-	cleans  map[string]*reflect.Method // Clean<Field>, by path
-	recv    []int                      // the index of the value the methods are of: nil for the form, Value's for a ModelForm
-	files   bool                       // a File field: the form posts as multipart
-	typed   bool                       // a FormFor's: its fields' types decide what is required
-	key     []int                      // a FormFor's: its record's primary key, within the record
-	forType reflect.Type               // a form type embedding a FormFor: the FormFor's type (nil for the FormFor itself)
-	forAt   uintptr                    // and its offset in the form type
-	init    *reflect.Method            // the form type's Init(ctx, deps…) error: run as the form is created, and by Load
-	own     map[*reflect.Method]bool   // the methods declared by the form type, called on it rather than on T
-	meta    map[string][]any           // a form type's: the attributes of its ui.Meta members, by the name of T's field each describes
-	rows    []rowField                 // a form type's ui.Rows fields
-	parts   sync.Map                   // path → *widgetInfo: the fields a widget of several inputs (Format, Parse) rendered
+	clean   *vuka.Method            // Clean(ctx, deps…) error
+	cleans  map[string]*vuka.Method // Clean<Field>, by path
+	recv    []int                   // the index of the value the methods are of: nil for the form, Value's for a ModelForm
+	files   bool                    // a File field: the form posts as multipart
+	typed   bool                    // a FormFor's: its fields' types decide what is required
+	key     []int                   // a FormFor's: its record's primary key, within the record
+	forType reflect.Type            // a form type embedding a FormFor: the FormFor's type (nil for the FormFor itself)
+	forAt   uintptr                 // and its offset in the form type
+	init    *vuka.Method            // the form type's Init(ctx, deps…) error: run as the form is created, and by Load
+	own     map[*vuka.Method]bool   // the methods declared by the form type, called on it rather than on T
+	meta    map[string][]any        // a form type's: the attributes of its ui.Meta members, by the name of T's field each describes
+	rows    []rowField              // a form type's ui.Rows fields
+	parts   sync.Map                // path → *widgetInfo: the fields a widget of several inputs (Format, Parse) rendered
 	err     error
 }
 
@@ -63,7 +63,7 @@ type formField struct {
 	msgs                     map[string]string // the msg: tag, rule → key
 	fileMax                  int64             // a File's largest size (max:)
 	accept                   string            // what a File takes (accept:)
-	choices                  *reflect.Method   // <Field>Choices
+	choices                  *vuka.Method      // <Field>Choices
 	depends                  []string          // the paths of the fields its choices follow (depends:)
 	tag                      reflect.StructTag
 	options                  []Option          // the choices its attributes give (orm.Char{Choices}, ui.OneOf)
@@ -111,7 +111,7 @@ func isForm(t reflect.Type) bool {
 }
 
 func buildFormType(t reflect.Type) *formType {
-	ft := &formType{t: t, name: kebab(t.Name()), byPath: map[string]*formField{}, cleans: map[string]*reflect.Method{}}
+	ft := &formType{t: t, name: kebab(t.Name()), byPath: map[string]*formField{}, cleans: map[string]*vuka.Method{}}
 	sf, _ := t.FieldByName("FormState")
 	ft.state = sf.Index
 	ft.stateAt, _ = offsetOf(t, sf.Index)
@@ -201,30 +201,24 @@ func (ft *formType) methods(pt reflect.Type, own bool) {
 	if own {
 		promoted = reflect.PointerTo(ft.forType)
 	}
-	set := func(slot **reflect.Method, m reflect.Method) {
+	set := func(slot **vuka.Method, m vuka.Method) {
 		if own {
 			if *slot != nil && ft.err == nil {
 				ft.err = fmt.Errorf("ui: %s.%s and %s.%[2]s: a form type and its T declare the same method; keep one", ft.t.Name(), m.Name, ft.t.FieldByIndex(ft.recv).Type.Name())
 			}
 			if ft.own == nil {
-				ft.own = map[*reflect.Method]bool{}
+				ft.own = map[*vuka.Method]bool{}
 			}
 			ft.own[&m] = true
 		}
 		*slot = &m
 	}
-	for i := 0; i < pt.NumMethod(); i++ {
-		m := pt.Method(i)
-		if _, isState := formStateType.MethodByName(m.Name); isState && ft.recv == nil {
+	for _, m := range vuka.Methods(pt) {
+		if ft.recv == nil && (hasMethod(formStateType, m.Name) || hasMethod(reflect.PointerTo(formStateType), m.Name)) {
 			continue
 		}
-		if _, isState := reflect.PointerTo(formStateType).MethodByName(m.Name); isState && ft.recv == nil {
-			continue
-		}
-		if promoted != nil {
-			if _, ok := promoted.MethodByName(m.Name); ok {
-				continue // the FormFor's
-			}
+		if promoted != nil && hasMethod(promoted, m.Name) {
+			continue // the FormFor's
 		}
 		switch name := m.Name; {
 		case own && name == "Init":
@@ -254,6 +248,12 @@ func (ft *formType) methods(pt reflect.Type, own bool) {
 	}
 }
 
+// hasMethod reports whether t has the exported method name.
+func hasMethod(t reflect.Type, name string) bool {
+	_, ok := vuka.MethodByName(t, name)
+	return ok
+}
+
 // hookShape reports whether a method type (its receiver first) takes a
 // context first and returns an error.
 func hookShape(t reflect.Type) bool {
@@ -273,7 +273,7 @@ func (ft *formType) formHooks(t reflect.Type, index []int, direct bool) {
 
 // recvOf is the value form's method m is called on: the form type for its
 // own methods, else what receiver says.
-func (ft *formType) recvOf(m *reflect.Method, form reflect.Value) reflect.Value {
+func (ft *formType) recvOf(m *vuka.Method, form reflect.Value) reflect.Value {
 	if ft.own[m] {
 		return form.Addr()
 	}

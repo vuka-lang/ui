@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/vuka-lang/vuka/v2"
 )
 
 // Pages backed by a component. An @ui.Island struct routed as a page
@@ -33,14 +35,11 @@ func IsIsland(t reflect.Type) bool {
 // the component calls. Its hooks are its LiveSchema's (isHook).
 var lifecycle = map[string]bool{"Render": true, "Update": true, "Info": true}
 
-var liveMethods = func() map[string]bool {
-	m := map[string]bool{}
-	t := reflect.TypeFor[*Live]()
-	for i := 0; i < t.NumMethod(); i++ {
-		m[t.Method(i).Name] = true
-	}
-	return m
-}()
+// liveMethods are the exported methods of *Live (TestLiveMethods keeps the
+// list), written out: listing them with reflect would keep every exported
+// method of the program in its binary.
+var liveMethods = map[string]bool{"ID": true, "LoadErr": true, "Loading": true, "PushEvent": true, "PushJS": true,
+	"PushNavigate": true, "PushPatch": true, "Reload": true, "Subscribe": true}
 
 // IslandMethod is an exported method of a page-backed island that its
 // component may call: its wire name (the method's, first letter lower-cased)
@@ -67,8 +66,8 @@ func IslandMethods(t reflect.Type) []IslandMethod {
 		return v.([]IslandMethod)
 	}
 	var out []IslandMethod
-	for i := 0; i < t.NumMethod(); i++ {
-		m := t.Method(i)
+	for _, vm := range vuka.Methods(t) {
+		m := vm.Method
 		if lifecycle[m.Name] || liveMethods[m.Name] || IsUpdate(m) || isHook(t, m.Name) {
 			continue
 		}

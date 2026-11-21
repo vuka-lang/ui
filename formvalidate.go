@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/vuka-lang/ui/v2/forms"
+	"github.com/vuka-lang/vuka/v2"
 )
 
 // check runs every check of the form: each field's validate: rules, then,
@@ -194,7 +195,7 @@ func (f *formField) kind(r rule) string {
 // callForm calls a form's method m on recv, its parameters after the
 // receiver filled as a hook's are: the context, and what ctx's Injector
 // provides.
-func callForm(ctx context.Context, m *reflect.Method, recv reflect.Value) (err error) {
+func callForm(ctx context.Context, m *vuka.Method, recv reflect.Value) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%s panicked: %v", m.Name, r)
@@ -209,7 +210,7 @@ var optionsType = reflect.TypeFor[[]Option]()
 // as a Clean method is; it returns []ui.Option, or a query of the rows the
 // field may take (an orm query: its rows the options, and the allow-list
 // a submitted key is checked against), and maybe an error.
-func choices(ctx context.Context, m *reflect.Method, recv reflect.Value) (opts []Option, src rowSource, err error) {
+func choices(ctx context.Context, m *vuka.Method, recv reflect.Value) (opts []Option, src rowSource, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("%s panicked: %v", m.Name, r)

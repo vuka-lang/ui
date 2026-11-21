@@ -697,9 +697,7 @@ func CheckParts(t reflect.Type, live bool) error {
 	if t.Name() == "" {
 		return nil
 	}
-	pt := reflect.PointerTo(t)
-	for i := range pt.NumMethod() {
-		m := pt.Method(i)
+	for _, m := range vuka.Methods(reflect.PointerTo(t)) {
 		n := 0
 		var group Defer
 		for _, a := range vuka.MethodAttrs(t, m.Name) {

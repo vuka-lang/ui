@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 
 	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/vuka/v2"
 )
 
 // Session is one connected page: its render function and the instances of the
@@ -531,7 +532,8 @@ func pushable(c ui.Stateful, name string) any {
 	if c == nil || name == "Render" || ui.IsHook(c, name) {
 		return nil
 	}
-	if m, ok := reflect.TypeOf(c).MethodByName(name); ok && ui.IsUpdate(m) {
+	m, found := vuka.MethodByName(reflect.TypeOf(c), name)
+	if found && ui.IsUpdate(m.Method) {
 		return nil
 	}
 	v := reflect.ValueOf(c)
@@ -550,21 +552,20 @@ func pushable(c ui.Stateful, name string) any {
 		// island page sets them.
 		return ui.Setter(func(ctx context.Context, ev ui.Event) error { return ui.SetBound(ctx, v, ev.Data) })
 	}
-	m := v.MethodByName(name)
-	if !m.IsValid() {
+	if !found {
 		return nil
 	}
 	for i := 0; i < t.NumField(); i++ {
 		if f := t.Field(i); f.Anonymous {
-			if _, ok := reflect.PointerTo(f.Type).MethodByName(name); ok {
+			if _, ok := vuka.MethodByName(reflect.PointerTo(f.Type), name); ok {
 				return nil
 			}
-			if _, ok := f.Type.MethodByName(name); ok {
+			if _, ok := vuka.MethodByName(f.Type, name); ok {
 				return nil
 			}
 		}
 	}
-	return m.Interface()
+	return m.Bind(v).Interface()
 }
 
 // Delivery is a message for the instances subscribed to Topic ("" for all).

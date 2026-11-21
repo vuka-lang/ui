@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/vuka-lang/vuka/v2"
 )
 
 // ModelForm is a form editing some fields of a model — a database record's
@@ -100,7 +102,7 @@ func modelFormTypeOf(t reflect.Type, names []string) *formType {
 	}
 	all := formTypeOf(t)
 	ft := &formType{t: t, name: all.name, state: all.state, stateAt: all.stateAt, recv: all.recv,
-		byPath: map[string]*formField{}, cleans: map[string]*reflect.Method{}, clean: all.clean, err: all.err,
+		byPath: map[string]*formField{}, cleans: map[string]*vuka.Method{}, clean: all.clean, err: all.err,
 		typed: all.typed, key: all.key, forType: all.forType, forAt: all.forAt, init: all.init, own: all.own, rows: all.rows}
 	model := t.FieldByIndex(all.recv).Type
 	if all.typed && len(names) == 0 {
