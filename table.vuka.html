@@ -136,6 +136,16 @@ func (t Table[T]) rowNav(row T) []Attr {
 	return on("onClick", JS.Navigate(t.RowHref(row)))
 }
 
+// ownClick keeps a click in a linked row's select or actions cell from
+// following the row's link: an empty chain answers it there, so the
+// checkbox, a menu or a button in the cell does only what it does.
+func (t Table[T]) ownClick() []Attr {
+	if t.RowHref == nil {
+		return nil
+	}
+	return []Attr{{"data-vk-js-click", "[]"}}
+}
+
 // selectValue is a row checkbox's value: its key, as text.
 func (t Table[T]) selectValue(row T) any {
 	if t.RowKey == nil {
@@ -202,7 +212,7 @@ func (t Table[T]) emptyState() Node {
         for i, row := range t.Rows {
           <tr key={t.key(row)} class={t.rowClass(row)} {t.rowNav(row)...} {t.attrsOf(row)...}>
             if t.Selectable {
-              <td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value={t.selectValue(row)} {t.selectBox(row)...}/></td>
+              <td class="vk-col--center vk-col--select" {t.ownClick()...}><input type="checkbox" class="vk-check__box" aria-label="Select row" value={t.selectValue(row)} {t.selectBox(row)...}/></td>
             }
             if t.Index {
               <td class="vk-col--center vk-col--index">{t.IndexFrom + i + 1}</td>
@@ -211,7 +221,7 @@ func (t Table[T]) emptyState() Node {
               <td class={colClass(c)}>{c.cell(row)}</td>
             }
             if t.RowActions != nil {
-              <td class="vk-col--right vk-col--actions">{t.RowActions(row)}</td>
+              <td class="vk-col--right vk-col--actions" {t.ownClick()...}>{t.RowActions(row)}</td>
             }
           </tr>
         }

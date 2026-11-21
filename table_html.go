@@ -143,6 +143,16 @@ func (t Table[T]) rowNav(row T) []Attr {
 	return on("onClick", JS.Navigate(t.RowHref(row)))
 }
 
+// ownClick keeps a click in a linked row's select or actions cell from
+// following the row's link: an empty chain answers it there, so the
+// checkbox, a menu or a button in the cell does only what it does.
+func (t Table[T]) ownClick() []Attr {
+	if t.RowHref == nil {
+		return nil
+	}
+	return []Attr{{"data-vk-js-click", "[]"}}
+}
+
 // selectValue is a row checkbox's value: its key, as text.
 func (t Table[T]) selectValue(row T) any {
 	if t.RowKey == nil {
@@ -179,10 +189,10 @@ func (t Table[T]) emptyState() Node {
 	return HTML(`<div class="vk-empty"><span class="vk-empty__icon">{t.EmptyIcon}</span><span class="vk-empty__msg">{t.empty()}</span></div>`, t.EmptyIcon, t.empty())
 }
 
-//line table.vuka.html:176
+//line table.vuka.html:186
 func (t Table[T]) View() Node {
 	var th2 Node
-//line table.vuka.html:180
+//line table.vuka.html:190
 	if t.Selectable {
 		var input2 Node
 		if t.OnSelectAll != nil {
@@ -191,22 +201,22 @@ func (t Table[T]) View() Node {
 		th2 = HTML(`<th class="vk-col--center vk-col--select" scope="col">{input2}</th>`, input2)
 	}
 	var th22 Node
-//line table.vuka.html:187
+//line table.vuka.html:197
 	if t.Index {
 		th22 = HTML(`<th class="vk-col--center vk-col--index" scope="col">#</th>`)
 	}
 	var ths []Node
-//line table.vuka.html:190
+//line table.vuka.html:200
 	for _, c := range t.Columns {
 		ths = append(ths, HTML(`<th scope="col" class={colClass(c)}>{c.Header}</th>`, colClass(c), c.Header))
 	}
 	var th3 Node
-//line table.vuka.html:193
+//line table.vuka.html:203
 	if t.RowActions != nil {
 		th3 = HTML(`<th class="vk-col--right" scope="col" aria-label="Actions"/>`)
 	}
 	var tbody Node
-//line table.vuka.html:198
+//line table.vuka.html:208
 	if len(t.Rows) == 0 {
 		tbody = HTML(`<tbody><tr><td colspan={t.span()} class="vk-table__empty">{t.emptyState()}</td></tr></tbody>`, t.span(), t.emptyState())
 	} else {
@@ -214,22 +224,22 @@ func (t Table[T]) View() Node {
 		for i, row := range t.Rows {
 			var td Node
 			if t.Selectable {
-				td = HTML(`<td class="vk-col--center vk-col--select"><input type="checkbox" class="vk-check__box" aria-label="Select row" value={t.selectValue(row)} {t.selectBox(row)...}/></td>`, t.selectValue(row), t.selectBox(row))
+				td = HTML(`<td class="vk-col--center vk-col--select" {t.ownClick()...}><input type="checkbox" class="vk-check__box" aria-label="Select row" value={t.selectValue(row)} {t.selectBox(row)...}/></td>`, t.ownClick(), t.selectValue(row), t.selectBox(row))
 			}
 			var td2 Node
-//line table.vuka.html:207
+//line table.vuka.html:217
 			if t.Index {
 				td2 = HTML(`<td class="vk-col--center vk-col--index">{t.IndexFrom + i + 1}</td>`, t.IndexFrom+i+1)
 			}
 			var tds []Node
-//line table.vuka.html:210
+//line table.vuka.html:220
 			for _, c := range t.Columns {
 				tds = append(tds, HTML(`<td class={colClass(c)}>{c.cell(row)}</td>`, colClass(c), c.cell(row)))
 			}
 			var td3 Node
-//line table.vuka.html:213
+//line table.vuka.html:223
 			if t.RowActions != nil {
-				td3 = HTML(`<td class="vk-col--right vk-col--actions">{t.RowActions(row)}</td>`, t.RowActions(row))
+				td3 = HTML(`<td class="vk-col--right vk-col--actions" {t.ownClick()...}>{t.RowActions(row)}</td>`, t.ownClick(), t.RowActions(row))
 			}
 			trs = append(trs, HTML(`
 <tr key={t.key(row)} class={t.rowClass(row)} {t.rowNav(row)...} {t.attrsOf(row)...}>
@@ -250,7 +260,7 @@ func (t Table[T]) View() Node {
 		}
 		tbody = HTML(`<tbody>{trs}</tbody>`, trs)
 	}
-//line table.vuka.html:176
+//line table.vuka.html:186
 	return HTML(`
 <div class="vk-table-wrap"><table class={t.classes()}>
   <thead><tr>
@@ -270,5 +280,5 @@ func (t Table[T]) View() Node {
 	)
 }
 
-//line table.vuka.html:221
+//line table.vuka.html:231
 func (t Table[T]) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }
