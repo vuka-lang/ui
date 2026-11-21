@@ -10,6 +10,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/vuka-lang/vuka/v2"
 	"github.com/vuka-lang/vuka/v2/diag"
 )
 
@@ -94,7 +95,7 @@ func deferGroupsFor(t reflect.Type) ([]deferGroup, error) {
 		}
 		group := strings.ToLower(g.name[:1]) + g.name[1:]
 		help := fmt.Sprintf("mark its loader @ui.Loads(%q)", group)
-		if _, ok := t.MethodByName("Load" + g.name); ok {
+		if _, ok := vuka.MethodByName(t, "Load"+g.name); ok {
 			help = fmt.Sprintf("mark Load%s @ui.Loads(%q): a loader isn't found by its name", g.name, group)
 		}
 		return nil, diag.New("E0324", "%s.%s is deferred, and the group %s has no loader", t.Elem().Name(), t.Elem().Field(g.fields[0].Index).Name, g.name).

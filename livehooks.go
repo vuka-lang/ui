@@ -15,8 +15,15 @@ import (
 // event the browser calls.
 
 // namedHooks are the methods earlier releases found a hook by, and the
-// attribute that declares each.
-var namedHooks = [...]struct{ method, attr string }{{"Mount", "@ui.Mount"}, {"Changed", "@ui.OnChange"}}
+// attribute that declares each; has reports whether *T has the method,
+// looked up by a constant name, which the linker keeps only the methods of.
+var namedHooks = [...]struct {
+	method, attr string
+	has          func(pt reflect.Type) bool
+}{
+	{"Mount", "@ui.Mount", func(pt reflect.Type) bool { _, ok := pt.MethodByName("Mount"); return ok }},
+	{"Changed", "@ui.OnChange", func(pt reflect.Type) bool { _, ok := pt.MethodByName("Changed"); return ok }},
+}
 
 // namedHookErr is what is wrong with t's (a struct, or a pointer to one)
 // methods named as earlier releases found hooks by: one its LiveSchema
@@ -27,7 +34,7 @@ func namedHookErr(t reflect.Type) error {
 	}
 	pt := reflect.PointerTo(t)
 	for _, h := range namedHooks {
-		if _, ok := pt.MethodByName(h.method); ok && !isHook(pt, h.method) {
+		if h.has(pt) && !isHook(pt, h.method) {
 			return diag.New("E0337", "%s.%s isn't a hook: a hook is declared with %s, never found by its name", t.Name(), h.method, h.attr).
 				WithHelp("mark the method %s (vuka fix hooks), or rename it", h.attr)
 		}

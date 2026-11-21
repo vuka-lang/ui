@@ -5,7 +5,7 @@ go 1.27
 require (
 	github.com/a-h/templ v0.3.1020
 	github.com/vuka-lang/orm/v2 v2.18.0
-	github.com/vuka-lang/vuka/v2 v2.24.1-0.20261121075604-966d0d777983
+	github.com/vuka-lang/vuka/v2 v2.24.1-0.20261121193906-3d211f061ff8
 )
 
 require (

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/vuka-lang/ui/v2"
+	"github.com/vuka-lang/vuka/v2"
 )
 
 var (
@@ -268,35 +269,35 @@ func callUpdate(ctx context.Context, c ui.Stateful, msg any) (called bool, err e
 		}
 	}()
 	m, err := updateMethod(c, msg)
-	if !m.IsValid() || err != nil {
+	if m.Func == (reflect.Value{}) || err != nil {
 		return false, err
 	}
-	arg := reflect.New(m.Type().In(m.Type().NumIn() - 1)).Elem()
+	ft := m.Type
+	arg := reflect.New(ft.In(ft.NumIn() - 1)).Elem()
 	if msg != nil {
 		arg.Set(reflect.ValueOf(msg))
 	}
-	args := []reflect.Value{arg}
-	if m.Type().NumIn() == 2 {
-		args = []reflect.Value{reflect.ValueOf(ctx), arg}
+	args := []reflect.Value{reflect.ValueOf(c), arg}
+	if ft.NumIn() == 3 {
+		args = []reflect.Value{reflect.ValueOf(c), reflect.ValueOf(ctx), arg}
 	}
-	return true, result(m.Call(args))
+	return true, result(m.Func.Call(args))
 }
 
 // takesUpdate reports whether c has one Update method msg reaches.
 func takesUpdate(c ui.Stateful, msg any) bool {
 	m, err := updateMethod(c, msg)
-	return m.IsValid() && err == nil
+	return m.Func != (reflect.Value{}) && err == nil
 }
 
-// updateMethod is the Update method of c that msg reaches (callUpdate);
-// invalid when there is none.
-func updateMethod(c ui.Stateful, msg any) (reflect.Value, error) {
-	v := reflect.ValueOf(c)
+// updateMethod is the Update method of c that msg reaches (callUpdate),
+// its receiver first; none (a zero Func) when there is none.
+func updateMethod(c ui.Stateful, msg any) (vuka.Method, error) {
+	t := reflect.TypeOf(c)
 	mt := reflect.TypeOf(msg)
-	var exact, assignable, catchAll []reflect.Value
-	for i := 0; i < v.NumMethod(); i++ {
-		m := v.Type().Method(i)
-		if !ui.IsUpdate(m) {
+	var exact, assignable, catchAll []vuka.Method
+	for _, m := range vuka.Methods(t) {
+		if !ui.IsUpdate(m.Method) {
 			continue
 		}
 		ft := m.Type
@@ -311,27 +312,27 @@ func updateMethod(c ui.Stateful, msg any) (reflect.Value, error) {
 		pt := ft.In(first)
 		switch {
 		case mt == nil && (pt.Kind() == reflect.Interface || pt.Kind() == reflect.Pointer):
-			catchAll = append(catchAll, v.Method(i))
+			catchAll = append(catchAll, m)
 		case mt == nil:
 		case pt == mt:
-			exact = append(exact, v.Method(i))
+			exact = append(exact, m)
 		case pt.Kind() == reflect.Interface && pt.NumMethod() == 0:
-			catchAll = append(catchAll, v.Method(i))
+			catchAll = append(catchAll, m)
 		case mt.AssignableTo(pt):
-			assignable = append(assignable, v.Method(i))
+			assignable = append(assignable, m)
 		}
 	}
-	for _, set := range [][]reflect.Value{exact, assignable, catchAll} {
+	for _, set := range [][]vuka.Method{exact, assignable, catchAll} {
 		switch len(set) {
 		case 0:
 			continue
 		case 1:
 			return set[0], nil
 		default:
-			return reflect.Value{}, fmt.Errorf("live: %s has %d Update methods taking %v", v.Type().Elem().Name(), len(set), mt)
+			return vuka.Method{}, fmt.Errorf("live: %s has %d Update methods taking %v", t.Elem().Name(), len(set), mt)
 		}
 	}
-	return reflect.Value{}, nil
+	return vuka.Method{}, nil
 }
 
 // mount runs c's mount hook (ui.MountLive); a panic is its error.
