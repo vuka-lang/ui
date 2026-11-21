@@ -221,8 +221,8 @@ func checkURLField(f reflect.StructField, o FieldOptions) error {
 }
 
 // defaultValue is d as a t: d itself when it is one, a number converted to
-// another number type, a string or bool to a type of its kind; false (the
-// zero t) for anything else.
+// another number type, a string or bool to a type of its kind, a T as an
+// Option[T] (Some); false (the zero t) for anything else.
 func defaultValue(d any, t reflect.Type) (reflect.Value, bool) {
 	v := reflect.New(t).Elem()
 	dv := reflect.ValueOf(d)
@@ -231,6 +231,14 @@ func defaultValue(d any, t reflect.Type) (reflect.Value, bool) {
 		return v, false
 	case dv.Type().AssignableTo(t):
 		v.Set(dv)
+	case isOption(t):
+		val, ok := optionParts(v)
+		in, got := defaultValue(d, val.Type())
+		if !got {
+			return v, false
+		}
+		val.Set(in)
+		ok.SetBool(true)
 	case numberKind(dv.Kind()) && numberKind(t.Kind()) || dv.Kind() == t.Kind() && (t.Kind() == reflect.String || t.Kind() == reflect.Bool):
 		v.Set(dv.Convert(t))
 	default:
@@ -243,8 +251,13 @@ func numberKind(k reflect.Kind) bool {
 	return k >= reflect.Int && k <= reflect.Float64 && k != reflect.Uintptr
 }
 
-// textual reports whether a URL parameter's text can set a t.
+// textual reports whether a URL parameter's text can set a t: an Option's
+// element must be one that is not a pointer or a slice.
 func textual(t reflect.Type) bool {
+	if isOption(t) {
+		e := t.Field(0).Type
+		return e.Kind() != reflect.Pointer && e.Kind() != reflect.Slice && textual(e)
+	}
 	if reflect.PointerTo(t).Implements(textUnmarshalerType) {
 		return true
 	}
@@ -388,10 +401,15 @@ func parseText(v reflect.Value, vals []string) error {
 	return nil
 }
 
-// urlText is v as URL parameter values: nil for a nil pointer, each element
-// of a slice, MarshalText's, else the value formatted as parseText reads
-// it.
+// urlText is v as URL parameter values: nil for a nil pointer or a None,
+// each element of a slice, MarshalText's, else the value formatted as
+// parseText reads it.
 func urlText(v reflect.Value) []string {
+	if isOption(v.Type()) {
+		if _, some := optionParts(v); !some.Bool() {
+			return nil
+		}
+	}
 	if m, ok := v.Interface().(encoding.TextMarshaler); ok && (v.Kind() != reflect.Pointer || !v.IsNil()) {
 		b, err := m.MarshalText()
 		if err != nil {
@@ -538,6 +556,15 @@ func (u *URLFields) Fill(ctx context.Context, c, tag Stateful, prefix string, ro
 	return changed
 }
 
+// textKey is vals as one comparable string, told apart from the text of a
+// Some("") by the absence of any (a None).
+func textKey(vals []string) string {
+	if vals == nil {
+		return "\x01"
+	}
+	return strings.Join(vals, "\x00")
+}
+
 // Snapshot records the texts of c's URL-bound fields, before an event.
 func (u *URLFields) Snapshot(c Stateful) {
 	fs := urlFieldsOf(reflect.TypeOf(c))
@@ -548,7 +575,7 @@ func (u *URLFields) Snapshot(c Stateful) {
 	cv := reflect.ValueOf(c)
 	for _, uf := range fs {
 		if !uf.path {
-			u.snap[uf.index] = strings.Join(urlText(uf.get(cv)), "\x00")
+			u.snap[uf.index] = textKey(urlText(uf.get(cv)))
 		}
 	}
 }
@@ -571,7 +598,7 @@ func (u *URLFields) Changes(c, tag Stateful, prefix string, q url.Values) bool {
 			continue
 		}
 		v := uf.get(cv)
-		if strings.Join(urlText(v), "\x00") == before {
+		if textKey(urlText(v)) == before {
 			continue
 		}
 		key := uf.key(prefix)
