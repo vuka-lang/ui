@@ -9,80 +9,20 @@ import (
 	"strings"
 )
 
-// Table renders rows of type T as an HTML table styled with the --ui-*
-// tokens. It is presentational — DataTable adds paging, search and sort:
+// table is Table's markup, over rows erased to any (Table.erase): one
+// compiled body for every row type.
 //
-//	<ui.Table columns={cols} rows={books} rowKey={func(b Book) any { return b.ID }}/>
-//
-// with
-//
-//	cols := []ui.Column[Book]{
-//		{Header: ui.Text("Title"), Cell: func(b Book) ui.Node { return ui.Text(b.Title) }},
-//		{Header: ui.Text("Author"), Cell: func(b Book) ui.Node { return ui.Text(b.Author) }},
-//	}
-//
-//line table.vuka.html:18
-type Table[T any] struct {
-	Columns []Column[T]
-	Rows    []T
-	// RowKey gives each row a stable key for the live diff (the row's id).
-	RowKey func(T) any
-	// RowHref, when set, makes a row navigate to it on click (over the live
-	// connection when connected).
-	RowHref func(T) string
-	// RowActions, when set, adds a trailing column rendering per-row controls.
-	RowActions func(T) Node
+//line table.vuka.html:8
+type table struct{ Table[any] }
 
-	// Selectable adds a leading checkbox column. With OnSelect the boxes are
-	// live (ticked by RowSelected, toggled through OnSelect); without it they
-	// are plain form checkboxes named SelectName (default "selected") with the
-	// row's RowKey as value, for a form or handler to read.
-	Selectable bool
-	SelectName string
-	// RowSelected is a live checkbox's ticked state, and highlights the row.
-	RowSelected func(T) bool
-	// OnSelect is the live handler a row's checkbox calls on change; it
-	// receives the row and returns the handler to run. The checkbox fires
-	// onChange with its new ticked state, so the returned handler should take
-	// that bool (func(ctx, bool) or func(bool)) and set the row's selection
-	// to it — reading the real box state, not toggling a server-side guess.
-	OnSelect func(T) any
-	// OnSelectAll is the header checkbox's onChange handler; it takes the new
-	// ticked state (func(ctx, bool) / func(bool)) — select the page when true,
-	// clear it when false.
-	OnSelectAll any
-	// AllSelected ticks the header checkbox; SomeSelected marks it mixed.
-	AllSelected  bool
-	SomeSelected bool
-
-	// Index adds a leading row-number column. IndexFrom is the number before
-	// the first row (0 numbers the first row 1); DataTable sets it from the
-	// page.
-	Index     bool
-	IndexFrom int
-
-	// Empty is shown in place of the body when there are no rows; a default
-	// message is used when nil. EmptyIcon is shown above it.
-	Empty     Node
-	EmptyIcon Node
-
-	// Flush drops the table's outer border and side padding so it sits flush
-	// in a Card (use with Card.NoPad).
-	Flush bool
-	Class string
-
-	// rowAttrs are attributes of a row's tr: a DataTable's, for the browser.
-	rowAttrs func(T) []Attr
-}
-
-func (t Table[T]) attrsOf(row T) []Attr {
+func (t table) attrsOf(row any) []Attr {
 	if t.rowAttrs == nil {
 		return nil
 	}
 	return t.rowAttrs(row)
 }
 
-func (t Table[T]) classes() string {
+func (t table) classes() string {
 	c := "vk-table"
 	if t.Flush {
 		c += " vk-table--flush"
@@ -91,7 +31,7 @@ func (t Table[T]) classes() string {
 }
 
 // span is the number of columns, the leading and trailing ones included.
-func (t Table[T]) span() int {
+func (t table) span() int {
 	n := len(t.Columns)
 	for _, on := range []bool{t.Selectable, t.Index, t.RowActions != nil} {
 		if on {
@@ -101,7 +41,7 @@ func (t Table[T]) span() int {
 	return n
 }
 
-func (t Table[T]) selectName() string {
+func (t table) selectName() string {
 	if t.SelectName == "" {
 		return "selected"
 	}
@@ -110,7 +50,7 @@ func (t Table[T]) selectName() string {
 
 // mixed is the header checkbox's state when some rows but not all are
 // selected.
-func (t Table[T]) mixed() []Attr {
+func (t table) mixed() []Attr {
 	if !t.SomeSelected || t.AllSelected {
 		return nil
 	}
@@ -118,14 +58,14 @@ func (t Table[T]) mixed() []Attr {
 }
 
 // key is a row's key for the live diff, nil without RowKey.
-func (t Table[T]) key(row T) any {
+func (t table) key(row any) any {
 	if t.RowKey == nil {
 		return nil
 	}
 	return t.RowKey(row)
 }
 
-func (t Table[T]) rowClass(row T) any {
+func (t table) rowClass(row any) any {
 	var c []string
 	if t.RowHref != nil {
 		c = append(c, "vk-row--link")
@@ -136,7 +76,7 @@ func (t Table[T]) rowClass(row T) any {
 	return nonEmpty(strings.Join(c, " "))
 }
 
-func (t Table[T]) rowNav(row T) []Attr {
+func (t table) rowNav(row any) []Attr {
 	if t.RowHref == nil {
 		return nil
 	}
@@ -146,7 +86,7 @@ func (t Table[T]) rowNav(row T) []Attr {
 // ownClick keeps a click in a linked row's select or actions cell from
 // following the row's link: an empty chain answers it there, so the
 // checkbox, a menu or a button in the cell does only what it does.
-func (t Table[T]) ownClick() []Attr {
+func (t table) ownClick() []Attr {
 	if t.RowHref == nil {
 		return nil
 	}
@@ -154,7 +94,7 @@ func (t Table[T]) ownClick() []Attr {
 }
 
 // selectValue is a row checkbox's value: its key, as text.
-func (t Table[T]) selectValue(row T) any {
+func (t table) selectValue(row any) any {
 	if t.RowKey == nil {
 		return nil
 	}
@@ -163,7 +103,7 @@ func (t Table[T]) selectValue(row T) any {
 
 // selectBox is how a row's checkbox is bound: live, ticked by RowSelected
 // and calling OnSelect, or a plain form field named SelectName.
-func (t Table[T]) selectBox(row T) []Attr {
+func (t table) selectBox(row any) []Attr {
 	if t.OnSelect == nil {
 		return []Attr{{"name", t.selectName()}}
 	}
@@ -174,7 +114,7 @@ func (t Table[T]) selectBox(row T) []Attr {
 	return append(a, on("onChange", t.OnSelect(row))...)
 }
 
-func (t Table[T]) empty() Node {
+func (t table) empty() Node {
 	if t.Empty == nil {
 		return Text("Nothing to show.")
 	}
@@ -182,17 +122,17 @@ func (t Table[T]) empty() Node {
 }
 
 // emptyState is what the body shows when there are no rows.
-func (t Table[T]) emptyState() Node {
+func (t table) emptyState() Node {
 	if t.EmptyIcon == nil {
 		return t.empty()
 	}
 	return HTML(`<div class="vk-empty"><span class="vk-empty__icon">{t.EmptyIcon}</span><span class="vk-empty__msg">{t.empty()}</span></div>`, t.EmptyIcon, t.empty())
 }
 
-//line table.vuka.html:186
-func (t Table[T]) View() Node {
+//line table.vuka.html:125
+func (t table) View() Node {
 	var th2 Node
-//line table.vuka.html:190
+//line table.vuka.html:129
 	if t.Selectable {
 		var input2 Node
 		if t.OnSelectAll != nil {
@@ -201,22 +141,22 @@ func (t Table[T]) View() Node {
 		th2 = HTML(`<th class="vk-col--center vk-col--select" scope="col">{input2}</th>`, input2)
 	}
 	var th22 Node
-//line table.vuka.html:197
+//line table.vuka.html:136
 	if t.Index {
 		th22 = HTML(`<th class="vk-col--center vk-col--index" scope="col">#</th>`)
 	}
 	var ths []Node
-//line table.vuka.html:200
+//line table.vuka.html:139
 	for _, c := range t.Columns {
 		ths = append(ths, HTML(`<th scope="col" class={colClass(c)}>{c.Header}</th>`, colClass(c), c.Header))
 	}
 	var th3 Node
-//line table.vuka.html:203
+//line table.vuka.html:142
 	if t.RowActions != nil {
 		th3 = HTML(`<th class="vk-col--right" scope="col" aria-label="Actions"/>`)
 	}
 	var tbody Node
-//line table.vuka.html:208
+//line table.vuka.html:147
 	if len(t.Rows) == 0 {
 		tbody = HTML(`<tbody><tr><td colspan={t.span()} class="vk-table__empty">{t.emptyState()}</td></tr></tbody>`, t.span(), t.emptyState())
 	} else {
@@ -227,17 +167,17 @@ func (t Table[T]) View() Node {
 				td = HTML(`<td class="vk-col--center vk-col--select" {t.ownClick()...}><input type="checkbox" class="vk-check__box" aria-label="Select row" value={t.selectValue(row)} {t.selectBox(row)...}/></td>`, t.ownClick(), t.selectValue(row), t.selectBox(row))
 			}
 			var td2 Node
-//line table.vuka.html:217
+//line table.vuka.html:156
 			if t.Index {
 				td2 = HTML(`<td class="vk-col--center vk-col--index">{t.IndexFrom + i + 1}</td>`, t.IndexFrom+i+1)
 			}
 			var tds []Node
-//line table.vuka.html:220
+//line table.vuka.html:159
 			for _, c := range t.Columns {
-				tds = append(tds, HTML(`<td class={colClass(c)}>{c.cell(row)}</td>`, colClass(c), c.cell(row)))
+				tds = append(tds, HTML(`<td class={colClass(c)}>{cellOf(c, row)}</td>`, colClass(c), cellOf(c, row)))
 			}
 			var td3 Node
-//line table.vuka.html:223
+//line table.vuka.html:162
 			if t.RowActions != nil {
 				td3 = HTML(`<td class="vk-col--right vk-col--actions" {t.ownClick()...}>{t.RowActions(row)}</td>`, t.ownClick(), t.RowActions(row))
 			}
@@ -260,7 +200,7 @@ func (t Table[T]) View() Node {
 		}
 		tbody = HTML(`<tbody>{trs}</tbody>`, trs)
 	}
-//line table.vuka.html:186
+//line table.vuka.html:125
 	return HTML(`
 <div class="vk-table-wrap"><table class={t.classes()}>
   <thead><tr>
@@ -280,5 +220,5 @@ func (t Table[T]) View() Node {
 	)
 }
 
-//line table.vuka.html:231
-func (t Table[T]) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }
+//line table.vuka.html:170
+func (t table) Render(ctx context.Context, w io.Writer) error { return t.View().Render(ctx, w) }

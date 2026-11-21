@@ -16,9 +16,9 @@ import (
 // the table and the foot, as its mode draws them.
 //
 //line datatable_body.vuka.html:13
-type dataTableBody[T any] struct {
-	D    DataTable[T]
-	Page Page[T]
+type dataTableBody struct {
+	D    dataTable
+	Page Page[any]
 	// Server: Query was read from URL, and the controls write it.
 	Server bool
 	Query  TableQuery
@@ -27,7 +27,7 @@ type dataTableBody[T any] struct {
 	Failed bool
 }
 
-func (b dataTableBody[T]) placeholder() string {
+func (b dataTableBody) placeholder() string {
 	if b.D.SearchPlaceholder == "" {
 		return "Search…"
 	}
@@ -35,7 +35,7 @@ func (b dataTableBody[T]) placeholder() string {
 }
 
 // searchable reports whether the bar has a search box.
-func (b dataTableBody[T]) searchable() bool {
+func (b dataTableBody) searchable() bool {
 	switch {
 	case b.D.Client:
 		return true
@@ -47,14 +47,14 @@ func (b dataTableBody[T]) searchable() bool {
 	return b.D.OnSearch != nil
 }
 
-func (b dataTableBody[T]) bar() bool { return b.searchable() || b.D.Tabs != nil || b.D.Toolbar != nil }
+func (b dataTableBody) bar() bool { return b.searchable() || b.D.Tabs != nil || b.D.Toolbar != nil }
 
-func (b dataTableBody[T]) formID() string { return b.D.id() + "-search" }
+func (b dataTableBody) formID() string { return b.D.id() + "-search" }
 
 // columns are the table's columns, a sortable one's header its sort
 // control: a link in the URL modes, a button calling OnSort else.
-func (b dataTableBody[T]) columns() []Column[T] {
-	cols := make([]Column[T], len(b.D.Columns))
+func (b dataTableBody) columns() []Column[any] {
+	cols := make([]Column[any], len(b.D.Columns))
 	copy(cols, b.D.Columns)
 	sortable := b.Query.Sortable
 	for i := range cols {
@@ -71,12 +71,12 @@ func (b dataTableBody[T]) columns() []Column[T] {
 
 // actions is the table's trailing column: RowActions' controls, then the
 // Actions menu.
-func (b dataTableBody[T]) actions() func(T) Node {
+func (b dataTableBody) actions() func(any) Node {
 	if b.D.Actions == nil {
 		return b.D.RowActions
 	}
 	n := 0
-	return func(row T) Node {
+	return func(row any) Node {
 		n++
 		key := strconv.Itoa(n)
 		if b.D.RowKey != nil {
@@ -92,11 +92,11 @@ func (b dataTableBody[T]) actions() func(T) Node {
 
 // rowAttrs marks a row for the browser in Client mode, with the text it is
 // found by.
-func (b dataTableBody[T]) rowAttrs() func(T) []Attr {
+func (b dataTableBody) rowAttrs() func(any) []Attr {
 	if !b.D.Client {
 		return nil
 	}
-	return func(row T) []Attr {
+	return func(row any) []Attr {
 		a := []Attr{{"data-vk-table-row", true}}
 		if b.D.SearchBy != nil {
 			a = append(a, Attr{"data-vk-text", strings.ToLower(b.D.SearchBy(row))})
@@ -107,7 +107,7 @@ func (b dataTableBody[T]) rowAttrs() func(T) []Attr {
 
 // empty is what the body shows with no rows: the load's error, no match
 // for the search, else the table's Empty.
-func (b dataTableBody[T]) empty() (Node, Node) {
+func (b dataTableBody) empty() (Node, Node) {
 	switch {
 	case b.Failed:
 		return HTML(`<span class="vk-datatable__error" role="alert">The rows couldn’t be loaded. Try again in a moment.</span>`), Icon("warning-circle")
@@ -118,9 +118,9 @@ func (b dataTableBody[T]) empty() (Node, Node) {
 	return b.D.Empty, b.D.EmptyIcon
 }
 
-func (b dataTableBody[T]) table() Node {
+func (b dataTableBody) table() Node {
 	empty, icon := b.empty()
-	return Table[T]{
+	return table{Table[any]{
 		Columns: b.columns(), Rows: b.Page.Items, RowKey: b.D.RowKey, RowHref: b.D.RowHref,
 		RowActions: b.actions(), Selectable: b.D.Selectable, SelectName: b.D.SelectName,
 		RowSelected: b.D.RowSelected, OnSelect: b.D.OnSelect, OnSelectAll: b.D.OnSelectAll,
@@ -128,21 +128,21 @@ func (b dataTableBody[T]) table() Node {
 		Index: b.D.Index, IndexFrom: max(b.Page.From()-1, 0),
 		Empty: empty, EmptyIcon: icon, Flush: b.D.Flush,
 		rowAttrs: b.rowAttrs(),
-	}.View()
+	}}.View()
 }
 
 // foot reports whether the foot is shown: with a page of rows in the URL
 // modes (the body says why there are none), always else.
-func (b dataTableBody[T]) foot() bool { return !b.Server || b.Page.Total > 0 }
+func (b dataTableBody) foot() bool { return !b.Server || b.Page.Total > 0 }
 
-func (b dataTableBody[T]) sizeShown() bool {
+func (b dataTableBody) sizeShown() bool {
 	if b.Server {
 		return b.Page.Total > 0
 	}
 	return b.D.OnSize != nil && len(b.D.Sizes) > 0
 }
 
-func (b dataTableBody[T]) pager() Node {
+func (b dataTableBody) pager() Node {
 	if b.Server {
 		return linkPager{Page: b.Page.Page, Pages: b.Page.Pages, HasPrev: b.Page.HasPrev, HasNext: b.Page.HasNext,
 			Numbers: b.Page.Window(pagerWindow(b.D.Window)), URL: b.URL}
@@ -153,28 +153,28 @@ func (b dataTableBody[T]) pager() Node {
 // sizeName and searchName are the size select's and search box's
 // parameters; form ties the size select to the search form, so its submit
 // keeps the size.
-func (b dataTableBody[T]) sizeName() string   { return b.URL.param("size") }
-func (b dataTableBody[T]) searchName() string { return b.URL.param("q") }
-func (b dataTableBody[T]) form() any          { return when(b.searchable(), b.formID()) }
+func (b dataTableBody) sizeName() string   { return b.URL.param("size") }
+func (b dataTableBody) searchName() string { return b.URL.param("q") }
+func (b dataTableBody) form() any          { return when(b.searchable(), b.formID()) }
 
 // writes is the live handler a control kept in the URL writes param with.
-func (b dataTableBody[T]) writes(event, param string) []Attr {
+func (b dataTableBody) writes(event, param string) []Attr {
 	return on(event, b.URL.edit(param))
 }
 
 // filtered reports whether the count says what the search left out.
-func (b dataTableBody[T]) filtered() bool {
+func (b dataTableBody) filtered() bool {
 	return b.Server && b.Query.Search != "" && b.Page.All > b.Page.Total
 }
 
-func (b dataTableBody[T]) firstSize() int { return b.D.sizes()[0] }
+func (b dataTableBody) firstSize() int { return b.D.sizes()[0] }
 
-func (b dataTableBody[T]) clientPages() int {
+func (b dataTableBody) clientPages() int {
 	return (len(b.D.Rows) + b.firstSize() - 1) / b.firstSize()
 }
 
 //line datatable_body.vuka.html:171
-func (b dataTableBody[T]) View() Node {
+func (b dataTableBody) View() Node {
 	var div Node
 //line datatable_body.vuka.html:172
 	if b.bar() {
@@ -334,7 +334,4 @@ func (b dataTableBody[T]) View() Node {
 }
 
 //line datatable_body.vuka.html:255
-func (b dataTableBody[T]) Render(ctx context.Context, w io.Writer) error {
-//line datatable_body.vuka.html:255
-	return b.View().Render(ctx, w)
-}
+func (b dataTableBody) Render(ctx context.Context, w io.Writer) error { return b.View().Render(ctx, w) }

@@ -8,129 +8,14 @@ import (
 	"io"
 )
 
-// DataTable is a Table with a search box, sortable headers and a pager.
-// It gets its rows in one of four ways, with the same columns and markup:
+// dataTable is DataTable's markup, over rows erased to any
+// (DataTable.erase): one compiled body for every row type.
 //
-// From a store (Load): the table reads its page, size, search and sort from
-// the page's URL and calls Load with them; Load returns that page (see
-// LoadPage, which pages an orm QuerySet). Sorting, paging and searching
-// write the URL, so each is a patch of the live page, a link without one:
-//
-//	<ui.DataTable load={Books} searchPlaceholder="Find books">
-//		<slot:column header="Title" sort="title" let={b}>{b.Title}</slot:column>
-//		<slot:actions let={b}><ui.ActionMenu icon="trash" danger on={ui.JS.Push(Delete, ui.Value(b.ID))}>Delete</ui.ActionMenu></slot:actions>
-//	</ui.DataTable>
-//
-// From a slice (Rows): every row; the table cuts, finds (SearchBy) and orders
-// (Sorts) them itself, from the URL as Load does.
-//
-// In the browser (Client with Rows): every row is in the page and the
-// browser searches and pages them, with no request.
-//
-// From a live view's events (Page): it renders the page it is given and
-// calls the On… handlers the host supplies:
-//
-//	<ui.DataTable columns={cols} page={p.page.Get()} search={p.query.Get()}
-//		onSearch={p.Search} onSort={p.SortBy} onPage={p.GoTo}/>
-//
-// The On… handlers are live event handlers (a func, as an on… attribute
-// takes); leaving one nil drops its control, so a DataTable can offer just
-// paging, or paging with search and sort.
-//
-// The table's root carries ID ("records" unless set), so
-// ui.JS.Reload("#records") renders it again, calling Load again.
-//
-//line datatable.vuka.html:37
-type DataTable[T any] struct {
-	Columns []Column[T]
-	// Page is the current page of rows (see web.Paginate).
-	Page Page[T]
-
-	// OnPage is called with a 1-based page number when a pager control is
-	// used; without it the pager renders as static text.
-	OnPage any
-	// OnSize is called with a new page size when the size select changes;
-	// shown only with Sizes.
-	OnSize any
-	// Sizes are the page-size options: offered when OnSize is set, and by a
-	// table with Load or Rows (10, 25, 50 and 100 without them).
-	Sizes []int
-	// OnSearch is called with the search box's value as the user types;
-	// without it no search box is shown.
-	OnSearch any
-	// Search is the current search value (kept in the box across renders).
-	Search            string
-	SearchPlaceholder string
-	// OnSort is called with a column's Sort key when its header is clicked;
-	// columns with no Sort key stay plain.
-	OnSort any
-	// Sort and SortDir ("asc"/"desc") mark the sorted column for the header
-	// indicator.
-	Sort    string
-	SortDir string
-
-	// Window is how many numbered pager buttons to show; default 5.
-	Window int
-
-	// Passed through to the underlying Table.
-	RowKey       func(T) any
-	RowHref      func(T) string
-	RowActions   func(T) Node
-	Selectable   bool
-	SelectName   string
-	RowSelected  func(T) bool
-	OnSelect     func(T) any
-	OnSelectAll  any
-	AllSelected  bool
-	SomeSelected bool
-	// Index adds a row-number column numbered from the page's first row.
-	Index     bool
-	Empty     Node
-	EmptyIcon Node
-	// Flush drops the table's border so it sits flush in a Card.
-	Flush bool
-	Class string
-
-	// Toolbar is extra controls shown in the bar beside the search box
-	// (filters, a "New" button).
-	Toolbar Node
-	// Tabs, when set, are shown in the bar above the table.
-	Tabs Node
-
-	// ID is the id of the table's root, what ui.JS.Reload("#"+ID) renders
-	// again; "records" unless set. Two tables on a page need two.
-	ID string
-	// Key prefixes the table's URL parameters (q, page, size, sort, dir):
-	// "orders" keeps them as orders.page, so two tables on one page page
-	// apart.
-	Key string
-	// Load returns the page q asks for: what the table renders, with q read
-	// from the page's URL. An error is logged and shown as the table's
-	// error state.
-	Load func(ctx context.Context, q TableQuery) (Page[T], error)
-	// Rows is every row, for the table to page itself: on the server from
-	// the URL, or in the browser with Client.
-	Rows []T
-	// Client pages and searches Rows in the browser, with no request.
-	Client bool
-	// SearchBy is the text a row of Rows is found by; without it Rows has
-	// no search box (Client finds a row by what it shows).
-	SearchBy func(T) string
-	// Sorts orders Rows by a column's sort key: the value a row sorts by
-	// (numbers and times by value, anything else as text).
-	Sorts map[string]func(T) any
-	// NoSearch drops the search box of a table with Load.
-	NoSearch bool
-	// Actions is a row's menu: its ActionMenu items, shown behind a button
-	// in a trailing column (<slot:actions let={row}>).
-	Actions func(T) Node
-	// Loading marks the table busy (aria-busy), as it is while one of its
-	// controls waits for the server.
-	Loading bool
-}
+//line datatable.vuka.html:8
+type dataTable struct{ DataTable[any] }
 
 // id is the root's id.
-func (d DataTable[T]) id() string {
+func (d dataTable) id() string {
 	if d.ID == "" {
 		return "records"
 	}
@@ -138,30 +23,30 @@ func (d DataTable[T]) id() string {
 }
 
 // server reports whether the table reads its page from the URL.
-func (d DataTable[T]) server() bool { return !d.Client && (d.Load != nil || d.Rows != nil) }
+func (d dataTable) server() bool { return !d.Client && (d.Load != nil || d.Rows != nil) }
 
-func (d DataTable[T]) busy() any { return when(d.Loading, "true") }
+func (d dataTable) busy() any { return when(d.Loading, "true") }
 
-func (d DataTable[T]) mode() any { return when(d.Client, "client") }
+func (d dataTable) mode() any { return when(d.Client, "client") }
 
 // body is the table's content: resolved from the URL as it renders, for
 // Load and Rows, else from its props.
-func (d DataTable[T]) body() Node {
+func (d dataTable) body() Node {
 	if d.server() {
 		return Ctx(func(ctx context.Context) Node { return d.resolve(ctx) })
 	}
-	b := dataTableBody[T]{D: d, Page: d.Page}
+	b := dataTableBody{D: d, Page: d.Page}
 	if d.Client {
 		b.Page = NewPage(d.Rows, len(d.Rows), 1, max(len(d.Rows), 1))
 	}
 	return b
 }
 
-//line datatable.vuka.html:155
-func (d DataTable[T]) View() Node {
-//line datatable.vuka.html:155
+//line datatable.vuka.html:40
+func (d dataTable) View() Node {
+//line datatable.vuka.html:40
 	return HTML(`<div id={d.id()} class={withClass("vk-datatable", d.Class)} aria-busy={d.busy()} data-vk-table={d.mode()}>{d.body()}</div>`, d.id(), withClass("vk-datatable", d.Class), d.busy(), d.mode(), d.body())
 }
 
-//line datatable.vuka.html:157
-func (d DataTable[T]) Render(ctx context.Context, w io.Writer) error { return d.View().Render(ctx, w) }
+//line datatable.vuka.html:42
+func (d dataTable) Render(ctx context.Context, w io.Writer) error { return d.View().Render(ctx, w) }
