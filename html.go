@@ -407,9 +407,11 @@ func attrValue(ctx context.Context, tag, name string, v any) (string, uint8, err
 		if s, ok := v.(Style); ok {
 			v = map[string]string(s)
 		}
-		// Sanitized and escaped, then escaped once more when written, as templ does.
+		// The sanitizer's output is already HTML-escaped; templ's generated
+		// code writes it as is, so escaping again would turn &#39; into
+		// &amp;#39; and break the declaration.
 		s, err := templruntime.SanitizeStyleAttributeValues(v)
-		return s, attrEscaped, err
+		return s, attrRaw, err
 	case isURLAttr(tag, name):
 		if u, ok := v.(templ.SafeURL); ok {
 			return string(u), attrEscaped, nil
