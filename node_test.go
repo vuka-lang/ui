@@ -67,6 +67,7 @@ func TestRender(t *testing.T) {
 		{"style sorted", el("p", a("style", ui.Style{"margin": "0", "color": "red"})), `<p style="color:red;margin:0;"></p>`},
 		{"style unsafe value", el("p", a("style", ui.Style{"background": "url(javascript:x)"})), `<p style="background:zTemplUnsafeCSSPropertyValue;"></p>`},
 		{"style string", el("p", a("style", "color: red")), `<p style="color: red;"></p>`},
+		{"style quoted font", el("p", a("style", "font-family:'Segoe UI'")), `<p style="font-family:&#39;Segoe UI&#39;;"></p>`},
 		{"href relative", el("a", a("href", "/users/1?x=a:b")), `<a href="/users/1?x=a:b"></a>`},
 		{"href https", el("a", a("href", "HTTPS://x.dev")), `<a href="HTTPS://x.dev"></a>`},
 		{"href mailto", el("a", a("href", "mailto:a@b.c")), `<a href="mailto:a@b.c"></a>`},
