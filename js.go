@@ -49,6 +49,14 @@ type JSChain interface{ jsChain() Commands }
 // type and forwards it to its element with onClick={OnClick}.
 type Action interface{}
 
+// ActionOf is what an event does with a T: a method of the page or a
+// closure taking one, besides a context.Context and what the app injects.
+// A component declares a prop of this type, OnSelect ui.ActionOf[Order], and
+// calls it in an on… attribute with the value, onClick={OnSelect(o)}, which
+// vuka's compiler makes the push of the handler the prop holds; the tag is
+// given the handler, onSelect={Select}, checked to take an Order.
+type ActionOf[T any] interface{}
+
 func (c Commands) jsChain() Commands { return c }
 
 type jsOp struct {
