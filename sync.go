@@ -41,6 +41,9 @@ func registerSyncedFields(t reflect.Type, names []string) {
 	syncedFields.Store(t, m)
 }
 
+// nextVersion numbers a write on the shared counter (track's, the Assigns').
+func nextVersion() uint64 { return track.Next() }
+
 // markSynced flags the cell synced, or browser-local again.
 func (c *stateCell) markSynced(on bool) {
 	c.mu.Lock()
