@@ -88,7 +88,11 @@ type Element struct {
 // TextNode is text, escaped when rendered.
 type TextNode string
 
-// RawHTML is trusted HTML, written as is.
+// RawHTML is trusted HTML, written as is: a hole or a prop holding one
+// renders it unescaped where a string is escaped, and innerHTML={x} takes
+// one. Sanitize makes one of HTML from users; the conversion
+// ui.RawHTML(s) says s is trusted as it is. In an attribute's value it is
+// text, escaped. A live page patches it as one value, never looking inside.
 type RawHTML string
 
 // Group is children with no element around them.
