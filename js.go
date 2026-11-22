@@ -132,6 +132,8 @@ func to(t Target) jsArg { return jsArg{"to", t} }
 // Example:
 //
 //	<button onClick={ui.JS.Hide(ui.Closest("li"))}>Dismiss</button>
+//
+//vuka:open
 type Target string
 
 // Targets other than selectors are strings no selector can be: a NUL, then
