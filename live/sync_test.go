@@ -213,3 +213,51 @@ func TestSyncedWriteRendersTracked(t *testing.T) {
 		t.Fatalf("an event with no writes re-rendered a tracked component: %+v", p.Updates)
 	}
 }
+
+// twoStates has two synced states: an event carrying both applies both
+// before its handler runs — a state read only inside another state's event
+// handler still reads the truth as of the event.
+type twoStates struct {
+	ui.Live
+	a   ui.State[string]
+	b   ui.State[string]
+	got string
+}
+
+func init() { uigen.SyncFields[twoStates]("a", "b") }
+
+func (c *twoStates) OnA() { c.got = c.a.Get() + "+" + c.b.Get() }
+
+func (c *twoStates) Render() ui.Node {
+	return ui.El("div", nil,
+		ui.El("span", []ui.Attr{a("data-a", ui.BindExpr(c.a.Get(), `{"$":0}`, c.a)), a("data-b", ui.BindExpr(c.b.Get(), `{"$":0}`, c.b))}),
+		ui.El("button", []ui.Attr{a("onClick", ui.On(c.OnA))}, ui.Text("go")),
+	)
+}
+
+// TestEventOrdering: every carried write lands before the handler, so a
+// handler of one state's event reads the other's value as of the event.
+func TestEventOrdering(t *testing.T) {
+	c := &twoStates{}
+	s := live.NewSession(context.Background(), func(context.Context) ui.Node {
+		return ui.Component("page.two", nil, c)
+	})
+	out, err := s.Render()
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := regexp.MustCompile(`c\d+:f[0-9a-z]+:1`).FindAllString(html.UnescapeString(out), -1)
+	if len(keys) != 2 {
+		t.Fatalf("keys %v", keys)
+	}
+	id, _, _ := strings.Cut(keys[0], ":")
+	if _, err := s.Event(ui.Event{Target: id + ":0", States: map[string]ui.StateWrite{
+		keys[0]: {V: json.RawMessage(`"left"`), N: 1},
+		keys[1]: {V: json.RawMessage(`"right"`), N: 1},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.Component(id + ":0").(*twoStates).got; got != "left+right" {
+		t.Fatalf("the handler read %q, want left+right", got)
+	}
+}
