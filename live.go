@@ -334,6 +334,11 @@ type Event struct {
 	// dialog): the session runs them after the event's handler, in the same
 	// render, so no vkinit event of their own follows.
 	Shown []string `json:"shown,omitempty"`
+	// States are the browser's dirty synced states as it sent the event
+	// (one state, §12), by key: the session applies them before the event's
+	// handler runs, so a handler reading a state sees the truth as of the
+	// event.
+	States map[string]StateWrite `json:"states,omitempty"`
 }
 
 // InitHandler is the handler of an element's vkinit event, which the

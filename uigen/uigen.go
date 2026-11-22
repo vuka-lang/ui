@@ -22,7 +22,10 @@ import (
 
 // Assign is an unexported field of a .vuka.html file's struct: server state
 // a live session tracks. The compiler writes reads as Get and writes as Set
-// or Update.
+// or Update. It is the one-state engine's server-only form
+// (components-seamless.md §12): plain fields compile to it unchanged, and a
+// hand-written Assign is a vet warning — declare a plain field, or a
+// ui.State the code reads.
 type Assign[T any] = track.Assign[T]
 
 // UseState is a state declared where it is called: a component instance's
@@ -69,6 +72,26 @@ func With[T any](s ui.State[T], o ui.StateOption) { bridge.With(s, o) }
 
 // Read is d as the state an expression reading it reads.
 func Read[T any](d ui.Derived[T]) ui.State[T] { return bridge.Read(d).(ui.State[T]) }
+
+// Synced marks s synced (one state, components-seamless.md §12): Go code
+// reads it, so its browser writes ride each event and its server writes ride
+// the next render. The compiler classifies states; a state it can't follow
+// is synced.
+func Synced[T any](s ui.State[T]) ui.State[T] { return bridge.Synced(s).(ui.State[T]) }
+
+// SyncFields records that T's named ui.State fields are synced: what the
+// compiler writes once per component type whose methods read states. The
+// fields are marked when an instance mounts.
+func SyncFields[T any](names ...string) { bridge.SyncFields(reflect.TypeFor[T](), names) }
+
+// SrvSet is a server write of synced state s: the compiler writes a live
+// method's s = v as SrvSet(s, v). The replica takes v, versioned, and the
+// next render carries it for the browser to adopt.
+func SrvSet[T any](s ui.State[T], v T) { bridge.SrvSet(s, v) }
+
+// Ver is s's write version, 0 until a write: a guard dep for a part of a
+// render that reads a synced state.
+func Ver[T any](s ui.State[T]) uint64 { return bridge.Ver(s) }
 
 // Derive registers fn, which sets the Derived fields of a *T from its
 // states once they have theirs, and the states' notifications: the

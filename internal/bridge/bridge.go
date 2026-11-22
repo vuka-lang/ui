@@ -29,4 +29,12 @@ var (
 	With func(s, o any)
 	// Derive registers fn, which sets the Derived fields of a *t.
 	Derive func(t reflect.Type, fn func(p any))
+	// Synced marks state s synced (one state, §12) and returns it.
+	Synced func(s any) any
+	// SrvSet is a server write of synced state s: the replica takes v.
+	SrvSet func(s, v any)
+	// Ver is state s's write version, a guard dep.
+	Ver func(s any) uint64
+	// SyncFields records t's synced ui.State fields, by name.
+	SyncFields func(t reflect.Type, names []string)
 )

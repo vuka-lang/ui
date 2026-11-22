@@ -26,6 +26,15 @@ import (
 // of its component by name (what the component's scripts push), when
 // AllowPush allows it; any other target is an error.
 //
+// An event may carry the browser's dirty synced states (one state, §12),
+// applied before its handler runs:
+//
+//	→ {"type":"event","ref":5,"target":"c2:0","event":"click","states":{"c2:f1abc:1":{"v":"tea","n":2}}}
+//
+// The reply's render carries each synced state's reference with its version
+// ("ver"), the applied write number ("bn") or the server-write mark ("sw"),
+// which the browser adopts past its base.
+//
 // Every event gets exactly one reply carrying its ref — a patch, empty
 // when nothing changed ({"type":"patch","ref":4}), or an error — which is
 // what settles an optimistic push in the browser.
