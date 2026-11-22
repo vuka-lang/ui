@@ -78,11 +78,19 @@ func assignsOf(c Stateful, each func(dirty *bool)) bool {
 }
 
 // TrackedState reports whether c's state is all Assigns (tracked), and
-// whether one of them changed since SettleState. Package live calls it.
+// whether one of them — or a synced ui.State replica, whose writes land
+// between renders (sync.go) — changed since SettleState. Package live calls
+// it.
 func TrackedState(c Stateful) (tracked, changed bool) {
 	tracked = assignsOf(c, func(d *bool) { changed = changed || *d })
+	if tracked && !changed {
+		changed = syncDirty(c, false)
+	}
 	return tracked, changed
 }
 
-// SettleState marks c's Assigns unchanged, after a render.
-func SettleState(c Stateful) { assignsOf(c, func(d *bool) { *d = false }) }
+// SettleState marks c's Assigns and synced states unchanged, after a render.
+func SettleState(c Stateful) {
+	assignsOf(c, func(d *bool) { *d = false })
+	syncDirty(c, true)
+}

@@ -20,6 +20,8 @@ type stateOps interface {
 	op(name string, o any) any
 	write(name string, c Commands) Commands
 	memo(site string) any
+	srvSet(v any)
+	version() uint64
 }
 
 func (s State[T]) memo(site string) any { return memoOf(site, s) }
@@ -71,6 +73,37 @@ func (s State[T]) op(name string, o any) any {
 	panic("ui: no state operation " + name)
 }
 
+// srvSet is a server write of a synced state (components-seamless.md §12):
+// the replica takes v, versioned, and the next render carries it. The
+// compiler writes a live method's assignment of a synced state as
+// uigen.SrvSet.
+func (s State[T]) srvSet(v any) {
+	sv := s.stateOf()
+	sv.writable("SrvSet")
+	if len(s.path) > 0 {
+		panic("ui: SrvSet sets a whole state, not a field of one")
+	}
+	t, ok := v.(T)
+	if !ok {
+		rv := reflect.ValueOf(v)
+		if rv.IsValid() && numeric(rv.Kind()) && numeric(sv.t.Kind()) {
+			t, ok = rv.Convert(sv.t).Interface().(T)
+		}
+	}
+	if !ok && v != nil {
+		panic(fmt.Sprintf("ui: SrvSet: a ui.State[%s] takes no %T", sv.t, v))
+	}
+	s.c.srvSet(t)
+}
+
+// version is the replica's write version, a guard dep.
+func (s State[T]) version() uint64 {
+	if s.c == nil {
+		return 0
+	}
+	return s.c.version()
+}
+
 func (s State[T]) write(name string, c Commands) Commands {
 	switch name {
 	case "Toggle":
@@ -96,6 +129,15 @@ func init() {
 	bridge.Read = func(d any) any { return d.(derivedOps).state() }
 	bridge.With = func(s any, o any) { o.(StateOption).applyState(s.(stateOps).stateOf().c) }
 	bridge.Derive = func(t reflect.Type, fn func(p any)) { derivers.Store(t, fn) }
+	bridge.Synced = func(s any) any {
+		if c := s.(stateOps).stateOf().c; c != nil {
+			c.markSynced(true)
+		}
+		return s
+	}
+	bridge.SrvSet = func(s, v any) { s.(stateOps).srvSet(v) }
+	bridge.Ver = func(s any) uint64 { return s.(stateOps).version() }
+	bridge.SyncFields = registerSyncedFields
 }
 
 // fieldStates is the indexes of a struct type's ui.State fields.
@@ -123,18 +165,26 @@ func initStates(p reflect.Value) {
 		}
 		idx, _ = fieldStates.LoadOrStore(t, out)
 	}
+	synced, _ := syncedFields.Load(t)
 	gave := false
 	for _, i := range idx.([]int) {
 		f := v.Field(i)
 		s := reflect.NewAt(f.Type(), f.Addr().UnsafePointer()).Elem()
-		if s.Interface().(stateOps).stateOf().c != nil {
+		if c := s.Interface().(stateOps).stateOf().c; c != nil {
+			if synced != nil && synced.(map[string]bool)[t.Field(i).Name] {
+				c.markSynced(true)
+			}
 			continue
 		}
 		h := fnv.New64a()
 		fmt.Fprintf(h, "%s.%s.%s", t.PkgPath(), t.Name(), t.Field(i).Name)
 		site := "f" + strconv.FormatUint(h.Sum64()&0xffffffffff, 36)
 		s.Set(reflect.ValueOf(reflect.Zero(f.Type()).Interface().(stateOps).declare(site, false, nil)))
-		s.Interface().(stateOps).stateOf().c.name = t.Name() + "." + t.Field(i).Name
+		c := s.Interface().(stateOps).stateOf().c
+		c.name = t.Name() + "." + t.Field(i).Name
+		if synced != nil && synced.(map[string]bool)[t.Field(i).Name] {
+			c.synced = true
+		}
 		gave = true
 	}
 	if fn, ok := derivers.Load(t); ok && (gave || zeroDerived(v)) {

@@ -290,7 +290,32 @@ func (s *Session) Event(ev ui.Event) (Patch, error) {
 	if fn == nil {
 		return Patch{}, s.noHandler(ev.Target)
 	}
+	if err := s.applyStates(ev.States); err != nil {
+		return Patch{}, err
+	}
 	return s.run(fn, ev)
+}
+
+// applyStates applies the browser's dirty synced states carried by an event
+// (one state, §12) to the instances that hold them, before the event's
+// handler runs. A write naming no state of the page is dropped (the
+// instance may be gone); one naming a state that isn't synced, or carrying
+// a value that isn't its type, is an error — the value is the visitor's.
+func (s *Session) applyStates(writes map[string]ui.StateWrite) error {
+	for key, w := range writes {
+		id, _, ok := strings.Cut(key, ":")
+		if !ok {
+			continue
+		}
+		in := s.byID[id]
+		if in == nil || in.comp == nil {
+			continue
+		}
+		if _, err := ui.ApplyStateWrite(in.comp, key, w); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // run calls a handler for ev, renders the page again and returns what

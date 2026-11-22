@@ -214,8 +214,12 @@ func isLenable(k reflect.Kind) bool {
 	return k == reflect.String || k == reflect.Slice || k == reflect.Map || k == reflect.Array
 }
 
-// value is the state's value, its type's zero when it holds nil.
-func (s State[T]) value() reflect.Value { return reflect.ValueOf(&s.v).Elem() }
+// value is the state's value — the server replica's for a synced state —
+// its type's zero when it holds nil.
+func (s State[T]) value() reflect.Value {
+	v := s.Get()
+	return reflect.ValueOf(&v).Elem()
+}
 
 // kind is the state's value, which op takes only of the kinds ok allows.
 func (s State[T]) kind(op string, ok func(reflect.Kind) bool) reflect.Value {

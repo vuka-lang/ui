@@ -15,9 +15,14 @@ type Assign[T any] struct {
 	ver   uint64
 }
 
-// versions numbers the writes to every Assign, so that no two writes share a
-// version, even of two Assigns or of one copied over another.
+// versions numbers the writes to every Assign — and, through Next, to every
+// synced ui.State replica — so that no two writes share a version, even of
+// two Assigns or of one copied over another.
 var versions atomic.Uint64
+
+// Next is the next write version: package ui numbers a synced state's server
+// writes from the same counter, so versions order across both kinds.
+func Next() uint64 { return versions.Add(1) }
 
 // Get is the value.
 func (a *Assign[T]) Get() T { return a.v }

@@ -59,6 +59,18 @@ type stateCell struct {
 	name    string // a field's: Type.field, for the dev toolbar
 	mu      sync.Mutex
 	key     string
+
+	// One state (components-seamless.md §12): the server's replica of a
+	// synced state. A synced state is one Go code reads — the compiler
+	// classifies it — so its browser writes ride each event (Event.States)
+	// and its server writes ride the next render, versioned.
+	synced bool
+	hasCur bool   // a write landed: cur is the value, not init
+	cur    any    // the server replica's value
+	ver    uint64 // its version (track.Next), 0 until a write
+	lastN  uint64 // the last browser write number applied (echo suppression)
+	srv    bool   // the last write was the server's own: it supersedes
+	sdirty bool   // changed since the instance's last render settled
 }
 
 // newState is a state declared at site, a name unique in the program. Each
@@ -106,6 +118,11 @@ func newDerived[T any](value T, expr string, deps ...any) State[T] {
 // server renders it with the states' initial values.
 //
 // Get is the value the server renders with.
+//
+// Derived deprecates with the one-state merge (components-seamless.md §12):
+// a template expression over states is derived already, and a Go method over
+// synced states is the server form. New code writes the expression where it
+// is read; Derived keeps working.
 type Derived[T any] struct{ s State[T] }
 
 // Get is the value as the server renders it.
@@ -205,9 +222,49 @@ func stateField[S, T any](s State[S], name string, sample T) State[T] {
 	return State[T]{c: s.c, path: append(s.path[:len(s.path):len(s.path)], name), v: sample}
 }
 
-// Get is the state's value as the server renders it: its initial value.
+// Get is the state's value as the server renders it. For a synced state —
+// one Go code reads — it is the server replica: the browser's writes as of
+// the last event, and the server's own writes; for any other state, the
+// initial value it renders with.
 // Passed as a prop, it gives the child the value rather than the state.
-func (s State[T]) Get() T { return s.v }
+func (s State[T]) Get() T {
+	if v, ok := s.liveValue(); ok {
+		return v
+	}
+	return s.v
+}
+
+// liveValue is the server replica's value at s's path, when a write landed.
+func (s State[T]) liveValue() (T, bool) {
+	var zero T
+	if s.c == nil {
+		return zero, false
+	}
+	s.c.mu.Lock()
+	cur, ok := s.c.cur, s.c.hasCur
+	s.c.mu.Unlock()
+	if !ok {
+		return zero, false
+	}
+	v := reflect.ValueOf(cur)
+	for _, name := range s.path {
+		for v.Kind() == reflect.Pointer {
+			if v.IsNil() {
+				return zero, false
+			}
+			v = v.Elem()
+		}
+		if v.Kind() != reflect.Struct {
+			return zero, false
+		}
+		v = v.FieldByName(name)
+		if !v.IsValid() {
+			return zero, false
+		}
+	}
+	t, ok := v.Interface().(T)
+	return t, ok
+}
 
 // Set is the command setting the state to v.
 //
@@ -240,7 +297,7 @@ type stateView struct {
 }
 
 func (s State[T]) stateOf() stateView {
-	return stateView{s.c, s.path, s.v, reflect.TypeFor[T]()}
+	return stateView{s.c, s.path, s.Get(), reflect.TypeFor[T]()}
 }
 
 // view is s for a write named op; kind ("bool", "number" or "") is what
@@ -342,7 +399,24 @@ func (v stateView) ref(ctx context.Context, path []string) (any, error) {
 		}
 		return r, nil
 	}
-	r := map[string]any{"s": v.c.keyIn(ctx), "i": v.c.init}
+	key := v.c.keyIn(ctx)
+	v.c.mu.Lock()
+	r := map[string]any{"s": key, "i": v.c.init}
+	if v.c.hasCur {
+		r["i"] = v.c.cur
+	}
+	if v.c.synced {
+		r["sy"] = 1
+		if v.c.ver != 0 {
+			r["ver"] = v.c.ver
+			if v.c.srv {
+				r["sw"] = 1
+			} else {
+				r["bn"] = v.c.lastN
+			}
+		}
+	}
+	v.c.mu.Unlock()
 	if v.c.name != "" && devStates() {
 		r["n"] = v.c.name
 	}
