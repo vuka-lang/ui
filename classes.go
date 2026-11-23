@@ -67,7 +67,7 @@ type classTok struct {
 type groupSet struct {
 	mods      string
 	important bool
-	bits      [4]uint64
+	bits      [5]uint64
 }
 
 func (g *groupSet) has(id int) bool { return g.bits[id>>6]&(1<<(id&63)) != 0 }
@@ -414,6 +414,9 @@ var exactClasses = map[string]string{
 	"ring-inset": "ring-inset",
 	"transform":  "transform", "transform-gpu": "transform", "transform-cpu": "transform", "transform-none": "transform",
 	"outline": "outline-style", "outline-hidden": "outline-style",
+	"normal-nums": "fvn-normal", "ordinal": "fvn-ordinal", "slashed-zero": "fvn-slashed-zero",
+	"lining-nums": "fvn-figure", "oldstyle-nums": "fvn-figure", "proportional-nums": "fvn-spacing", "tabular-nums": "fvn-spacing",
+	"diagonal-fractions": "fvn-fraction", "stacked-fractions": "fvn-fraction",
 }
 
 func init() {
@@ -434,7 +437,7 @@ func init() {
 		"translate-x", "translate-y", "skew-x", "skew-y", "cursor", "select", "pointer-events", "resize", "appearance",
 		"accent", "caret", "will-change", "content", "blur", "brightness", "contrast", "grayscale", "invert", "saturate",
 		"sepia", "hue-rotate", "drop-shadow", "backdrop-blur", "backdrop-brightness", "backdrop-opacity", "fill",
-		"table-layout", "caption", "float", "clear", "text-shadow", "border-spacing", "touch", "snap", "scroll-m", "scroll-p"} {
+		"table-layout", "caption", "float", "clear", "border-spacing", "scroll-m", "scroll-p"} {
 		classPrefixes[p] = utility(p, false)
 	}
 	for _, p := range []string{"grow", "shrink", "rounded", "rounded-s", "rounded-e", "rounded-t", "rounded-r", "rounded-b", "rounded-l",
@@ -495,6 +498,48 @@ func init() {
 	classPrefixes["shadow"] = shadowGroup("shadow")
 	classPrefixes["inset-shadow"] = shadowGroup("inset-shadow")
 	classPrefixes["space-x-reverse"], classPrefixes["space-y-reverse"] = utility("space-x-reverse", true), utility("space-y-reverse", true)
+	classPrefixes["inset-ring"] = sidedUtility("inset-ring-w", "", "inset-ring-color")
+	classPrefixes["text-shadow"] = shadowGroup("text-shadow")
+	// Tailwind 3's opacity utilities are their own: bg-opacity-50 beside
+	// bg-red-500 sets the colour's alpha, it doesn't replace the colour.
+	for _, p := range []string{"bg-opacity", "text-opacity", "border-opacity", "divide-opacity", "ring-opacity", "placeholder-opacity"} {
+		classPrefixes[p] = utility(p, false)
+	}
+	for _, p := range []string{"translate", "translate-z", "rotate-x", "rotate-y", "rotate-z", "scale-z", "perspective", "perspective-origin",
+		"scroll-mx", "scroll-my", "scroll-ms", "scroll-me", "scroll-mt", "scroll-mr", "scroll-mb", "scroll-ml",
+		"scroll-px", "scroll-py", "scroll-ps", "scroll-pe", "scroll-pt", "scroll-pr", "scroll-pb", "scroll-pl",
+		"backdrop-contrast", "backdrop-grayscale", "backdrop-hue-rotate", "backdrop-invert", "backdrop-saturate", "backdrop-sepia",
+		"box-decoration", "backface", "transform-style"} {
+		classPrefixes[p] = utility(p, false)
+	}
+	classPrefixes["backdrop-grayscale"], classPrefixes["backdrop-invert"], classPrefixes["backdrop-sepia"] =
+		utility("backdrop-grayscale", true), utility("backdrop-invert", true), utility("backdrop-sepia", true)
+	classPrefixes["snap"] = func(v string) string {
+		switch v {
+		case "none", "x", "y", "both":
+			return "snap-type"
+		case "mandatory", "proximity":
+			return "snap-strictness"
+		case "start", "end", "center", "align-none":
+			return "snap-align"
+		case "normal", "always":
+			return "snap-stop"
+		}
+		return ""
+	}
+	classPrefixes["touch"] = func(v string) string {
+		switch v {
+		case "auto", "none", "manipulation":
+			return "touch"
+		case "pan-x", "pan-left", "pan-right":
+			return "touch-x"
+		case "pan-y", "pan-up", "pan-down":
+			return "touch-y"
+		case "pinch-zoom":
+			return "touch-pz"
+		}
+		return ""
+	}
 }
 
 // groupIDs number the groups for mergeClasses' sets, and conflictIDs are
@@ -509,7 +554,9 @@ var (
 var literalGroups = []string{"align-content", "bg-attachment", "bg-color", "bg-image", "bg-position", "bg-repeat", "bg-size",
 	"content", "decoration-color", "decoration-style", "decoration-thickness", "flex", "flex-direction", "flex-wrap",
 	"font-family", "font-size", "font-weight", "list-position", "list-style", "object-fit", "object-position",
-	"text-align", "text-color", "text-overflow", "text-wrap", "word-break"}
+	"text-align", "text-color", "text-overflow", "text-wrap", "word-break",
+	"snap-type", "snap-strictness", "snap-align", "snap-stop", "touch", "touch-x", "touch-y", "touch-pz", "fvn-normal", "fvn-ordinal",
+	"fvn-slashed-zero", "fvn-figure", "fvn-spacing", "fvn-fraction"}
 
 // groupID is g's number, given when first asked: only while the package
 // initializes.
@@ -574,5 +621,15 @@ var classConflicts = map[string][]string{
 		"border-color-t", "border-color-r", "border-color-b", "border-color-l"},
 	"border-color-x": {"border-color-r", "border-color-l"},
 	"border-color-y": {"border-color-t", "border-color-b"},
-	"scale":          {"scale-x", "scale-y"},
+	"scale":          {"scale-x", "scale-y", "scale-z"},
+	"translate":      {"translate-x", "translate-y", "translate-z"},
+	"rotate":         {"rotate-x", "rotate-y", "rotate-z"},
+	"touch":          {"touch-x", "touch-y", "touch-pz"},
+	"fvn-normal":     {"fvn-ordinal", "fvn-slashed-zero", "fvn-figure", "fvn-spacing", "fvn-fraction"},
+	"scroll-m":       {"scroll-mx", "scroll-my", "scroll-ms", "scroll-me", "scroll-mt", "scroll-mr", "scroll-mb", "scroll-ml"},
+	"scroll-mx":      {"scroll-mr", "scroll-ml"},
+	"scroll-my":      {"scroll-mt", "scroll-mb"},
+	"scroll-p":       {"scroll-px", "scroll-py", "scroll-ps", "scroll-pe", "scroll-pt", "scroll-pr", "scroll-pb", "scroll-pl"},
+	"scroll-px":      {"scroll-pr", "scroll-pl"},
+	"scroll-py":      {"scroll-pt", "scroll-pb"},
 }
