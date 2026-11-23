@@ -13,54 +13,81 @@ import (
 	vfield "github.com/vuka-lang/vuka/v2/field"
 )
 
-// The field attributes of forms: what a form field's tags say (label:,
-// help:, validate:, msg:, …), as typed values written after the field.
-// A model's own attributes describe its fields the same way (orm.Char{Max:
-// 100} is a maxlength and a rule), so a form of a model states only what
-// the model doesn't:
+// A form field's details are its tags (label:, help:, placeholder:,
+// input:, autocomplete:, validate:, msg:), the way to write them, or
+// @ui.Spec{…}, the same in one attribute where a tag can't go (a ui.Meta
+// member) or a model's field describes its forms. A model's own attributes
+// describe its fields too (orm.Char{Max: 100} is a maxlength and a rule),
+// so a form of a model states only what the model doesn't:
 //
 //	type Signup struct {
-//		Email    string         @ui.Email @ui.Label("Email address")
-//		Password string         @ui.Min(12) @ui.Widget("password")
-//		Plan     string         @ui.OneOf("free", "pro")
-//		Referrer Option[string] @ui.Max(40)
-//		Terms    bool           @ui.Required("Accept the terms to continue")
+//		Email    string         `label:"Email address" validate:"email"`
+//		Password string         `input:"password" validate:"min=12"`
+//		Plan     string         `validate:"oneof=free pro"`
+//		Referrer Option[string] `validate:"max=40"`
+//		Terms    bool           `validate:"required" msg:"required=Accept the terms to continue"`
 //	}
 //
 // A field of a ui.FormFor is required by its type: a plain field must be
 // filled, an Option may be left empty (None), and a bool unticked is false
-// — @ui.Required on a bool means it must be ticked. Min and Max are a
-// text's length and a number's value. A setting given by both a tag and an
-// attribute is a compile error: each has one source.
+// — validate:"required" on a bool means it must be ticked. min and max are
+// a text's length and a number's value. A setting given twice (a tag and
+// an attribute, a Spec and a single attribute) is a compile error: each
+// has one source.
+//
+// The single attributes below are the earlier spelling of the tags and of
+// Spec's members, one setting each: they keep working, and vuka warns at
+// each (W0314) and vuka fix attributes writes them as tags.
 type (
 	// Label is the field's label: the field's name in words otherwise.
+	//
+	// Deprecated: use the label:"…" tag, or Spec's Label.
 	Label string
 	// Help is the hint below its control.
+	//
+	// Deprecated: use the help:"…" tag, or Spec's Help.
 	Help string
 	// Placeholder is the placeholder of its control.
+	//
+	// Deprecated: use the placeholder:"…" tag, or Spec's Placeholder.
 	Placeholder string
 	// Widget is its control, as the input: tag names them: "textarea",
 	// "radio", "password", "email", "date", …
+	//
+	// Deprecated: use the input:"…" tag, or Spec's Widget.
 	Widget string
 	// Autocomplete is its control's autocomplete token.
+	//
+	// Deprecated: use the autocomplete:"…" tag, or Spec's Autocomplete.
 	Autocomplete string
 	// Required makes the field required, its message the text when there
 	// is one: @ui.Required, @ui.Required("Enter your name"). On a bool it
 	// must be ticked.
+	//
+	// Deprecated: use validate:"required" (its message msg:"required=…"),
+	// or Spec's Required.
 	Required string
 	// Email checks the value is an email address, its message the text
 	// when there is one.
+	//
+	// Deprecated: use validate:"email" (its message msg:"email=…").
 	Email string
-	// Min and Max bound a text's length, or a number's value.
+	// Min bounds a text's length, or a number's value, from below.
+	//
+	// Deprecated: use validate:"min=…", or Spec's Min.
 	Min float64
+	// Max bounds a text's length, or a number's value, from above.
+	//
+	// Deprecated: use validate:"max=…", or Spec's Max.
 	Max float64
 	// Pattern is a regular expression the whole value matches.
+	//
+	// Deprecated: use Spec's Pattern.
 	Pattern string
 )
 
-// Spec is a field's details in one attribute, the single attributes'
-// settings as its members: what a form shows of the field and what its
-// messages say. On a model's field it describes every form of the model;
+// Spec is a field's details in one attribute, the tags' settings as its
+// members: what a form shows of the field and what its messages say. On a model's field it describes every form of the model;
 // on a form type's ui.Meta member, that form's (Meta):
 //
 //	Name Option[string] @orm.Char{Max: 100, Unique: true} @ui.Spec{
@@ -73,9 +100,9 @@ type (
 // tighten the field's limits, Choices narrow its choices, never widen
 // them. Required is the message of a required field, and makes an
 // optional one (an Option, a NULL column) required; Optional makes a
-// required one optional. The single attributes (@ui.Required,
-// @ui.Placeholder, @ui.Msg, …) set one member each: one setting given by
-// both is a compile error, as one given by a tag and an attribute is.
+// required one optional. One setting given by a Spec and a tag (or an
+// earlier single attribute, @ui.Placeholder, @ui.Msg, …) is a compile
+// error.
 type Spec struct {
 	Label, Help, Placeholder string
 	// Widget is the field's control: a widget, its props its options
@@ -88,7 +115,13 @@ type Spec struct {
 	// Optional makes a field its type or model would require optional.
 	Optional bool
 	// Min and Max bound a text's length, or a number's value: 0 is none.
+	// They are whole numbers, where the validate: tag's min= and max= (and
+	// the earlier @ui.Min, @ui.Max) take any number: a fractional bound,
+	// validate:"min=0.5", is the tag's. (Widening them to float64 would
+	// break a Spec set from an int variable.)
 	Min, Max int
+	// Pattern is a regular expression the whole value matches.
+	Pattern string
 	// Choices are the values the field may take, of the model's when it
 	// has some.
 	Choices []string
@@ -138,6 +171,9 @@ func (x Spec) Describe(s *vfield.Spec) {
 	}
 	if x.Optional {
 		s.Required, s.Optional = false, true
+	}
+	if x.Pattern != "" {
+		s.Pattern = x.Pattern
 	}
 	if n := float64(x.Min); x.Min > 0 && (s.Min == nil || n > *s.Min) {
 		s.Min = vfield.Float(n)
@@ -202,6 +238,9 @@ type MsgAttr struct{ Rule, Text string }
 
 // Msg gives the field its own message for a rule: @ui.Msg("max", "Keep it
 // under {n} characters").
+//
+// Deprecated: use the msg:"rule=…" tag (msg:"max=Keep it under {n}
+// characters"), or Spec's Msg.
 func Msg(rule, text string) MsgAttr { return MsgAttr{rule, text} }
 
 // OneOfAttr is OneOf's attribute.
@@ -209,6 +248,9 @@ type OneOfAttr []vfield.Choice
 
 // OneOf is the values the field may take, a select's options (radios with
 // @ui.Widget("radio")): @ui.OneOf("free", "pro").
+//
+// Deprecated: use validate:"oneof=free pro", or Spec's Choices for a value
+// holding a space.
 func OneOf(values ...string) OneOfAttr {
 	out := make(OneOfAttr, len(values))
 	for i, v := range values {
