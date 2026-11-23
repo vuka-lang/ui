@@ -45,6 +45,17 @@ func (f Fallthrough) Class() string {
 	return MergeClasses(cs...)
 }
 
+// ClassMerge is a caller's classes as a hole of a class attribute's text
+// holds them: merged with the text before it (MergeClasses), the caller's
+// last. Fallthrough.Classes is one.
+type ClassMerge string
+
+// Classes is the caller's classes for the forward element's written class:
+// vuka writes class="rounded-xl border" as class="rounded-xl
+// border{Fallthrough.Classes()}", so its text stays the template's — edited
+// in place, without a rebuild — and the caller's utilities still win.
+func (f Fallthrough) Classes() ClassMerge { return ClassMerge(f.Class()) }
+
 // Merge is the forward element's own class, written in pieces (the text
 // and holes of class="card {x}"), merged with the caller's: the class
 // attribute vuka writes on the forward element. A ui.Class or ui.Classes

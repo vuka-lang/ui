@@ -78,6 +78,23 @@ func TestFallthroughRender(t *testing.T) {
 	if got, want := render(nil), `<div class="rounded-xl border" role="region">x</div>`; got != want {
 		t.Errorf("no fallthrough:\n got %s\nwant %s", got, want)
 	}
+	text := func(f ui.Fallthrough, toggle bool) string {
+		t.Helper()
+		s, err := ui.String(context.Background(), ui.HTML(`<p class="p-4 text-sm{f.Classes()}" class:hidden={toggle}>x</p>`, f.Classes(), toggle))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	if got, want := text(nil, false), `<p class="p-4 text-sm">x</p>`; got != want {
+		t.Errorf("text, none:\n got %s\nwant %s", got, want)
+	}
+	if got, want := text(ui.Fallthrough{{Name: "class", Value: "p-2 mt-1"}}, true), `<p class="hidden mt-1 p-2 text-sm">x</p>`; got != want {
+		t.Errorf("text, a caller's:\n got %s\nwant %s", got, want)
+	}
+	if got, want := render(nil), `<div class="rounded-xl border" role="region">x</div>`; got != want {
+		t.Errorf("no fallthrough:\n got %s\nwant %s", got, want)
+	}
 	f := ui.Fallthrough{{Name: "class", Value: "border-red-200"}, {Name: "role", Value: "alert"}, {Name: "aria-busy", Value: "true"}, {Name: "disabled", Value: false}}
 	if got, want := render(f), `<div class="rounded-xl border border-red-200" role="alert" aria-busy="true">x</div>`; got != want {
 		t.Errorf("fallthrough:\n got %s\nwant %s", got, want)
