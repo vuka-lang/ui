@@ -90,6 +90,27 @@ func TestMergeClasses(t *testing.T) {
 		{"nothing to merge", "px-4 py-2", "", "px-4 py-2"},
 		{"no base", "", "px-2", "px-2"},
 		{"white space", "  px-4\n py-2 ", "px-2", "py-2 px-2"},
+		// the rest of tailwind-merge's model
+		{"opacity utilities beside a colour", "bg-red-500 bg-opacity-50", "bg-blue-500", "bg-opacity-50 bg-blue-500"},
+		{"an opacity utility replaces its own", "text-opacity-50", "text-opacity-75", "text-opacity-75"},
+		{"border opacity isn't a colour", "border-red-500", "border-opacity-25", "border-red-500 border-opacity-25"},
+		{"snap type and strictness apart", "snap-x snap-mandatory", "snap-y", "snap-mandatory snap-y"},
+		{"snap align and stop apart", "snap-start snap-always", "snap-center", "snap-always snap-center"},
+		{"translate over its axes", "translate-x-2 translate-y-4", "translate-none", "translate-none"},
+		{"an axis refines translate", "translate-1/2", "translate-x-0", "translate-1/2 translate-x-0"},
+		{"rotate over its axes", "rotate-x-12", "rotate-45", "rotate-45"},
+		{"numeric spacing", "tabular-nums", "proportional-nums", "proportional-nums"},
+		{"numeric variants apart", "tabular-nums slashed-zero", "ordinal", "tabular-nums slashed-zero ordinal"},
+		{"normal-nums over every variant", "tabular-nums ordinal", "normal-nums", "normal-nums"},
+		{"touch over its pans", "touch-pan-x touch-pinch-zoom", "touch-none", "touch-none"},
+		{"pans apart", "touch-pan-x", "touch-pan-y", "touch-pan-x touch-pan-y"},
+		{"scroll margin sides", "scroll-mt-4 scroll-mx-2", "scroll-m-0", "scroll-m-0"},
+		{"inset ring width and colour apart", "inset-ring-2 inset-ring-red-500", "inset-ring-blue-500", "inset-ring-2 inset-ring-blue-500"},
+		{"text shadow and its colour", "text-shadow-sm text-shadow-black/20", "text-shadow-lg", "text-shadow-black/20 text-shadow-lg"},
+		{"a modifier chain with an arbitrary variant keeps its order", "[&>*]:hover:p-2", "hover:[&>*]:p-4", "[&>*]:hover:p-2 hover:[&>*]:p-4"},
+		{"arbitrary values under variants", "md:hover:w-[10px]", "hover:md:w-[2rem]", "hover:md:w-[2rem]"},
+		{"a border colour keeps the width", "rounded-xl border bg-card shadow-xs", "border-red-200 mt-4", "rounded-xl border bg-card shadow-xs border-red-200 mt-4"},
+		{"a caller's background replaces the card's", "rounded-xl border bg-card", "bg-muted", "rounded-xl border bg-muted"},
 	} {
 		if got := ui.MergeClasses(c.base, c.extra); got != c.want {
 			t.Errorf("%s: MergeClasses(%q, %q) = %q, want %q", c.name, c.base, c.extra, got, c.want)

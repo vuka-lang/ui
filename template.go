@@ -565,6 +565,14 @@ func (t *tmpl) part(s *tslot, args []any) (any, error) {
 		v := args[p.op.arg]
 		switch x := v.(type) {
 		case nil:
+		case ClassMerge:
+			// a caller's classes merged into the text before them
+			// (Fallthrough.Classes): class="card {…}"
+			if x != "" {
+				merged := MergeClasses(b.String(), string(x))
+				b.Reset()
+				b.WriteString(merged)
+			}
 		case string:
 			b.WriteString(x)
 		case int, int64, float64, templ.SafeURL, error, fmt.Stringer:
@@ -598,6 +606,9 @@ func (t *tmpl) classes(s *tslot, args []any) (any, error) {
 	var base any = ""
 	if len(s.parts) == 1 && s.parts[0].op != nil {
 		base = args[s.parts[0].op.arg]
+		if m, ok := base.(ClassMerge); ok {
+			base = string(m)
+		}
 	} else if len(s.parts) > 0 {
 		v, err := t.part(s, args)
 		if err != nil {
