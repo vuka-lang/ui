@@ -274,6 +274,9 @@ func (h *HTMLRenderer) attrNamed(tag string, e *Element, a Attr) error {
 	if l, ok := a.Value.(lazyValue); ok {
 		a.Value = l.fn(h.ctx)
 	}
+	if _, ok := a.Value.(asChildSlot); ok {
+		return nil // AsChild's: a forward element rendered without AsChild writes nothing of it
+	}
 	if set, ok := a.Value.(attrSet); ok {
 		for _, a := range set {
 			if err := h.attrNamed(tag, e, a); err != nil {
