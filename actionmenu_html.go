@@ -36,7 +36,11 @@ type ActionMenu struct {
 	Children Node
 }
 
+// actionMenuKey names the menu an item closes: set by the row menu the item
+// is in, for the items it renders, so it is renderLocal.
 type actionMenuKey struct{}
+
+func (actionMenuKey) renderLocal() {}
 
 func (a ActionMenu) classes() string {
 	c := "vk-menu__item"
@@ -80,12 +84,12 @@ func menuID(s string) string {
 	}, s)
 }
 
-//line actionmenu.vuka.html:77
+//line actionmenu.vuka.html:81
 func (a ActionMenu) View() Node {
-//line actionmenu.vuka.html:77
+//line actionmenu.vuka.html:81
 	return Ctx(func(ctx context.Context) Node {
 		var a2 Node
-//line actionmenu.vuka.html:78
+//line actionmenu.vuka.html:82
 		if a.Href != "" && !a.Disabled {
 			a2 = HTML(`
 <a class={a.classes()} role="menuitem" href={a.Href} data-vk-link>
@@ -106,10 +110,10 @@ func (a ActionMenu) View() Node {
 				a.Children,
 			)
 		}
-//line actionmenu.vuka.html:77
+//line actionmenu.vuka.html:81
 		return a2
 	})
 }
 
-//line actionmenu.vuka.html:89
+//line actionmenu.vuka.html:93
 func (a ActionMenu) Render(ctx context.Context, w io.Writer) error { return a.View().Render(ctx, w) }

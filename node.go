@@ -185,8 +185,11 @@ func Fragment(children ...Node) Node { return Group(children) }
 // { return Admin(ctx, p) }). It renders, diffs and keys as that node does.
 // build runs for each render with its current context; do not retain that
 // context in component state or mutate application state while rendering.
-// Live components that evaluate Ctx are not skipped based only on props and
-// Assigns: their output can also depend on identity, permissions or locale.
+// Live components whose Ctx builds read the context are not skipped based
+// only on props and Assigns: their output can also depend on identity,
+// permissions or locale. A read of a value a node of the same render sets
+// for those it renders (the kit's, such as the menu an ActionMenu closes)
+// doesn't count: the component's own render decided it.
 // Context values are server-side until build explicitly renders them.
 func Ctx(build func(ctx context.Context) Node) Node { return ctxNode(build) }
 

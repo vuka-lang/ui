@@ -1107,6 +1107,11 @@ type scope struct {
 
 func (sc *scope) ContextRead() { sc.in.contextual = true; sc.in.effects++ }
 
+// LocalContextRead is a Ctx build reading what its own render set (a
+// renderLocal key): the instance stays keepable, but a guarded part reading
+// it renders every time, the value being set outside the part.
+func (sc *scope) LocalContextRead() { sc.in.effects++ }
+
 // VarRead records a template variable the instance's render read
 // (ui.ReadVar), at its version.
 func (sc *scope) VarRead(name string, ver uint64) {

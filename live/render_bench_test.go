@@ -137,9 +137,10 @@ func reportGCs(b *testing.B, before uint32, ops int) {
 // with a few props, a badge and an actions menu of ui.ActionMenu items: its
 // first render, and an event changing one row's role (Promote: the page's
 // state, so the page renders again and places every row). event-plain is
-// the same event on rows whose menu items are plain buttons (PlainUserRow):
-// an ActionMenu reads the render's context, which makes its row render
-// again on every render of the page.
+// the same event on rows whose menu items are plain buttons (PlainUserRow),
+// the control: an ActionMenu reads the render's context, for the menu it
+// closes — a value only its own render sets, so its row is kept as a plain
+// one is (the two render the same number of components per event).
 func BenchmarkRenderTable(b *testing.B) {
 	for _, n := range []int{10, 100, 1000} {
 		b.Run("rows="+strconv.Itoa(n), func(b *testing.B) {

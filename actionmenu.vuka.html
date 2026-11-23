@@ -29,7 +29,11 @@ type ActionMenu struct {
 	Children Node
 }
 
+// actionMenuKey names the menu an item closes: set by the row menu the item
+// is in, for the items it renders, so it is renderLocal.
 type actionMenuKey struct{}
+
+func (actionMenuKey) renderLocal() {}
 
 func (a ActionMenu) classes() string {
 	c := "vk-menu__item"
