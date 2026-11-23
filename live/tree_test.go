@@ -146,3 +146,69 @@ func TestTreeLongAndFallback(t *testing.T) {
 		t.Fatalf("client %s\nserver %s", c.HTML(), s.HTML())
 	}
 }
+
+// flipper's forward element has its caller's attributes while on, as a
+// component whose Fallthrough comes and goes would.
+type flipper struct {
+	ui.Live
+	n  int
+	on bool
+}
+
+func (x *flipper) Inc()  { x.n++ }
+func (x *flipper) Flip() { x.on = !x.on }
+func (x *flipper) Render() ui.Node {
+	var f ui.Fallthrough
+	if x.on {
+		f = ui.Fallthrough{{Name: "data-on", Value: "1"}, {Name: "class", Value: "mt-4"}}
+	}
+	return ui.HTML(`<div {f.Attrs()...} class="box{f.Classes()}"><b>{x.n}</b><button onClick={x.Inc}>+</button><button onClick={x.Flip}>~</button></div>`,
+		f.Attrs(), f.Classes(), x.n, x.Inc, x.Flip)
+}
+
+// TestTreeFallthroughComes: a forward element whose caller's attributes come
+// and go is patched right both ways; with none, a change is the one small
+// patch it was before fallthrough, and coming back to none resends no
+// statics.
+func TestTreeFallthroughComes(t *testing.T) {
+	s := live.NewSession(context.Background(), func(context.Context) ui.Node {
+		return ui.Component("f#1", nil, &flipper{})
+	})
+	c, err := livetest.Join(s, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	click := func(i int) string {
+		t.Helper()
+		m, err := c.Event(ui.Event{Target: c.Handlers()[i][1], Type: "click"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.HTML() != s.HTML() {
+			t.Fatalf("client %s\nserver %s", c.HTML(), s.HTML())
+		}
+		if len(m.Trees) != 1 {
+			t.Fatalf("patch: %+v", m.Trees)
+		}
+		return string(m.Trees[0].Tree)
+	}
+	if p := click(0); p != `{"u":{"1":"1"}}` {
+		t.Errorf("a change with nothing fallen through: %s", p)
+	}
+	click(1) // fallthrough comes
+	if !strings.Contains(s.HTML(), `data-on="1"`) || !strings.Contains(s.HTML(), `class="box mt-4"`) {
+		t.Fatalf("fallthrough: %s", s.HTML())
+	}
+	if p := click(0); !strings.HasPrefix(p, `{"u":`) {
+		t.Errorf("a change with fallthrough: %s", p)
+	}
+	if p := click(1); strings.Contains(p, `"s":`) { // and goes: a frame the client holds
+		t.Errorf("statics resent: %s", p)
+	}
+	if p := click(0); p != `{"u":{"1":"3"}}` {
+		t.Errorf("a change with nothing fallen through again: %s", p)
+	}
+	if !strings.Contains(s.HTML(), `<div class="box"`) {
+		t.Fatalf("no fallthrough: %s", s.HTML())
+	}
+}
