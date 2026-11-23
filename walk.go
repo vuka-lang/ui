@@ -60,6 +60,12 @@ func Walk(ctx context.Context, n Node, r Renderer) error {
 		return Walk(ctx, c.Render(), r)
 	case *islandMount:
 		return Walk(ctx, n.node(""), r)
+	case asChildNode:
+		out, err := n.resolve(ctx)
+		if err != nil {
+			return err
+		}
+		return Walk(ctx, out, r)
 	case *StreamBlock:
 		if n == nil {
 			return nil
