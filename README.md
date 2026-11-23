@@ -77,7 +77,8 @@ render with the file, line and hole:
 
 ## Components
 
-The kit — `Button`, `Submit`, `Badge`, `Card`, `Alert`, `Modal`, `Tabs`,
+The kit — `Button`, `Submit`, `Badge`, `Card`, `Alert`, `ModalOf` (a dialog
+over one `ui.State[*T]`, its content taking the value by `let`), `Modal`, `Tabs`,
 `Table`, `DataTable`, `Form` and its fields (`Input`, `Password`,
 `Textarea`, `Select`, `Checkbox`; a form's other components — `Field`,
 `Error`, `Summary`, `Fieldset`, `Choices` — are package `widget`'s), `Image`, `Skeleton`, `Tile`, `Toast` and
