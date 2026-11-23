@@ -16,6 +16,8 @@ import (
 //
 //line toast.vuka.html:12
 type Toast struct {
+//line toast.vuka.html:12
+	Fallthrough Fallthrough `vuka:"forward=div,own=id|ref|style" json:"-"`
 	// Variant is the tone: AlertInfo (default), AlertSuccess, AlertWarning or
 	// AlertError, shared with Alert.
 	Variant AlertVariant
@@ -65,14 +67,16 @@ func (t Toast) View() Node {
 	}
 //line toast.vuka.html:48
 	return HTML(`
-<div class={t.classes()} role="status" id={nonEmpty(t.ID)} ref={value2} style={t.life()}>
+<div {t.Fallthrough.Attrs()...} class={t.classes()} role={t.Fallthrough.Or("role", "status")} id={nonEmpty(t.ID)} ref={value2} style={t.life()}>
   <div class="vk-toast__body">
     {div}
     {t.Children}
   </div>
   {button}
 </div>`,
+		t.Fallthrough.Attrs(),
 		t.classes(),
+		t.Fallthrough.Or("role", "status"),
 		nonEmpty(t.ID),
 		value2,
 		t.life(),

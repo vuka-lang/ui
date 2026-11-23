@@ -28,6 +28,8 @@ import (
 //
 //line modal.vuka.html:21
 type Modal struct {
+//line modal.vuka.html:21
+	Fallthrough Fallthrough `vuka:"forward=<Teleport>" json:"-"`
 	// Ref names the modal's root for the open/close commands (OpenModal,
 	// CloseModal) and for a server variant's Show/Hide. It must be unique on
 	// the page; the default is "modal".

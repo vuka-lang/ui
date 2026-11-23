@@ -11,9 +11,11 @@ import (
 )
 
 //line form_demo.vuka.html:6
-type FormDemo struct{}
+type FormDemo struct {
+//line form_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Form>" json:"-"`
+}
 
-//line form_demo.vuka.html:9
 func (f FormDemo) View() ui.Node {
 //line form_demo.vuka.html:12
 	submit := ui.Submit{Variant: ui.Primary, Children: ui.HTML(`Sign up`)}

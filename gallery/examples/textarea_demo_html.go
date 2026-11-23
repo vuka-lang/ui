@@ -11,9 +11,11 @@ import (
 )
 
 //line textarea_demo.vuka.html:6
-type TextareaDemo struct{}
+type TextareaDemo struct {
+//line textarea_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Textarea>" json:"-"`
+}
 
-//line textarea_demo.vuka.html:9
 func (t TextareaDemo) View() ui.Node {
 //line textarea_demo.vuka.html:9
 	return ui.Textarea{Name: "message", Label: "Message", Placeholder: "Type your message here.", Rows: 4}

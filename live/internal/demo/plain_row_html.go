@@ -12,6 +12,8 @@ import (
 // PlainRow is Row with plain state: rendered again with its table. Its
 // count is behind a pointer, which isn't tracked server state.
 type PlainRow struct {
+//line plain_row.vuka.html:12
+	Fallthrough ui.Fallthrough `vuka:"forward=tr,own=key" json:"-"`
 	ui.Live
 	ID   int
 	Name string
@@ -30,11 +32,11 @@ func (r *PlainRow) Inc() { *r.qty++ }
 func (r *PlainRow) Render() ui.Node {
 //line plain_row.vuka.html:28
 	return ui.HTML(`
-<tr key={r.ID}>
+<tr {r.Fallthrough.All()...} key={r.ID}>
   <td>{r.Name}</td>
   <td>{*r.qty}</td>
   <td><button onClick={r.Inc}>+</button></td>
-</tr>`, r.ID, r.Name, *r.qty, r.Inc)
+</tr>`, r.Fallthrough.All(), r.ID, r.Name, *r.qty, r.Inc)
 }
 
 //line plain_row.vuka.html:12

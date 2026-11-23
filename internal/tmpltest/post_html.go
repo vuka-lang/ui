@@ -16,6 +16,8 @@ import (
 //
 //line post.vuka.html:13
 type Post struct {
+//line post.vuka.html:13
+	Fallthrough ui.Fallthrough `vuka:"forward=article" json:"-"`
 	ui.Live
 	Fail  *bool // the next Like fails
 	likes uigen.Assign[int]
@@ -40,8 +42,8 @@ func (c *Post) Render() ui.Node {
 		OnSuccess(ui.JS.Dispatch(ui.This, "liked"))
 //line post.vuka.html:29
 	return ui.HTML(`
-<article>
-  <button onClick={value}>♥ <span ref="likes">{c.likes}</span></button>
+<article {c.Fallthrough.All()...}>
+  <button onClick={value}>♥ <span ref="likes">{c.likes.Get()}</span></button>
   <p ref="like-error" style="display: none">Couldn't like</p>
-</article>`, value, c.likes.Get())
+</article>`, c.Fallthrough.All(), value, c.likes.Get())
 }

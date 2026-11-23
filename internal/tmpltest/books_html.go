@@ -22,6 +22,8 @@ type Book struct {
 // searched by author, sorted by the columns' keys, a menu per row, and a
 // button reloading just the table.
 type Books struct {
+//line books.vuka.html:22
+	Fallthrough ui.Fallthrough `vuka:"forward=section" json:"-"`
 	ui.Live
 	Deleted int64
 }
@@ -58,9 +60,9 @@ func (p *Books) Render() ui.Node {
 	}}
 //line books.vuka.html:39
 	return ui.HTML(`
-<section>
+<section {p.Fallthrough.All()...}>
   {button}
   {p2}
   {dataTable}
-</section>`, button, p2, dataTable)
+</section>`, p.Fallthrough.All(), button, p2, dataTable)
 }

@@ -169,6 +169,97 @@ type tmpl struct {
 	build  func([]any) Node
 	static Node     // a template without holes: its one node
 	labels []string // the positional values' labels, at the root
+
+	// elide are the slots that cost nothing when their value is empty: an
+	// attribute set given no attributes ({f.All()...} with nothing fallen
+	// through) and a class whose holes are only empty ClassMerges. A
+	// render whose values leave some of them empty renders the variant
+	// parsed without them (variant), so an empty Fallthrough adds no
+	// dynamic to the live wire and the frame's shape is the one the markup
+	// had before it.
+	elide    []elidable
+	src      string // the source, its file and line: for a variant's parse
+	file     string
+	line     int
+	variants sync.Map // elided mask (uint32) → *tmpl
+}
+
+// elidable is a slot a variant may leave out: the source offset it was
+// parsed at, and the values that decide it is empty.
+type elidable struct {
+	off  int
+	set  bool  // an attribute set; else a class of ClassMerge holes
+	args []int // the set's value, or the class's holes'
+}
+
+// empty reports whether args leave e empty: no attributes for a set, every
+// hole an empty ClassMerge for a class.
+func (e *elidable) empty(args []any) bool {
+	if e.set {
+		switch x := args[e.args[0]].(type) {
+		case nil:
+			return true
+		case []Attr:
+			return len(x) == 0
+		case templ.Attributes:
+			return len(x) == 0
+		}
+		return false
+	}
+	for _, i := range e.args {
+		if m, ok := args[i].(ClassMerge); !ok || m != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// maxElide bounds the slots a template elides: each is one bit of a
+// variant's mask.
+const maxElide = 16
+
+// elided is the variant to render args with, or nil when every elidable
+// slot has a value.
+func (t *tmpl) elided(args []any) *tmpl {
+	var mask uint32
+	for i := range t.elide {
+		if t.elide[i].empty(args) {
+			mask |= 1 << i
+		}
+	}
+	if mask == 0 {
+		return nil
+	}
+	if v, ok := t.variants.Load(mask); ok {
+		return v.(*tmpl)
+	}
+	cut := map[int]bool{}
+	for i, e := range t.elide {
+		if mask&(1<<i) != 0 {
+			cut[e.off] = true
+		}
+	}
+	p := &tparser{src: t.src, file: t.file, line: t.line, labels: slices.Clone(t.labels), cut: cut}
+	v, err := p.parse(t.site, mask)
+	if err != nil {
+		return nil // the full template parsed: render it
+	}
+	// the variant's slots keep the sites they have in the full template, so
+	// a component in one is the same instance whether or not a slot before
+	// it is elided
+	byOff := make(map[int]int, len(t.slots))
+	for i, s := range t.slots {
+		byOff[s.off] = i
+	}
+	for i, s := range v.slots {
+		v.sites[i] = t.sites[byOff[s.off]]
+		if v.empty[i] != nil {
+			v.empty[i] = &list{site: v.sites[i]}
+		}
+	}
+	v.plan.sites = v.sites
+	actual, _ := t.variants.LoadOrStore(mask, v)
+	return actual.(*tmpl)
 }
 
 // blockAt is the block a []Node in child slot i is: the slot's own empty
@@ -187,6 +278,11 @@ func (t *tmpl) renderArgs(args []any) Node {
 	}
 	if t.static != nil {
 		return t.static
+	}
+	if t.elide != nil {
+		if v := t.elided(args); v != nil {
+			return v.render(args)
+		}
 	}
 	if t.pass {
 		// A template that is one hole of nodes, {nodes}, is those nodes:
@@ -384,6 +480,7 @@ type tslot struct {
 	toggles []ttoggle // kClass
 	where   string    // for errors
 	line    string    // file:line
+	off     int       // where in the source it was parsed
 	event   bool      // an on… attribute
 	class   bool
 	styled  bool
@@ -716,6 +813,7 @@ type tparser struct {
 	pre    int // inside pre
 	t      *tmpl
 	sh     *strings.Builder
+	cut    map[int]bool // a variant's: the elided slots, by source offset
 }
 
 // parseTemplate parses src, which starts on line of file, its site the
@@ -731,7 +829,45 @@ func parseTemplate(src, file, place string, line int) (t *tmpl, err error) {
 		}
 	}()
 	p := &tparser{src: src, file: file, line: line}
-	site := siteOf(place, line)
+	t, err = p.parse(siteOf(place, line), 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range t.slots {
+		if len(t.elide) == maxElide {
+			break
+		}
+		switch {
+		case s.kind == kSet:
+			t.elide = append(t.elide, elidable{off: s.off, set: true, args: []int{s.op.arg}})
+		case s.kind == kPart && s.class:
+			e := elidable{off: s.off}
+			for _, pt := range s.parts {
+				if pt.op != nil {
+					e.args = append(e.args, pt.op.arg)
+				}
+			}
+			t.elide = append(t.elide, e)
+		}
+	}
+	if t.elide != nil {
+		t.src, t.file, t.line = src, file, line
+	}
+	return t, nil
+}
+
+// parse parses the template at site; a variant's (mask, its elided slots)
+// fingerprint is the full template's mixed with the mask.
+func (p *tparser) parse(site string, mask uint32) (t *tmpl, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			e, ok := r.(tmplError)
+			if !ok {
+				panic(r)
+			}
+			t, err = nil, e
+		}
+	}()
 	t = p.template(site, func() []tnode {
 		ns := p.nodes("")
 		if p.i < len(p.src) {
@@ -739,6 +875,12 @@ func parseTemplate(src, file, place string, line int) (t *tmpl, err error) {
 		}
 		return ns
 	})
+	if mask != 0 {
+		t.fp = mix(t.fp ^ uint64(mask)<<32)
+		if t.static != nil {
+			t.static.(*lazyFrame).fp = t.fp
+		}
+	}
 	t.labels = p.labels
 	t.direct = len(t.slots) == len(t.labels)
 	for i, s := range t.slots {
@@ -804,7 +946,7 @@ func (p *tparser) lineAt(off int) string {
 func (p *tparser) at(s string) bool { return strings.HasPrefix(p.src[p.i:], s) }
 
 func (p *tparser) slot(s tslot, off int) int {
-	s.line = p.lineAt(off)
+	s.line, s.off = p.lineAt(off), off
 	p.t.slots = append(p.t.slots, s)
 	return len(p.t.slots) - 1
 }
@@ -1047,7 +1189,10 @@ func (p *tparser) attrs(tag string, start int) (as []rawAttr, closed bool) {
 			if !spread {
 				p.failAt(at, "a hole where an attribute goes is an attribute set: <%s {%s...}>", tag, label)
 			}
-			as = append(as, rawAttr{op: p.hole(label, at), spread: true, at: at})
+			op := p.hole(label, at)
+			if !p.cut[at] {
+				as = append(as, rawAttr{op: op, spread: true, at: at})
+			}
 			continue
 		}
 		as = append(as, p.attr(tag))
@@ -1249,6 +1394,14 @@ func (p *tparser) placeAttrs(tag string, raw []rawAttr) []tattr {
 			}
 			cls = len(out)
 			out = append(out, tattr{name: "class", slot: p.slot(s, a.at)})
+			continue
+		case a.parts != nil && p.cut[a.at]:
+			// a variant's class whose caller's classes are empty: its text
+			var b strings.Builder
+			for _, pt := range a.parts {
+				b.WriteString(pt.s)
+			}
+			out = append(out, tattr{name: a.name, value: b.String(), slot: -1})
 			continue
 		case a.parts != nil:
 			if s.event {

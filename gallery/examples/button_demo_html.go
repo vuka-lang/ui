@@ -11,9 +11,11 @@ import (
 )
 
 //line button_demo.vuka.html:6
-type ButtonDemo struct{}
+type ButtonDemo struct {
+//line button_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Button>" json:"-"`
+}
 
-//line button_demo.vuka.html:9
 func (b ButtonDemo) View() ui.Node {
 //line button_demo.vuka.html:9
 	return ui.Button{Variant: ui.Primary, Children: ui.HTML(`Button`)}

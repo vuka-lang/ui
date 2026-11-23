@@ -11,17 +11,19 @@ import (
 )
 
 //line input_demo.vuka.html:6
-type InputDemo struct{}
+type InputDemo struct {
+//line input_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line input_demo.vuka.html:9
 func (i InputDemo) View() ui.Node {
 //line input_demo.vuka.html:9
 	return ui.HTML(`
-<div class="grid gap-4">
+<div {i.Fallthrough.Attrs()...} class="grid gap-4{i.Fallthrough.Classes()}">
   {ui.Input{Name: "email", Label: "Email", Type: "email", Placeholder: "you@example.com", Help: "We never share it."}}
   {ui.Input{Name: "name", Label: "Name", Error: "Name is required.", Required: true}}
   {ui.Input{Name: "username", Label: "Username", Value: "ada", Disabled: true}}
-</div>`, ui.Input{Name: "email", Label: "Email", Type: "email", Placeholder: "you@example.com", Help: "We never share it."}, ui.Input{Name: "name", Label: "Name", Error: "Name is required.", Required: true}, ui.Input{Name: "username", Label: "Username", Value: "ada", Disabled: true})
+</div>`, i.Fallthrough.Attrs(), i.Fallthrough.Classes(), ui.Input{Name: "email", Label: "Email", Type: "email", Placeholder: "you@example.com", Help: "We never share it."}, ui.Input{Name: "name", Label: "Name", Error: "Name is required.", Required: true}, ui.Input{Name: "username", Label: "Username", Value: "ada", Disabled: true})
 }
 
 //line input_demo.vuka.html:13

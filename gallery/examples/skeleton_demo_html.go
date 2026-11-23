@@ -11,16 +11,18 @@ import (
 )
 
 //line skeleton_demo.vuka.html:6
-type SkeletonDemo struct{}
+type SkeletonDemo struct {
+//line skeleton_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line skeleton_demo.vuka.html:9
 func (s SkeletonDemo) View() ui.Node {
 //line skeleton_demo.vuka.html:9
 	return ui.HTML(`
-<div class="grid gap-4">
+<div {s.Fallthrough.Attrs()...} class="grid gap-4{s.Fallthrough.Classes()}">
   {ui.Skeleton{Class: "h-12 w-12 rounded-full"}}
   {ui.Skeleton{Lines: 3}}
-</div>`, ui.Skeleton{Class: "h-12 w-12 rounded-full"}, ui.Skeleton{Lines: 3})
+</div>`, s.Fallthrough.Attrs(), s.Fallthrough.Classes(), ui.Skeleton{Class: "h-12 w-12 rounded-full"}, ui.Skeleton{Lines: 3})
 }
 
 //line skeleton_demo.vuka.html:12

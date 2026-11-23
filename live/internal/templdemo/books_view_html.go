@@ -14,7 +14,9 @@ import (
 //
 //line books_view.vuka.html:5
 type BooksView struct {
-	Books []string
+//line books_view.vuka.html:5
+	Fallthrough ui.Fallthrough `vuka:"forward=<Layout>" json:"-"`
+	Books       []string
 }
 
 //line books_view.vuka.html:10

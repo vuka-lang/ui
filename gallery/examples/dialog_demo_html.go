@@ -11,9 +11,11 @@ import (
 )
 
 //line dialog_demo.vuka.html:6
-type DialogDemo struct{}
+type DialogDemo struct {
+//line dialog_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Dialog>" json:"-"`
+}
 
-//line dialog_demo.vuka.html:9
 func (d DialogDemo) View() ui.Node {
 //line dialog_demo.vuka.html:9
 	return ui.Dialog{Open: true, Title: ui.Text("Are you sure?"), Footer: ui.Button{Children: ui.Text("Done")}, Children: ui.HTML(`<p>This dialog is shown in place; JS.Close in it closes it.</p>`)}

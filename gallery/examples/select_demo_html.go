@@ -11,9 +11,11 @@ import (
 )
 
 //line select_demo.vuka.html:6
-type SelectDemo struct{}
+type SelectDemo struct {
+//line select_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Select>" json:"-"`
+}
 
-//line select_demo.vuka.html:9
 func (s SelectDemo) View() ui.Node {
 //line select_demo.vuka.html:9
 	return ui.Select{Name: "fruit", Label: "Fruit", Placeholder: "Select a fruit", Options: []ui.Option{

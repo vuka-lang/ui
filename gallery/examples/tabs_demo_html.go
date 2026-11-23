@@ -11,9 +11,11 @@ import (
 )
 
 //line tabs_demo.vuka.html:6
-type TabsDemo struct{}
+type TabsDemo struct {
+//line tabs_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Tabs>" json:"-"`
+}
 
-//line tabs_demo.vuka.html:9
 func (t TabsDemo) View() ui.Node {
 //line tabs_demo.vuka.html:9
 	return ui.Tabs{Tabs: []ui.Tab{

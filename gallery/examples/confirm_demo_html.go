@@ -11,9 +11,11 @@ import (
 )
 
 //line confirm_demo.vuka.html:6
-type ConfirmDemo struct{}
+type ConfirmDemo struct {
+//line confirm_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.ConfirmBox>" json:"-"`
+}
 
-//line confirm_demo.vuka.html:9
 func (c ConfirmDemo) View() ui.Node {
 //line confirm_demo.vuka.html:9
 	return ui.ConfirmBox{Title: "Delete this book?", Text: "This cannot be undone.", Danger: true, Yes: "Delete", No: "Keep"}

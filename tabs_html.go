@@ -17,8 +17,10 @@ import (
 //
 //line tabs.vuka.html:10
 type Tabs struct {
-	Tabs  []Tab
-	Class string
+//line tabs.vuka.html:10
+	Fallthrough Fallthrough `vuka:"forward=div" json:"-"`
+	Tabs        []Tab
+	Class       string
 }
 
 //line tabs.vuka.html:16
@@ -29,7 +31,7 @@ func (t Tabs) View() Node {
 		nodes2 = append(nodes2, tab.node())
 	}
 //line tabs.vuka.html:16
-	return HTML(`<div class={withClass("vk-tabs", t.Class)} role="tablist">{nodes2}</div>`, withClass("vk-tabs", t.Class), nodes2)
+	return HTML(`<div {t.Fallthrough.Attrs()...} class={withClass("vk-tabs", t.Class)} role={t.Fallthrough.Or("role", "tablist")}>{nodes2}</div>`, t.Fallthrough.Attrs(), withClass("vk-tabs", t.Class), t.Fallthrough.Or("role", "tablist"), nodes2)
 }
 
 //line tabs.vuka.html:20

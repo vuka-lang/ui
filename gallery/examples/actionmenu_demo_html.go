@@ -11,8 +11,12 @@ import (
 )
 
 //line actionmenu_demo.vuka.html:6
-type ActionMenuDemo struct{}
+type ActionMenuDemo struct {
+//line actionmenu_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
+//line actionmenu_demo.vuka.html:8
 func (ActionMenuDemo) columns() []ui.Column[payment] {
 	return []ui.Column[payment]{
 		{Header: ui.Text("Email"), Cell: func(p payment) ui.Node { return ui.Text(p.Email) }},
@@ -30,7 +34,7 @@ func (ActionMenuDemo) actions(p payment) ui.Node {
 //line actionmenu_demo.vuka.html:23
 func (a ActionMenuDemo) View() ui.Node {
 //line actionmenu_demo.vuka.html:23
-	return ui.HTML(`<div>{ui.DataTable[payment]{Columns: a.columns(), Rows: payments[:2], Actions: a.actions}}</div>`, ui.DataTable[payment]{Columns: a.columns(), Rows: payments[:2], Actions: a.actions})
+	return ui.HTML(`<div {a.Fallthrough.All()...}>{ui.DataTable[payment]{Columns: a.columns(), Rows: payments[:2], Actions: a.actions}}</div>`, a.Fallthrough.All(), ui.DataTable[payment]{Columns: a.columns(), Rows: payments[:2], Actions: a.actions})
 }
 
 //line actionmenu_demo.vuka.html:25

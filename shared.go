@@ -101,6 +101,9 @@ func WithSharedBroadcaster(ctx context.Context, b SharedBroadcaster) context.Con
 // ctx is a request's or a live event's.
 //
 // Experimental, with SharedLive.
+//
+// Deprecated: use web.Broadcast(ctx, topic, msg) to the topic a live
+// component subscribes to; Broadcast goes with SharedLive.
 func Broadcast[T SharedComponent](ctx context.Context, msg any) error {
 	typ := reflect.TypeFor[T]()
 	b, _ := ctx.Value(broadcasterKey{}).(SharedBroadcaster)

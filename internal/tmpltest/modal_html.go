@@ -10,6 +10,8 @@ import (
 
 //line modal.vuka.html:6
 type Modal struct {
+//line modal.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
 	ui.Live
 	saved uigen.Assign[int]
 	items uigen.Assign[[]string]
@@ -39,7 +41,7 @@ func (m *Modal) Render() ui.Node {
 	}
 //line modal.vuka.html:23
 	return ui.HTML(`
-<div>
+<div {m.Fallthrough.All()...}>
   <button onClick={m.open()}>Edit</button>
   <input type="checkbox" ref="all" onChange={value}/>
   <div ref="dialog" style="display: none" onKeyDown={ui.JS.Key("Escape").Hide(ui.Ref("dialog")).PopFocus()}>
@@ -49,6 +51,7 @@ func (m *Modal) Render() ui.Node {
     {buttons}
   </div>
 </div>`,
+		m.Fallthrough.All(),
 		m.open(),
 		value,
 		ui.JS.Key("Escape").Hide(ui.Ref("dialog")).PopFocus(),

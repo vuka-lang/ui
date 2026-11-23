@@ -11,9 +11,11 @@ import (
 )
 
 //line popover_demo.vuka.html:6
-type PopoverDemo struct{}
+type PopoverDemo struct {
+//line popover_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Popover>" json:"-"`
+}
 
-//line popover_demo.vuka.html:9
 func (po PopoverDemo) View() ui.Node {
 //line popover_demo.vuka.html:9
 	return ui.Popover{Title: ui.Text("Dimensions"), Children: ui.HTML(`<p>Set the dimensions for the layer.</p>`)}

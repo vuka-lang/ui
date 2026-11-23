@@ -11,18 +11,20 @@ import (
 )
 
 //line submit_demo.vuka.html:6
-type SubmitDemo struct{}
+type SubmitDemo struct {
+//line submit_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=form" json:"-"`
+}
 
-//line submit_demo.vuka.html:9
 func (s SubmitDemo) View() ui.Node {
 	submit := ui.Submit{Variant: ui.Primary, Children: ui.HTML(`Save`)}
 	submit2 := ui.Submit{Variant: ui.Danger, Loading: true, Children: ui.HTML(`Deleting`)}
 //line submit_demo.vuka.html:9
 	return ui.HTML(`
-<form class="flex flex-wrap items-center gap-2">
+<form {s.Fallthrough.Attrs()...} class="flex flex-wrap items-center gap-2{s.Fallthrough.Classes()}">
   {submit}
   {submit2}
-</form>`, submit, submit2)
+</form>`, s.Fallthrough.Attrs(), s.Fallthrough.Classes(), submit, submit2)
 }
 
 //line submit_demo.vuka.html:12

@@ -12,17 +12,19 @@ import (
 
 //line pet_row.vuka.html:4
 type PetRow struct {
-	Pet Pet
+//line pet_row.vuka.html:4
+	Fallthrough ui.Fallthrough `vuka:"forward=tr" json:"-"`
+	Pet         Pet
 }
 
 //line pet_row.vuka.html:9
 func (p PetRow) View() ui.Node {
 //line pet_row.vuka.html:9
 	return ui.HTML(`
-<tr>
+<tr {p.Fallthrough.All()...}>
   <td>{p.Pet.Name}</td>
   <td>{p.Pet.Age}</td>
-</tr>`, p.Pet.Name, p.Pet.Age)
+</tr>`, p.Fallthrough.All(), p.Pet.Name, p.Pet.Age)
 }
 
 //line pet_row.vuka.html:9

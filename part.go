@@ -477,8 +477,9 @@ func (p *Parts) Pending() bool {
 // PartsScript is the script Stream starts with: what moves each part into
 // its place as it arrives.
 //
-// Deprecated: package web no longer appends a page's parts to its
-// response; the runtime moves in the parts StreamParts writes.
+// Deprecated: use Parts.StreamParts, whose parts the runtime moves into
+// place with no inline script; package web no longer appends this script to a
+// page's response.
 const PartsScript = `<script data-vk-parts>window.__vkP=function(i){var t=document.querySelector('template[data-vk-part="'+i+'"]');if(!t)return;var w=document.createTreeWalker(document,128),s=null,n,x;while(n=w.nextNode())if(n.data==="vk-part:"+i){s=n;break}if(s){var p=s.parentNode;for(n=s.nextSibling;n&&!(n.nodeType===8&&n.data==="/vk-part:"+i);n=x){x=n.nextSibling;p.removeChild(n)}p.insertBefore(t.content,s);p.removeChild(s);if(n)p.removeChild(n)}t.parentNode.removeChild(t);document.dispatchEvent(new CustomEvent("vk:part",{detail:{id:i}}))}</script>`
 
 // Stream writes PartsScript and flushes, then each part to w once its

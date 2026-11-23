@@ -17,6 +17,8 @@ import (
 //
 //line board.vuka.html:14
 type Board struct {
+//line board.vuka.html:14
+	Fallthrough ui.Fallthrough `vuka:"forward=section" json:"-"`
 	ui.Live
 	Title    string
 	Children ui.Node
@@ -143,7 +145,7 @@ func (b *Board) Render() ui.Node {
 	}
 //line board.vuka.html:95
 	return ui.HTML(`
-<section class={"board " + b.mode.Get()}>
+<section {b.Fallthrough.Attrs()...} class={b.Fallthrough.Merge("board " + b.mode.Get())}>
   <h2 title={b.note.Get()}>{b.Title} ({len(b.items.Get())})</h2>
   {b.Children}
   <input onInput={b.Do} value={b.mode.Get()}/>
@@ -155,7 +157,8 @@ func (b *Board) Render() ui.Node {
   {b.script()}
   {counters}
 </section>`,
-		"board "+b.mode.Get(),
+		b.Fallthrough.Attrs(),
+		b.Fallthrough.Merge("board "+b.mode.Get()),
 		b.note.Get(),
 		b.Title,
 		len(b.items.Get()),

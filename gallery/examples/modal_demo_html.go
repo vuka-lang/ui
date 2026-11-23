@@ -11,9 +11,11 @@ import (
 )
 
 //line modal_demo.vuka.html:6
-type ModalDemo struct{}
+type ModalDemo struct {
+//line modal_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=?<button>|<ui.Modal>" json:"-"`
+}
 
-//line modal_demo.vuka.html:9
 func (m ModalDemo) View() ui.Node {
 //line modal_demo.vuka.html:9
 	return ui.HTML(`

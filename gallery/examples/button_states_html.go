@@ -11,20 +11,22 @@ import (
 )
 
 //line button_states.vuka.html:6
-type ButtonStates struct{}
+type ButtonStates struct {
+//line button_states.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line button_states.vuka.html:9
 func (b ButtonStates) View() ui.Node {
 	button := ui.Button{Variant: ui.Primary, Loading: true, Children: ui.HTML(`Saving`)}
 	button2 := ui.Button{Disabled: true, Children: ui.HTML(`Disabled`)}
 	button3 := ui.Button{Href: "/books", Nav: true, Children: ui.HTML(`Link`)}
 //line button_states.vuka.html:9
 	return ui.HTML(`
-<div class="flex flex-wrap items-center gap-2">
+<div {b.Fallthrough.Attrs()...} class="flex flex-wrap items-center gap-2{b.Fallthrough.Classes()}">
   {button}
   {button2}
   {button3}
-</div>`, button, button2, button3)
+</div>`, b.Fallthrough.Attrs(), b.Fallthrough.Classes(), button, button2, button3)
 }
 
 //line button_states.vuka.html:13

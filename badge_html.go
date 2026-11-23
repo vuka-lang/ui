@@ -15,6 +15,8 @@ import (
 //
 //line badge.vuka.html:8
 type Badge struct {
+//line badge.vuka.html:8
+	Fallthrough Fallthrough `vuka:"forward=span" json:"-"`
 	// Variant is the tone: Default, Primary, Success, Danger, Warning or Info.
 	Variant Variant
 	// Soft tints the badge (a light background with coloured text) instead of
@@ -38,7 +40,7 @@ func (b Badge) classes() string {
 //line badge.vuka.html:30
 func (b Badge) View() Node {
 //line badge.vuka.html:30
-	return HTML(`<span class={b.classes()}>{b.Children}</span>`, b.classes(), b.Children)
+	return HTML(`<span {b.Fallthrough.Attrs()...} class={b.classes()}>{b.Children}</span>`, b.Fallthrough.Attrs(), b.classes(), b.Children)
 }
 
 //line badge.vuka.html:30

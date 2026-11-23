@@ -11,9 +11,11 @@ import (
 )
 
 //line alert_variants.vuka.html:6
-type AlertVariants struct{}
+type AlertVariants struct {
+//line alert_variants.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line alert_variants.vuka.html:9
 func (a AlertVariants) View() ui.Node {
 	alert := ui.Alert{Title: "Heads up", Children: ui.HTML(`You can add components to your app.`)}
 	alert2 := ui.Alert{Variant: ui.AlertSuccess, Title: "Saved", Children: ui.HTML(`Your changes are live.`)}
@@ -21,12 +23,19 @@ func (a AlertVariants) View() ui.Node {
 	alert4 := ui.Alert{Variant: ui.AlertError, Title: "Payment failed", Children: ui.HTML(`Check your card details.`)}
 //line alert_variants.vuka.html:9
 	return ui.HTML(`
-<div class="grid gap-2">
+<div {a.Fallthrough.Attrs()...} class="grid gap-2{a.Fallthrough.Classes()}">
   {alert}
   {alert2}
   {alert3}
   {alert4}
-</div>`, alert, alert2, alert3, alert4)
+</div>`,
+		a.Fallthrough.Attrs(),
+		a.Fallthrough.Classes(),
+		alert,
+		alert2,
+		alert3,
+		alert4,
+	)
 }
 
 //line alert_variants.vuka.html:14

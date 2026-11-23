@@ -11,9 +11,11 @@ import (
 )
 
 //line card_demo.vuka.html:6
-type CardDemo struct{}
+type CardDemo struct {
+//line card_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Card>" json:"-"`
+}
 
-//line card_demo.vuka.html:9
 func (c CardDemo) View() ui.Node {
 //line card_demo.vuka.html:9
 	return ui.Card{Title: ui.Text("Members"), Header: ui.Button{Size: ui.SizeSm, Children: ui.Text("Invite")}, Children: ui.HTML(`<p>Invite your team to collaborate on this project.</p>`)}

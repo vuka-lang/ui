@@ -15,6 +15,8 @@ import (
 //
 //line keyed_table.vuka.html:12
 type KeyedTable struct {
+//line keyed_table.vuka.html:12
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
 	ui.Live
 	N    int
 	Hits *[]int
@@ -51,10 +53,11 @@ func (t *KeyedTable) Remove(id int) {
 
 //line keyed_table.vuka.html:48
 func (t *KeyedTable) Render() ui.Node {
-	var trs []ui.Node
+	trs := ui.Guard(0xe9bbea22a298d4b9, func() []ui.Node {
+		var trs []ui.Node
 //line keyed_table.vuka.html:52
-	for _, id := range t.rows.Get() {
-		trs = append(trs, ui.HTML(`
+		for _, id := range t.rows.Get() {
+			trs = append(trs, ui.HTML(`
 <tr key={id}>
   <td>row {id}</td>
   <td>
@@ -62,14 +65,16 @@ func (t *KeyedTable) Render() ui.Node {
     <button class="del" onClick={func() { t.Remove(id) }}>del {id}</button>
   </td>
 </tr>`, id, func() { t.Hit(id) }, func() { t.Remove(id) }))
-	}
+		}
+		return trs
+	}, t.rows.Version())
 //line keyed_table.vuka.html:48
 	return ui.HTML(`
-<div>
+<div {t.Fallthrough.All()...}>
   <button class="insert" onClick={t.Insert}>insert</button>
   <button class="pop" onClick={t.Pop}>pop</button>
   <table>{trs}</table>
-</div>`, t.Insert, t.Pop, trs)
+</div>`, t.Fallthrough.All(), t.Insert, t.Pop, trs)
 }
 
 //line keyed_table.vuka.html:12

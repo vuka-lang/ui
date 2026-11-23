@@ -14,8 +14,10 @@ import (
 //
 //line row_menu.vuka.html:7
 type rowMenu struct {
-	ID    string
-	Items Node
+//line row_menu.vuka.html:7
+	Fallthrough Fallthrough `vuka:"forward=div" json:"-"`
+	ID          string
+	Items       Node
 }
 
 func (m rowMenu) id() string     { return menuID(m.ID) }
@@ -29,10 +31,12 @@ func (m rowMenu) View() Node {
 	value2 := m.id()
 //line row_menu.vuka.html:18
 	return HTML(`
-<div class="vk-menu">
+<div {m.Fallthrough.Attrs()...} class="vk-menu{m.Fallthrough.Classes()}">
   <button type="button" class="vk-menu__trigger" aria-label="Actions" title="Actions" aria-haspopup="menu" popovertarget={m.id()} style={m.anchor()}>{Icon("dots-vertical")}</button>
   <div class="vk-menu__panel" id={value2} popover role="menu" style={m.place()}>{m.items()}</div>
 </div>`,
+		m.Fallthrough.Attrs(),
+		m.Fallthrough.Classes(),
 		m.id(),
 		m.anchor(),
 		Icon("dots-vertical"),

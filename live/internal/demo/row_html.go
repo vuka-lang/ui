@@ -11,6 +11,8 @@ import (
 // Row is a table row whose state is an Assign: a session renders it again
 // only when its quantity or its props change.
 type Row struct {
+//line row.vuka.html:11
+	Fallthrough ui.Fallthrough `vuka:"forward=tr,own=key" json:"-"`
 	ui.Live
 	ID   int
 	Name string
@@ -23,9 +25,9 @@ func (r *Row) Inc() { r.qty.Update(func(n int) int { return n + 1 }) }
 func (r *Row) Render() ui.Node {
 //line row.vuka.html:21
 	return ui.HTML(`
-<tr key={r.ID}>
+<tr {r.Fallthrough.All()...} key={r.ID}>
   <td>{r.Name}</td>
   <td>{r.qty.Get()}</td>
   <td><button onClick={r.Inc}>+</button></td>
-</tr>`, r.ID, r.Name, r.qty.Get(), r.Inc)
+</tr>`, r.Fallthrough.All(), r.ID, r.Name, r.qty.Get(), r.Inc)
 }

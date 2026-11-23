@@ -11,9 +11,11 @@ import (
 )
 
 //line image_demo.vuka.html:6
-type ImageDemo struct{}
+type ImageDemo struct {
+//line image_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Image>" json:"-"`
+}
 
-//line image_demo.vuka.html:9
 func (i ImageDemo) View() ui.Node {
 //line image_demo.vuka.html:9
 	return ui.Image{Src: "/images/cover.webp", Alt: "A book cover", Width: 320, Height: 180}

@@ -11,9 +11,11 @@ import (
 )
 
 //line field_demo.vuka.html:6
-type FieldDemo struct{}
+type FieldDemo struct {
+//line field_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Field>" json:"-"`
+}
 
-//line field_demo.vuka.html:9
 func (f FieldDemo) View() ui.Node {
 //line field_demo.vuka.html:9
 	return ui.Field{Name: "quantity", Label: "Quantity", Type: "number", Min: "1", Max: "9", Value: "3"}

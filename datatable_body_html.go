@@ -17,8 +17,10 @@ import (
 //
 //line datatable_body.vuka.html:13
 type dataTableBody struct {
-	D    dataTable
-	Page Page[any]
+//line datatable_body.vuka.html:13
+	Fallthrough Fallthrough `vuka:"forward=?an if|<div>|{…}|an if" json:"-"`
+	D           dataTable
+	Page        Page[any]
 	// Server: Query was read from URL, and the controls write it.
 	Server bool
 	Query  TableQuery
