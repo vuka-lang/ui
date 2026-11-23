@@ -11,12 +11,14 @@ import (
 )
 
 //line actions_demo.vuka.html:6
-type ActionsDemo struct{}
+type ActionsDemo struct {
+//line actions_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line actions_demo.vuka.html:9
 func (a ActionsDemo) View() ui.Node {
 //line actions_demo.vuka.html:9
-	return ui.HTML(`<div>{ui.Actions(ui.Cancel(ui.CloseModal("edit")), ui.Button{Variant: ui.Primary, Children: ui.Text("Save")})}</div>`, ui.Actions(ui.Cancel(ui.CloseModal("edit")), ui.Button{Variant: ui.Primary, Children: ui.Text("Save")}))
+	return ui.HTML(`<div {a.Fallthrough.All()...}>{ui.Actions(ui.Cancel(ui.CloseModal("edit")), ui.Button{Variant: ui.Primary, Children: ui.Text("Save")})}</div>`, a.Fallthrough.All(), ui.Actions(ui.Cancel(ui.CloseModal("edit")), ui.Button{Variant: ui.Primary, Children: ui.Text("Save")}))
 }
 
 //line actions_demo.vuka.html:11

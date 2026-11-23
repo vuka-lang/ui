@@ -11,16 +11,18 @@ import (
 )
 
 //line spinner_demo.vuka.html:6
-type SpinnerDemo struct{}
+type SpinnerDemo struct {
+//line spinner_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line spinner_demo.vuka.html:9
 func (s SpinnerDemo) View() ui.Node {
 //line spinner_demo.vuka.html:9
 	return ui.HTML(`
-<div class="flex items-center gap-2">
+<div {s.Fallthrough.Attrs()...} class="flex items-center gap-2{s.Fallthrough.Classes()}">
   {ui.Spinner()}
   <span>Loading…</span>
-</div>`, ui.Spinner())
+</div>`, s.Fallthrough.Attrs(), s.Fallthrough.Classes(), ui.Spinner())
 }
 
 //line spinner_demo.vuka.html:12

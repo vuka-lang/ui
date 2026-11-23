@@ -10,6 +10,8 @@ import (
 
 // Counter is a counter.
 type Counter struct {
+//line counter.vuka.html:10
+	Fallthrough ui.Fallthrough `vuka:"forward=span" json:"-"`
 	ui.Live
 	Label string
 	n     uigen.Assign[int]
@@ -20,5 +22,5 @@ func (c *Counter) Inc() { c.n.Update(func(n int) int { return n + 1 }) }
 //line counter.vuka.html:19
 func (c *Counter) Render() ui.Node {
 //line counter.vuka.html:19
-	return ui.HTML(`<span>{c.Label}: {c.n.Get()} <button onClick={c.Inc}>+</button></span>`, c.Label, c.n.Get(), c.Inc)
+	return ui.HTML(`<span {c.Fallthrough.All()...}>{c.Label}: {c.n.Get()} <button onClick={c.Inc}>+</button></span>`, c.Fallthrough.All(), c.Label, c.n.Get(), c.Inc)
 }

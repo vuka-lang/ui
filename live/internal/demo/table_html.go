@@ -12,6 +12,8 @@ import (
 
 // Table is a table of n rows, each a component.
 type Table struct {
+//line table.vuka.html:12
+	Fallthrough ui.Fallthrough `vuka:"forward=table" json:"-"`
 	ui.Live
 	N     int
 	Plain bool
@@ -33,8 +35,8 @@ func (t *Table) Render() ui.Node {
 	}
 //line table.vuka.html:20
 	return ui.HTML(`
-<table>
+<table {t.Fallthrough.All()...}>
   <caption>{t.title.Get()}</caption>
   {texts}
-</table>`, t.title.Get(), texts)
+</table>`, t.Fallthrough.All(), t.title.Get(), texts)
 }

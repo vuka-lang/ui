@@ -11,8 +11,12 @@ import (
 )
 
 //line table_demo.vuka.html:6
-type TableDemo struct{}
+type TableDemo struct {
+//line table_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
+//line table_demo.vuka.html:8
 type invoice struct {
 	ID     string
 	Status string
@@ -32,7 +36,7 @@ func (TableDemo) columns() []ui.Column[invoice] {
 //line table_demo.vuka.html:25
 func (t TableDemo) View() ui.Node {
 //line table_demo.vuka.html:25
-	return ui.HTML(`<div>{ui.Table[invoice]{Columns: t.columns(), Rows: invoices}}</div>`, ui.Table[invoice]{Columns: t.columns(), Rows: invoices})
+	return ui.HTML(`<div {t.Fallthrough.All()...}>{ui.Table[invoice]{Columns: t.columns(), Rows: invoices}}</div>`, t.Fallthrough.All(), ui.Table[invoice]{Columns: t.columns(), Rows: invoices})
 }
 
 //line table_demo.vuka.html:27

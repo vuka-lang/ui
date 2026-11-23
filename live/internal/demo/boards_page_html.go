@@ -13,18 +13,20 @@ import (
 // BoardsPage is Page's page: two boards and a counter.
 //
 //line boards_page.vuka.html:5
-type BoardsPage struct{}
+type BoardsPage struct {
+//line boards_page.vuka.html:5
+	Fallthrough ui.Fallthrough `vuka:"forward=main" json:"-"`
+}
 
-//line boards_page.vuka.html:8
 func (b BoardsPage) View() ui.Node {
 	board := &Board{Title: "one", Children: ui.HTML(`<em>first</em>`)}
 //line boards_page.vuka.html:8
 	return ui.HTML(`
-<main>
+<main {b.Fallthrough.All()...}>
   {board}
   {&Board{Title: "two"}}
   {&Counter{Label: "solo"}}
-</main>`, board, &Board{Title: "two"}, &Counter{Label: "solo"})
+</main>`, b.Fallthrough.All(), board, &Board{Title: "two"}, &Counter{Label: "solo"})
 }
 
 //line boards_page.vuka.html:12

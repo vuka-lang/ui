@@ -11,6 +11,8 @@ import (
 // Inbox is a stateful component rendering a templ Panel: reading a message
 // changes the Panel's badge alone.
 type Inbox struct {
+//line inbox.vuka.html:11
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
 	ui.Live
 	Unread int
 	Opaque bool // the Panel as one piece of markup (Opaque)
@@ -35,5 +37,5 @@ func (b *Inbox) Render() ui.Node {
 		opaque2 = InboxPanel{Badge: b.Unread - b.read.Get(), Read: b.Read}
 	}
 //line inbox.vuka.html:27
-	return ui.HTML(`<div class="inbox">{opaque2}</div>`, opaque2)
+	return ui.HTML(`<div {b.Fallthrough.Attrs()...} class="inbox{b.Fallthrough.Classes()}">{opaque2}</div>`, b.Fallthrough.Attrs(), b.Fallthrough.Classes(), opaque2)
 }

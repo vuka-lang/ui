@@ -21,12 +21,14 @@ import (
 //
 //line image.vuka.html:14
 type Image struct {
-	Src    string
-	Srcset string
-	Sizes  string
-	Alt    string
-	Width  int
-	Height int
+//line image.vuka.html:14
+	Fallthrough Fallthrough `vuka:"forward=-an if" json:"-"`
+	Src         string
+	Srcset      string
+	Sizes       string
+	Alt         string
+	Width       int
+	Height      int
 	// Class is added to the <img> (sizing, rounding, the caller's utilities).
 	Class string
 	// Priority marks the page's largest image: it loads eagerly with a high

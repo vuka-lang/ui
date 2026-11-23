@@ -11,9 +11,11 @@ import (
 )
 
 //line button_variants.vuka.html:6
-type ButtonVariants struct{}
+type ButtonVariants struct {
+//line button_variants.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line button_variants.vuka.html:9
 func (b ButtonVariants) View() ui.Node {
 	button := ui.Button{Children: ui.HTML(`Default`)}
 	button2 := ui.Button{Variant: ui.Primary, Children: ui.HTML(`Primary`)}
@@ -24,7 +26,7 @@ func (b ButtonVariants) View() ui.Node {
 	button7 := ui.Button{Variant: ui.Ghost, Children: ui.HTML(`Ghost`)}
 //line button_variants.vuka.html:9
 	return ui.HTML(`
-<div class="flex flex-wrap gap-2">
+<div {b.Fallthrough.Attrs()...} class="flex flex-wrap gap-2{b.Fallthrough.Classes()}">
   {button}
   {button2}
   {button3}
@@ -33,6 +35,8 @@ func (b ButtonVariants) View() ui.Node {
   {button6}
   {button7}
 </div>`,
+		b.Fallthrough.Attrs(),
+		b.Fallthrough.Classes(),
 		button,
 		button2,
 		button3,

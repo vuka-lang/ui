@@ -11,20 +11,22 @@ import (
 )
 
 //line button_sizes.vuka.html:6
-type ButtonSizes struct{}
+type ButtonSizes struct {
+//line button_sizes.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line button_sizes.vuka.html:9
 func (b ButtonSizes) View() ui.Node {
 	button := ui.Button{Size: ui.SizeSm, Children: ui.HTML(`Small`)}
 	button2 := ui.Button{Children: ui.HTML(`Medium`)}
 	button3 := ui.Button{Size: ui.SizeLg, Children: ui.HTML(`Large`)}
 //line button_sizes.vuka.html:9
 	return ui.HTML(`
-<div class="flex flex-wrap items-center gap-2">
+<div {b.Fallthrough.Attrs()...} class="flex flex-wrap items-center gap-2{b.Fallthrough.Classes()}">
   {button}
   {button2}
   {button3}
-</div>`, button, button2, button3)
+</div>`, b.Fallthrough.Attrs(), b.Fallthrough.Classes(), button, button2, button3)
 }
 
 //line button_sizes.vuka.html:13

@@ -17,6 +17,8 @@ import (
 //
 //line alert.vuka.html:10
 type Alert struct {
+//line alert.vuka.html:10
+	Fallthrough Fallthrough `vuka:"forward=div" json:"-"`
 	// Variant is the tone: AlertInfo (default), AlertSuccess, AlertWarning or
 	// AlertError.
 	Variant AlertVariant
@@ -50,13 +52,21 @@ func (a Alert) View() Node {
 	}
 //line alert.vuka.html:32
 	return HTML(`
-<div class={a.classes()} role="alert">
+<div {a.Fallthrough.Attrs()...} class={a.classes()} role={a.Fallthrough.Or("role", "alert")}>
   <div class="vk-alert__body">
     {div}
     {a.Children}
   </div>
   {button}
-</div>`, a.classes(), div, a.Children, button)
+</div>`,
+		a.Fallthrough.Attrs(),
+		a.classes(),
+		a.Fallthrough.Or("role", "alert"),
+		div,
+		a.Children,
+		button,
+	)
 }
 
+//line alert.vuka.html:42
 func (a Alert) Render(ctx context.Context, w io.Writer) error { return a.View().Render(ctx, w) }

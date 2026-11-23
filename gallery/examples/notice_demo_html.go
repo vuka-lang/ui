@@ -11,9 +11,11 @@ import (
 )
 
 //line notice_demo.vuka.html:6
-type NoticeDemo struct{}
+type NoticeDemo struct {
+//line notice_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Notice>" json:"-"`
+}
 
-//line notice_demo.vuka.html:9
 func (n NoticeDemo) View() ui.Node {
 //line notice_demo.vuka.html:9
 	return ui.Notice{Variant: ui.AlertSuccess, Title: "Saved", Text: "Your changes are live."}

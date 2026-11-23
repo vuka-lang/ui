@@ -11,9 +11,11 @@ import (
 )
 
 //line password_demo.vuka.html:6
-type PasswordDemo struct{}
+type PasswordDemo struct {
+//line password_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Password>" json:"-"`
+}
 
-//line password_demo.vuka.html:9
 func (p PasswordDemo) View() ui.Node {
 //line password_demo.vuka.html:9
 	return ui.Password{Name: "password", Label: "Password", Autocomplete: "new-password", Required: true}

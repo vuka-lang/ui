@@ -15,6 +15,8 @@ import (
 //
 //line cell_table.vuka.html:12
 type CellTable struct {
+//line cell_table.vuka.html:12
+	Fallthrough ui.Fallthrough `vuka:"forward=table" json:"-"`
 	ui.Live
 	N     int
 	cells uigen.Assign[[]int]
@@ -32,18 +34,21 @@ func (t *CellTable) Bump(i int) {
 }
 
 func (t *CellTable) Render() ui.Node {
-	var trs []ui.Node
+	trs := ui.Guard(0x37433365a1b0437, func() []ui.Node {
+		var trs []ui.Node
 //line cell_table.vuka.html:28
-	for i, v := range t.cells.Get() {
-		trs = append(trs, ui.HTML(`
+		for i, v := range t.cells.Get() {
+			trs = append(trs, ui.HTML(`
 <tr key={i}>
   <td>row {i}</td>
   <td class="n">{v}</td>
   <td><button onClick={func() { t.Bump(i) }}>+</button></td>
 </tr>`, i, v, func() { t.Bump(i) }))
-	}
+		}
+		return trs
+	}, t.cells.Version())
 //line cell_table.vuka.html:27
-	return ui.HTML(`<table>{trs}</table>`, trs)
+	return ui.HTML(`<table {t.Fallthrough.All()...}>{trs}</table>`, t.Fallthrough.All(), trs)
 }
 
 //line cell_table.vuka.html:12

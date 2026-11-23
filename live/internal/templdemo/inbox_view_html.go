@@ -13,9 +13,11 @@ import (
 // InboxView is InboxPage's page.
 //
 //line inbox_view.vuka.html:5
-type InboxView struct{}
+type InboxView struct {
+//line inbox_view.vuka.html:5
+	Fallthrough ui.Fallthrough `vuka:"forward=<Layout>" json:"-"`
+}
 
-//line inbox_view.vuka.html:8
 func (i InboxView) View() ui.Node {
 //line inbox_view.vuka.html:8
 	return ui.WithChildren(Layout("Inbox", "/inbox"), ui.HTML(`{&Inbox{Unread: 3}}`, &Inbox{Unread: 3}))

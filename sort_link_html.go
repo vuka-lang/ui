@@ -14,10 +14,12 @@ import (
 //
 //line sort_link.vuka.html:7
 type sortLink struct {
-	Header Node
-	Key    string
-	Query  TableQuery
-	URL    tableURL
+//line sort_link.vuka.html:7
+	Fallthrough Fallthrough `vuka:"forward=a,own=href|aria-sort" json:"-"`
+	Header      Node
+	Key         string
+	Query       TableQuery
+	URL         tableURL
 }
 
 func (s sortLink) sorted() bool { return s.Key == s.Query.Sort }
@@ -46,10 +48,19 @@ func (s sortLink) icon() Node {
 func (s sortLink) View() Node {
 //line sort_link.vuka.html:37
 	return HTML(`
-<a class="vk-sort" href={s.href()} data-vk-link="patch" data-vk-replace aria-sort={s.aria()}>
+<a {s.Fallthrough.Attrs()...} class="vk-sort{s.Fallthrough.Classes()}" href={s.href()} data-vk-link={s.Fallthrough.Or("data-vk-link", "patch")} data-vk-replace={s.Fallthrough.Or("data-vk-replace", true)} aria-sort={s.aria()}>
   {s.Header}
   {s.icon()}
-</a>`, s.href(), s.aria(), s.Header, s.icon())
+</a>`,
+		s.Fallthrough.Attrs(),
+		s.Fallthrough.Classes(),
+		s.href(),
+		s.Fallthrough.Or("data-vk-link", "patch"),
+		s.Fallthrough.Or("data-vk-replace", true),
+		s.aria(),
+		s.Header,
+		s.icon(),
+	)
 }
 
 //line sort_link.vuka.html:37

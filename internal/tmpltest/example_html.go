@@ -15,7 +15,9 @@ import (
 //
 //line example.vuka.html:6
 type Example struct {
-	N int
+//line example.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=-a switch" json:"-"`
+	N           int
 }
 
 //line example.vuka.html:11

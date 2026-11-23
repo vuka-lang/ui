@@ -10,6 +10,8 @@ import (
 
 //line dropdown.vuka.html:6
 type Dropdown struct {
+//line dropdown.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
 	ui.Live
 	opened uigen.Assign[int]
 }
@@ -20,8 +22,8 @@ func (d *Dropdown) Opened() { d.opened.Set(d.opened.Get() + 1) }
 func (d *Dropdown) Render() ui.Node {
 //line dropdown.vuka.html:14
 	return ui.HTML(`
-<div>
+<div {d.Fallthrough.All()...}>
   <button onClick={ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").Push(d.Opened)}>Open</button>
-  <ul ref="menu" class="hidden" onKeyDown={ui.JS.Key("Escape").AddClass(ui.This, "hidden")}><li>{d.opened}</li></ul>
-</div>`, ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").Push(d.Opened), ui.JS.Key("Escape").AddClass(ui.This, "hidden"), d.opened.Get())
+  <ul ref="menu" class="hidden" onKeyDown={ui.JS.Key("Escape").AddClass(ui.This, "hidden")}><li>{d.opened.Get()}</li></ul>
+</div>`, d.Fallthrough.All(), ui.JS.On(ui.Ref("menu")).RemoveClass("hidden").Push(d.Opened), ui.JS.Key("Escape").AddClass(ui.This, "hidden"), d.opened.Get())
 }

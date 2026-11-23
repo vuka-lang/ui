@@ -11,9 +11,11 @@ import (
 )
 
 //line drawer_demo.vuka.html:6
-type DrawerDemo struct{}
+type DrawerDemo struct {
+//line drawer_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.Drawer>" json:"-"`
+}
 
-//line drawer_demo.vuka.html:9
 func (d DrawerDemo) View() ui.Node {
 //line drawer_demo.vuka.html:9
 	return ui.Drawer{Title: ui.Text("Filters"), Side: "right", Children: ui.Checkbox{Name: "instock", Label: "In stock only", Value: "true"}}

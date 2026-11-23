@@ -20,6 +20,8 @@ import (
 //
 //line card.vuka.html:13
 type Card struct {
+//line card.vuka.html:13
+	Fallthrough Fallthrough `vuka:"forward=div" json:"-"`
 	// Title is the header's left content; a string becomes a heading, any
 	// other Node is placed as is.
 	Title Node
@@ -49,10 +51,10 @@ func (c Card) View() Node {
 	}
 //line card.vuka.html:26
 	return HTML(`
-<div class={withClass("vk-card", c.Class)}>
+<div {c.Fallthrough.Attrs()...} class={withClass("vk-card", c.Class)}>
   {div}
   <div class="vk-card__body" class:vk-card__body--flush={c.NoPad}>{c.Children}</div>
-</div>`, withClass("vk-card", c.Class), div, c.NoPad, c.Children)
+</div>`, c.Fallthrough.Attrs(), withClass("vk-card", c.Class), div, c.NoPad, c.Children)
 }
 
 //line card.vuka.html:36

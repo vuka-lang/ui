@@ -11,9 +11,11 @@ import (
 )
 
 //line toast_demo.vuka.html:6
-type ToastDemo struct{}
+type ToastDemo struct {
+//line toast_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=<ui.ToastContainer>" json:"-"`
+}
 
-//line toast_demo.vuka.html:9
 func (t ToastDemo) View() ui.Node {
 	toast := ui.Toast{Variant: ui.AlertSuccess, Title: "Saved", Children: ui.HTML(`Your changes are live.`)}
 	toast2 := ui.Toast{Variant: ui.AlertError, Title: "Could not save", Children: ui.HTML(`Try again in a moment.`)}

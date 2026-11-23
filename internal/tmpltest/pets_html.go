@@ -12,8 +12,10 @@ import (
 
 //line pets.vuka.html:6
 type Pets struct {
-	Pets     []Pet
-	Children ui.Node
+//line pets.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=table" json:"-"`
+	Pets        []Pet
+	Children    ui.Node
 }
 
 //line pets.vuka.html:12
@@ -30,11 +32,11 @@ func (pe Pets) View() ui.Node {
 	}
 //line pets.vuka.html:12
 	return ui.HTML(`
-<table class="pets">
+<table {pe.Fallthrough.Attrs()...} class="pets{pe.Fallthrough.Classes()}">
   {petRows}
   {tr}
   {pe.Children}
-</table>`, petRows, tr, pe.Children)
+</table>`, pe.Fallthrough.Attrs(), pe.Fallthrough.Classes(), petRows, tr, pe.Children)
 }
 
 func (pe Pets) Render(ctx context.Context, w io.Writer) error { return pe.View().Render(ctx, w) }

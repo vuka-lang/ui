@@ -14,6 +14,8 @@ import (
 //
 //line link_pager.vuka.html:8
 type linkPager struct {
+//line link_pager.vuka.html:8
+	Fallthrough      Fallthrough `vuka:"forward=-an if" json:"-"`
 	Page, Pages      int
 	HasPrev, HasNext bool
 	// Numbers are the numbered links shown.

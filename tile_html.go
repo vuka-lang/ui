@@ -17,6 +17,8 @@ import (
 //
 //line tile.vuka.html:10
 type Tile struct {
+//line tile.vuka.html:10
+	Fallthrough Fallthrough `vuka:"forward=div" json:"-"`
 	// Label is the caption under the value.
 	Label string
 	// Icon is the named icon shown in the tile's badge, e.g. "briefcase".
@@ -50,13 +52,13 @@ func (t Tile) View() Node {
 	}
 //line tile.vuka.html:36
 	return HTML(`
-<div class={withClass("vk-tile", t.Class)}>
+<div {t.Fallthrough.Attrs()...} class={withClass("vk-tile", t.Class)}>
   {span2}
   <div class="vk-tile__body">
     <div class="vk-tile__value">{tileValue(t.Value)}</div>
     <div class="vk-tile__label">{t.Label}</div>
   </div>
-</div>`, withClass("vk-tile", t.Class), span2, tileValue(t.Value), t.Label)
+</div>`, t.Fallthrough.Attrs(), withClass("vk-tile", t.Class), span2, tileValue(t.Value), t.Label)
 }
 
 //line tile.vuka.html:44

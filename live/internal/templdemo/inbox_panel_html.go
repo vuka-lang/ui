@@ -14,8 +14,10 @@ import (
 //
 //line inbox_panel.vuka.html:5
 type InboxPanel struct {
-	Badge int
-	Read  func()
+//line inbox_panel.vuka.html:5
+	Fallthrough ui.Fallthrough `vuka:"forward=<Panel>" json:"-"`
+	Badge       int
+	Read        func()
 }
 
 //line inbox_panel.vuka.html:11

@@ -11,9 +11,11 @@ import (
 )
 
 //line badge_variants.vuka.html:6
-type BadgeVariants struct{}
+type BadgeVariants struct {
+//line badge_variants.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line badge_variants.vuka.html:9
 func (b BadgeVariants) View() ui.Node {
 	badge := ui.Badge{Children: ui.HTML(`New`)}
 	badge2 := ui.Badge{Variant: ui.Primary, Children: ui.HTML(`Primary`)}
@@ -23,7 +25,7 @@ func (b BadgeVariants) View() ui.Node {
 	badge6 := ui.Badge{Variant: ui.Info, Soft: true, Children: ui.HTML(`Draft`)}
 //line badge_variants.vuka.html:9
 	return ui.HTML(`
-<div class="flex flex-wrap items-center gap-2">
+<div {b.Fallthrough.Attrs()...} class="flex flex-wrap items-center gap-2{b.Fallthrough.Classes()}">
   {badge}
   {badge2}
   {badge3}
@@ -31,6 +33,8 @@ func (b BadgeVariants) View() ui.Node {
   {badge5}
   {badge6}
 </div>`,
+		b.Fallthrough.Attrs(),
+		b.Fallthrough.Classes(),
 		badge,
 		badge2,
 		badge3,

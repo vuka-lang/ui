@@ -16,8 +16,10 @@ import (
 //
 //line row_actions.vuka.html:12
 type RowActions struct {
-	Book     Book
-	OnDelete func(id int64)
+//line row_actions.vuka.html:12
+	Fallthrough ui.Fallthrough `vuka:"forward=?<ui.ActionMenu>|<ui.ActionMenu>" json:"-"`
+	Book        Book
+	OnDelete    func(id int64)
 }
 
 func (r RowActions) href() string { return "/books/" + strconv.FormatInt(r.Book.ID, 10) }

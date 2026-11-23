@@ -21,6 +21,8 @@ import (
 //
 //line actionmenu.vuka.html:18
 type ActionMenu struct {
+//line actionmenu.vuka.html:18
+	Fallthrough Fallthrough `vuka:"forward=-an if" json:"-"`
 	// Icon names a kit icon shown before the label.
 	Icon string
 	// On is what choosing the item does: a live handler or a ui.JS chain.

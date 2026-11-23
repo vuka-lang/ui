@@ -11,9 +11,11 @@ import (
 )
 
 //line tile_demo.vuka.html:6
-type TileDemo struct{}
+type TileDemo struct {
+//line tile_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line tile_demo.vuka.html:9
 func (t TileDemo) View() ui.Node {
 	value := ui.TileGrid(
 		ui.Tile{Label: "Revenue", Value: 45231, Icon: "trending-up", Variant: ui.Success},
@@ -21,7 +23,7 @@ func (t TileDemo) View() ui.Node {
 		ui.Tile{Label: "Refunds", Value: 12, Icon: "x", Variant: ui.Danger},
 	)
 //line tile_demo.vuka.html:9
-	return ui.HTML(`<div>{value}</div>`, value)
+	return ui.HTML(`<div {t.Fallthrough.All()...}>{value}</div>`, t.Fallthrough.All(), value)
 }
 
 //line tile_demo.vuka.html:15

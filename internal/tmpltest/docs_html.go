@@ -16,6 +16,8 @@ import (
 //
 //line docs.vuka.html:13
 type Docs struct {
+//line docs.vuka.html:13
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
 	ui.Live
 	pet   uigen.Assign[DocPet]
 	post  uigen.Assign[DocPost]
@@ -65,7 +67,7 @@ func (c *Docs) Render() ui.Node {
 	value3 := ui.JS.Push(c.Pick, ui.Value(c.pet.Get().ID))
 //line docs.vuka.html:54
 	return ui.HTML(`
-<div>
+<div {c.Fallthrough.All()...}>
   <div>
     <button onClick={ui.JS.RemoveClass(ui.Ref("menu"), "hidden").Push(c.MenuOpened)}>Open</button>
     <ul ref="menu" class="hidden">…</ul>
@@ -276,6 +278,7 @@ func (c *Docs) Render() ui.Node {
     <input ref="seats"/>
   </div>
 </div>`,
+		c.Fallthrough.All(),
 		ui.JS.RemoveClass(ui.Ref("menu"), "hidden").Push(c.MenuOpened),
 		ui.JS.Toggle(ui.Ref("menu")),
 		ui.JS.AddClass(ui.Ref("menu"), "open", "shadow"),

@@ -11,17 +11,19 @@ import (
 )
 
 //line button_icon.vuka.html:6
-type ButtonIcon struct{}
+type ButtonIcon struct {
+//line button_icon.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line button_icon.vuka.html:9
 func (b ButtonIcon) View() ui.Node {
 	button := ui.Button{Variant: ui.Primary, Icon: ui.Icon("plus"), Children: ui.HTML(`New`)}
 //line button_icon.vuka.html:9
 	return ui.HTML(`
-<div class="flex flex-wrap items-center gap-2">
+<div {b.Fallthrough.Attrs()...} class="flex flex-wrap items-center gap-2{b.Fallthrough.Classes()}">
   {button}
   {ui.Button{IconOnly: true, Icon: ui.Icon("x"), Title: "Close"}}
-</div>`, button, ui.Button{IconOnly: true, Icon: ui.Icon("x"), Title: "Close"})
+</div>`, b.Fallthrough.Attrs(), b.Fallthrough.Classes(), button, ui.Button{IconOnly: true, Icon: ui.Icon("x"), Title: "Close"})
 }
 
 //line button_icon.vuka.html:12

@@ -11,16 +11,18 @@ import (
 )
 
 //line checkbox_demo.vuka.html:6
-type CheckboxDemo struct{}
+type CheckboxDemo struct {
+//line checkbox_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line checkbox_demo.vuka.html:9
 func (c CheckboxDemo) View() ui.Node {
 //line checkbox_demo.vuka.html:9
 	return ui.HTML(`
-<div class="grid gap-2">
+<div {c.Fallthrough.Attrs()...} class="grid gap-2{c.Fallthrough.Classes()}">
   {ui.Checkbox{Name: "terms", Label: "Accept terms and conditions", Value: "true"}}
   {ui.Checkbox{Name: "news", Label: "Send me news", Disabled: true}}
-</div>`, ui.Checkbox{Name: "terms", Label: "Accept terms and conditions", Value: "true"}, ui.Checkbox{Name: "news", Label: "Send me news", Disabled: true})
+</div>`, c.Fallthrough.Attrs(), c.Fallthrough.Classes(), ui.Checkbox{Name: "terms", Label: "Accept terms and conditions", Value: "true"}, ui.Checkbox{Name: "news", Label: "Send me news", Disabled: true})
 }
 
 //line checkbox_demo.vuka.html:12

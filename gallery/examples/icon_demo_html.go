@@ -11,18 +11,27 @@ import (
 )
 
 //line icon_demo.vuka.html:6
-type IconDemo struct{}
+type IconDemo struct {
+//line icon_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
-//line icon_demo.vuka.html:9
 func (i IconDemo) View() ui.Node {
 //line icon_demo.vuka.html:9
 	return ui.HTML(`
-<div class="flex flex-wrap items-center gap-2">
+<div {i.Fallthrough.Attrs()...} class="flex flex-wrap items-center gap-2{i.Fallthrough.Classes()}">
   {ui.Icon("check")}
   {ui.Icon("search")}
   {ui.Icon("plus")}
   {ui.Icon("x")}
-</div>`, ui.Icon("check"), ui.Icon("search"), ui.Icon("plus"), ui.Icon("x"))
+</div>`,
+		i.Fallthrough.Attrs(),
+		i.Fallthrough.Classes(),
+		ui.Icon("check"),
+		ui.Icon("search"),
+		ui.Icon("plus"),
+		ui.Icon("x"),
+	)
 }
 
 //line icon_demo.vuka.html:14

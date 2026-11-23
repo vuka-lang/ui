@@ -20,6 +20,8 @@ import (
 //
 //line toast_container.vuka.html:13
 type ToastContainer struct {
+//line toast_container.vuka.html:13
+	Fallthrough Fallthrough `vuka:"forward=<Teleport>" json:"-"`
 	// Ref names the region for ShowToast to reveal a toast inside it; the
 	// default is "toasts".
 	Ref string

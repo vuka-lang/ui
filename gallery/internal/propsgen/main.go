@@ -99,6 +99,9 @@ func main() {
 				}
 				var tb bytes.Buffer
 				printer.Fprint(&tb, fset, f.Type)
+				if t := tb.String(); t == "Fallthrough" || t == "ui.Fallthrough" {
+					continue // what a caller writes that no prop claims: no prop itself
+				}
 				doc := cleanDoc(f.Doc.Text())
 				for _, n := range f.Names {
 					if !n.IsExported() {

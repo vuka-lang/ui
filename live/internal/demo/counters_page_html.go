@@ -15,7 +15,9 @@ import (
 //
 //line counters_page.vuka.html:7
 type CountersPage struct {
-	N int
+//line counters_page.vuka.html:7
+	Fallthrough ui.Fallthrough `vuka:"forward=main" json:"-"`
+	N           int
 }
 
 //line counters_page.vuka.html:12
@@ -26,7 +28,7 @@ func (co CountersPage) View() ui.Node {
 		counters = append(counters, ui.Key(i, &Counter{Label: "c" + strconv.Itoa(i)}))
 	}
 //line counters_page.vuka.html:12
-	return ui.HTML(`<main>{counters}</main>`, counters)
+	return ui.HTML(`<main {co.Fallthrough.All()...}>{counters}</main>`, co.Fallthrough.All(), counters)
 }
 
 //line counters_page.vuka.html:16

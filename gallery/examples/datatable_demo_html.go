@@ -11,8 +11,12 @@ import (
 )
 
 //line datatable_demo.vuka.html:6
-type DataTableDemo struct{}
+type DataTableDemo struct {
+//line datatable_demo.vuka.html:6
+	Fallthrough ui.Fallthrough `vuka:"forward=div" json:"-"`
+}
 
+//line datatable_demo.vuka.html:8
 type payment struct {
 	Email  string
 	Amount string
@@ -30,7 +34,7 @@ func (DataTableDemo) columns() []ui.Column[payment] {
 //line datatable_demo.vuka.html:23
 func (d DataTableDemo) View() ui.Node {
 //line datatable_demo.vuka.html:23
-	return ui.HTML(`<div>{ui.DataTable[payment]{Columns: d.columns(), Page: ui.NewPage(payments, 30, 1, 10), Toolbar: ui.Button{Size: ui.SizeSm, Children: ui.Text("Export")}}}</div>`, ui.DataTable[payment]{Columns: d.columns(), Page: ui.NewPage(payments, 30, 1, 10), Toolbar: ui.Button{Size: ui.SizeSm, Children: ui.Text("Export")}})
+	return ui.HTML(`<div {d.Fallthrough.All()...}>{ui.DataTable[payment]{Columns: d.columns(), Page: ui.NewPage(payments, 30, 1, 10), Toolbar: ui.Button{Size: ui.SizeSm, Children: ui.Text("Export")}}}</div>`, d.Fallthrough.All(), ui.DataTable[payment]{Columns: d.columns(), Page: ui.NewPage(payments, 30, 1, 10), Toolbar: ui.Button{Size: ui.SizeSm, Children: ui.Text("Export")}})
 }
 
 //line datatable_demo.vuka.html:25
