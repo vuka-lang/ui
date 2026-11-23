@@ -3,6 +3,7 @@ package live
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"hash/fnv"
 	"strconv"
 	"strings"
 
@@ -271,4 +272,12 @@ func (d *keyDups) end(s *Session) {
 		d.gen++
 		s.again = true
 	}
+}
+
+// keysHash is the keys around a tag (scope.keys) as a short name, valid in
+// an id and a CSS selector whatever the keys hold.
+func keysHash(keys string) string {
+	h := fnv.New64a()
+	h.Write([]byte(keys))
+	return "k" + strconv.FormatUint(h.Sum64()&0xffffffffffff, 36)
 }

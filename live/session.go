@@ -1207,6 +1207,23 @@ func (sc *scope) StateKey(_ context.Context, site string) string {
 	return sc.in.id + ":" + site + ":" + strconv.Itoa(sc.in.occ[occ])
 }
 
+// AutoID names a ui.AutoID the instance renders (ui.NewAutoID): its id,
+// the keys around the tag, the tag's site and how many of the site's ids it
+// rendered before under those keys in this render — the place of the tag, as
+// an instance's is (place), never a count of the page's ids. Like a state's
+// key it is an effect, so a ui.Guard never keeps the part rendering it: a
+// later id of the same site would take its number.
+func (sc *scope) AutoID(_ context.Context, site string) string {
+	sc.in.effects++
+	occ := "\x00id " + sc.keys + site
+	sc.in.occ[occ]++
+	id := "vk-" + strings.ReplaceAll(sc.in.id, ".", "_") + "-" + site
+	if sc.keys != "" {
+		id += "-" + keysHash(sc.keys)
+	}
+	return id + "-" + strconv.Itoa(sc.in.occ[occ])
+}
+
 // LazyKey names a lazy region the instance renders: the keys around it and
 // how many it rendered before under them in this render.
 func (sc *scope) LazyKey(context.Context) string {
@@ -1337,6 +1354,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 			return nil, err
 		}
 		in = &instance{s: s, id: s.idp + "c" + strconv.Itoa(s.next), typ: typ, comp: ui.CopyLive(n.Props), children: map[string]*instance{}, fresh: true, at: at}
+		ui.FillAutoIDs(in.comp, in.id)
 		ui.AttachLive(in.comp, in)
 		in.trackMethods(n.Props)
 		s.fillURL(in, n)
@@ -1377,6 +1395,7 @@ func (sc *scope) place(n *ui.ComponentNode) (*instance, error) {
 	default:
 		same = sameProps(in.comp, n.Props) && !in.called.Load()
 		copyProps(in.comp, n.Props)
+		ui.FillAutoIDs(in.comp, in.id)
 		in.trackMethods(n.Props)
 		if upd {
 			_, err := callUpdate(s.ctx, in.comp, msg)

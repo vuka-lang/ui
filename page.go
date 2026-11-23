@@ -42,6 +42,7 @@ func RenderPage(ctx context.Context, n Node, w io.Writer) (info PageInfo, err er
 type pageProbe struct {
 	info    PageInfo
 	states  map[string]int
+	ids     map[string]int     // the AutoIDs it named, by site (autoid.go)
 	forms   map[string]uintptr // the forms it met, by identity (ClaimForm)
 	regions regionScope        // the page's lazy regions outside any (lazyregion.go)
 	want    string             // RenderRegion's: the region it renders
