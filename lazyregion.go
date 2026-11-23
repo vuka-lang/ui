@@ -53,7 +53,11 @@ type LazyProps struct {
 // render with no runtime to ask for it — ui.String, a static page — and a
 // region in a stream row render the content at once. An error rendering the
 // content shows in the region, not as the page's.
-func Lazy(p LazyProps) Node {
+func Lazy(p LazyProps) Node { return lazy(p, nil) }
+
+// lazy is Lazy, with shown run in the browser each time the region asks
+// for its content (its vkinit, before the push): a live host's only.
+func lazy(p LazyProps, shown []Attr) Node {
 	return ctxNode(func(ctx context.Context) Node {
 		open, bind, err := whenOf("Lazy", p.When)
 		if err != nil {
@@ -104,12 +108,12 @@ func Lazy(p LazyProps) Node {
 			if open && !p.Seen {
 				h.ShowLazy(key)
 			}
-			shown := On(InitHandler(func(context.Context) error { h.ShowLazy(key); return nil }))
+			ask := append([]Attr{{"onVkInit", On(InitHandler(func(context.Context) error { h.ShowLazy(key); return nil }))}}, shown...)
 			if !h.LazyShown(key) {
-				return waiting(Attr{"onVkInit", shown})
+				return waiting(ask...)
 			}
 			if p.Each {
-				attrs = append(attrs, Attr{"onVkInit", shown})
+				attrs = append(attrs, ask...)
 			}
 		}
 		return El("vk-lazy", attrs, lazyContent(p.Children))

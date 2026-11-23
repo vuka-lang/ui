@@ -145,6 +145,7 @@
 
 /* Modal */
 .vk-modal-root{position:fixed;inset:0;z-index:var(--ui-z-overlay);display:flex;align-items:center;justify-content:center;padding:calc(var(--ui-space) * 4)}
+.vk-modal-root[hidden]{display:none}
 .vk-modal-backdrop{position:absolute;inset:0;background:var(--ui-overlay)}
 .vk-modal{position:relative;z-index:1;display:flex;flex-direction:column;width:100%;max-width:32rem;max-height:calc(100vh - 2rem);
   overflow:auto;background:var(--ui-bg);color:var(--ui-fg);border:var(--ui-border-width) solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:var(--ui-shadow)}
