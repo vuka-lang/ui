@@ -201,9 +201,15 @@ page's event: `Wide/tiles=500/props` costs 6.9× `own` (1.06 ms against
 0.15 ms) with the same 3 renders, and `place`'s own reflection and string work
 is ~46% of `Table/rows=1000/event-plain`.
 
-TODO(a1): ActionMenu's `Ctx` (`actionmenu_html.go:86`) makes its row
-contextual — profile: `ui.ResolveContext ← ActionMenu.View.func1`, 1002
-renders/op against 3.
+DONE(a1): ActionMenu's `Ctx` made its row contextual — profile:
+`ui.ResolveContext ← ActionMenu.View.func1`, 1002 renders/op against 3.
+Fixed by classifying context reads: a Ctx build sees a context that reports
+what it reads, and a read of a key only a node of the same render sets (a
+`renderLocal` key: the menu an ActionMenu closes) leaves the instance
+keepable. `Table/rows=1000/event` is now 3 renders/op, 2.53 ms against
+2.50 ms `event-plain`; rows=100 0.26 ms against 0.24 ms. DataTable's URL
+read and the form elements' locale/config/form-host reads come from the
+request or the page, so they still mark their instance (see (a) item 1).
 TODO(a2): `place`'s per-child cost with the render skipped — profile:
 `copyProps 15.2%, sameProps 13.2%, concatstrings 9.6%, FillAutoIDs 5.1%,
 trackMethods 4.9%` of `Table/rows=1000/event-plain`.
