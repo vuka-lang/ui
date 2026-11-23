@@ -55,7 +55,7 @@ func TestCSSColoursUseTokens(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() && (d.Name() == ".git" || d.Name() == "node_modules") {
+		if d.IsDir() && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == ".claude") {
 			return filepath.SkipDir
 		}
 		if !d.IsDir() && strings.HasSuffix(path, ".css") {
