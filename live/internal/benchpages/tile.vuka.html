@@ -1,0 +1,28 @@
+<script lang="go">
+package benchpages
+
+import "github.com/vuka-lang/ui/v2"
+
+// Tile is one of a grid's small components: its count is a prop, its
+// button calls back into the page. Tags is a slice prop, nil unless the
+// page passes it.
+type Tile struct {
+	ui.Live
+	Index  int
+	Label  string
+	Count  int
+	Tags   []string
+	OnBump func(i int)
+}
+
+func (t *Tile) Bump() { t.OnBump(t.Index) }
+</script>
+
+<div class="tile">
+  <span class="label">{Label}</span>
+  <b class="count">{Count}</b>
+  for _, tag := range Tags {
+    <i key={tag} class="tag">{tag}</i>
+  }
+  <button type="button" onClick={Bump}>+</button>
+</div>
