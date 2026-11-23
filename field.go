@@ -8,9 +8,10 @@ import (
 // Option is one choice of a Select.
 type Option struct {
 	Value, Label string
-	// Group puts the option under an <optgroup> of that label in a
-	// <select model={…}> showing a field's choices: consecutive options of
-	// one Group share it.
+	// Group puts the option under an <optgroup> of that label: in a
+	// <select model={…}> showing a field's choices, and in the []Option a
+	// method loading a select's options returns (ui.JS Options);
+	// consecutive options of one Group share it.
 	Group string
 }
 

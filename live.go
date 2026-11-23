@@ -173,6 +173,11 @@ func (l *Live) holdFor(group string, d time.Duration) {
 //
 // Experimental: kept pending a comparison with automatic shared HTML, and may
 // be removed.
+//
+// Deprecated: embed Live, Subscribe to a topic in the mount hook and send
+// the change with web.Broadcast: every page showing the component takes
+// it, and the live runtime stores a render tree identical across pages
+// once per process. SharedLive keeps working until it is removed.
 type SharedLive struct{ Live }
 
 func (*SharedLive) vukaShared() {}
@@ -233,7 +238,8 @@ func Component(site string, key any, props Stateful) Node {
 
 // Key is a stateful component with a key, as a key attribute on its tag is:
 // the instances in one place are told apart by their keys, unkeyed ones by
-// their order.
+// their order. Its key is part of the component's live ids; Keyed scopes
+// the components of any Node with a key the page doesn't show.
 //
 //	ui.Each(items, func(it Item) ui.Node { return ui.Key(it.ID, &Counter{Label: it.Name}) })
 func Key(key any, c Stateful) Node { return &ComponentNode{Key: key, Props: c} }

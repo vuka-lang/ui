@@ -29,11 +29,17 @@ func (s shop) Sizes(n int, gift bool) []ui.OptionGroup {
 	return []ui.OptionGroup{{Label: "Small", Options: []ui.Option{{Value: "s", Label: "S"}}}, {Label: map[bool]string{true: "Gift", false: "Plain"}[gift]}}
 }
 
+// Towns groups its options by their Group, the one way to group them.
+func (s shop) Towns(region string) []ui.Option {
+	return []ui.Option{{Value: "a", Label: "A", Group: region}, {Value: "b", Label: "B", Group: region}, {Value: "c", Label: "C"}, {Value: "d", Label: "D", Group: "Far"}}
+}
+
 func (s *shop) Plain() string { return "" }
 
 func init() {
 	ui.RegisterOptions((*shop).CitiesOf)
 	ui.RegisterOptions(shop.Sizes)
+	ui.RegisterOptions(shop.Towns)
 }
 
 type keyHost struct{ key []byte }
@@ -143,6 +149,23 @@ func TestJSOptions(t *testing.T) {
 	j, _ = json.Marshal(out)
 	if err != nil || string(j) != `{"options":[{"group":"Small","options":[{"value":"s","label":"S"}]},{"group":"Gift"}]}` {
 		t.Errorf("groups: %s, %v", j, err)
+	}
+	tb, err := ui.EncodeJS(ctx, ui.JS.On(ui.Ref("town")).Options(s.Towns, ui.Sel("#region").Value()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tops [][]json.RawMessage
+	json.Unmarshal(tb, &tops)
+	var ta struct{ M string }
+	json.Unmarshal(tops[0][1], &ta)
+	tcall, err := ui.ParseOptionsCall(ctx, ta.M, `["North"]`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tout, err := tcall.Call(ctx, reflect.ValueOf(&shop{}))
+	tj, _ := json.Marshal(tout)
+	if want := `{"options":[{"group":"North","options":[{"value":"a","label":"A"},{"value":"b","label":"B"}]},{"value":"c","label":"C"},{"group":"Far","options":[{"value":"d","label":"D"}]}]}`; err != nil || string(tj) != want {
+		t.Errorf("options grouped by Group: %s, %v", tj, err)
 	}
 	call, _ = ui.ParseOptionsCall(ctx, a.M, `["three", true]`)
 	if _, err := call.Call(ctx, reflect.ValueOf(&shop{})); err == nil || !strings.Contains(err.Error(), `can't take "three" as a int`) {

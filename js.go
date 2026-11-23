@@ -952,8 +952,8 @@ func (c Commands) Exec(target Target, attr string) Commands {
 // KeepOnError) may go anywhere among args.
 //
 // What the handler returns besides an error goes Into a target — the
-// element itself unless Into names another: []Option or []OptionGroup
-// replace a select's options; a Node its content (Append, Prepend add
+// element itself unless Into names another: []Option (grouped by each
+// option's Group) replace a select's options; a Node its content (Append, Prepend add
 // instead); a string, number, bool or time.Time a field's value, or
 // another element's text; a struct fills the controls of its fields' names
 // inside the target; Commands run. On a live page, what a push put in a
@@ -1141,8 +1141,8 @@ func (c Commands) withPush(step string, f func(*push)) Commands {
 //
 //	func (p *Checkout) CitiesOf(ctx context.Context, country string, geo *Geo) ([]ui.Option, error)
 //
-// The method returns []Option, or []OptionGroup for <optgroup>s, and maybe
-// an error. The reply replaces target's options — a leading option whose
+// The method returns []Option — an option's Group puts it in an
+// <optgroup> — and maybe an error. The reply replaces target's options — a leading option whose
 // value is "" (a placeholder) stays — and keeps the value if it is still
 // offered, else clears it; then target fires change, so a select loading
 // another's options from its own chains on. A failure (the method's error,

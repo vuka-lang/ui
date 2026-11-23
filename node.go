@@ -110,7 +110,11 @@ type TryNode struct {
 }
 
 // Boundary renders Children or, when one of them fails, Fallback(err) in place
-// of everything they produced.
+// of everything they produced: the node ErrorBoundary builds.
+//
+// Deprecated: use ErrorBoundary(fallback, children...), the one way to
+// write a boundary; a Renderer never sees this node (Walk replays or
+// replaces it).
 type Boundary struct {
 	Fallback func(err error) Node
 	Children []Node
@@ -190,7 +194,8 @@ type ctxNode func(context.Context) Node
 
 // Keyed renders n with key scoping the stateful components in it, as an
 // element's key attribute scopes those inside the element, and adds no
-// markup: on a live page, a component in n keeps its instance across renders
+// markup — any Node, where Key keys one stateful component (the key a
+// tag's key attribute gives it, and its live ids show): on a live page, a component in n keeps its instance across renders
 // while key is the same, and mounts afresh when key changes, though its tag
 // is in the same place. The handlers in n are named by it too, as those inside
 // a keyed element are.
