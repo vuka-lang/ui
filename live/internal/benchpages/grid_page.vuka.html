@@ -1,0 +1,47 @@
+<script lang="go">
+package benchpages
+
+import (
+	"context"
+
+	"github.com/vuka-lang/ui/v2"
+)
+
+// GridPage is M small components. Mode picks where a tile's count lives:
+// "own" in the tile (OwnTile), "props" in the page, passed as a prop, and
+// "slice" the same with a slice prop (Tags) every tile is passed too.
+type GridPage struct {
+	ui.Live
+	M      int
+	Mode   string
+	counts []int
+	tags   []string
+}
+
+@ui.Mount
+func (p *GridPage) mount(ctx context.Context) error {
+	p.counts = make([]int, p.M)
+	p.tags = []string{"new", "hot"}
+	return nil
+}
+
+func (p *GridPage) Bump(i int) { p.counts[i]++ }
+
+func (p *GridPage) tagsFor() []string {
+	if p.Mode == "slice" {
+		return p.tags
+	}
+	return nil
+}
+</script>
+
+<section class="grid">
+  <h2>{M} tiles</h2>
+  for i, c := range counts {
+    if Mode == "own" {
+      <OwnTile key={i} label={"tile " + itoa(i)}/>
+    } else {
+      <Tile key={i} index={i} label={"tile " + itoa(i)} count={c} tags={tagsFor()} onBump={Bump}/>
+    }
+  }
+</section>

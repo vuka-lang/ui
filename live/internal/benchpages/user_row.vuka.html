@@ -1,0 +1,40 @@
+<script lang="go">
+package benchpages
+
+import "github.com/vuka-lang/ui/v2"
+
+// UserRow is one row of the users table: a few props, a role badge and an
+// actions menu whose items call back into the page.
+type UserRow struct {
+	ui.Live
+	ID        int
+	Name      string
+	Email     string
+	Role      string
+	OnPromote func(id int)
+	OnRemove  func(id int)
+}
+
+func (r *UserRow) Promote() { r.OnPromote(r.ID) }
+
+func (r *UserRow) Remove() { r.OnRemove(r.ID) }
+
+func (r *UserRow) menu() string { return "menu-" + itoa(r.ID) }
+</script>
+
+<tr class="row">
+  <td class="num">{ID}</td>
+  <td class="name"><a href={"/users/" + itoa(ID)}>{Name}</a></td>
+  <td class="email">{Email}</td>
+  <td class="role"><ui.Badge variant={ui.Variant(variantOf(Role))} soft>{Role}</ui.Badge></td>
+  <td class="actions">
+    <div class="vk-menu">
+      <button type="button" class="vk-menu__trigger" aria-label="Actions" popovertarget={menu()}>…</button>
+      <div class="vk-menu__panel" id={menu()} popover role="menu">
+        <ui.ActionMenu icon="file-text" href={"/users/" + itoa(ID)}>View</ui.ActionMenu>
+        <ui.ActionMenu icon="caret-up" on={Promote}>Promote</ui.ActionMenu>
+        <ui.ActionMenu icon="trash" danger on={Remove}>Remove</ui.ActionMenu>
+      </div>
+    </div>
+  </td>
+</tr>

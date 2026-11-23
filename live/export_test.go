@@ -190,3 +190,15 @@ func CheckStore(st *Store, ss ...*Session) error {
 	}
 	return nil
 }
+
+// Renders is how many times the session's instances ran Render (the page's
+// own render function included) since they mounted: what a benchmark
+// divides by its events for the renders each one executed.
+func Renders(s *Session) (n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, in := range s.byID {
+		n += in.renders
+	}
+	return n
+}

@@ -1,0 +1,40 @@
+<script lang="go">
+package benchpages
+
+import "github.com/vuka-lang/ui/v2"
+
+// PlainUserRow is UserRow with its menu's items as plain buttons instead
+// of ui.ActionMenu, which reads its menu from the render's context.
+type PlainUserRow struct {
+	ui.Live
+	ID        int
+	Name      string
+	Email     string
+	Role      string
+	OnPromote func(id int)
+	OnRemove  func(id int)
+}
+
+func (r *PlainUserRow) Promote() { r.OnPromote(r.ID) }
+
+func (r *PlainUserRow) Remove() { r.OnRemove(r.ID) }
+
+func (r *PlainUserRow) menu() string { return "menu-" + itoa(r.ID) }
+</script>
+
+<tr class="row">
+  <td class="num">{ID}</td>
+  <td class="name"><a href={"/users/" + itoa(ID)}>{Name}</a></td>
+  <td class="email">{Email}</td>
+  <td class="role"><ui.Badge variant={ui.Variant(variantOf(Role))} soft>{Role}</ui.Badge></td>
+  <td class="actions">
+    <div class="vk-menu">
+      <button type="button" class="vk-menu__trigger" aria-label="Actions" popovertarget={menu()}>…</button>
+      <div class="vk-menu__panel" id={menu()} popover role="menu">
+        <a class="vk-menu__item" role="menuitem" href={"/users/" + itoa(ID)}>View</a>
+        <button type="button" class="vk-menu__item" role="menuitem" onClick={Promote}>Promote</button>
+        <button type="button" class="vk-menu__item vk-menu__item--danger" role="menuitem" onClick={Remove}>Remove</button>
+      </div>
+    </div>
+  </td>
+</tr>

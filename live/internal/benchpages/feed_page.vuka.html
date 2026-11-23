@@ -1,0 +1,47 @@
+<script lang="go">
+package benchpages
+
+import (
+	"context"
+
+	"github.com/vuka-lang/ui/v2"
+)
+
+// FeedPage is the users table, of PlainUserRows, subscribed to "users": a
+// RoleChanged broadcast changes one row.
+type FeedPage struct {
+	ui.Live
+	N    int
+	rows []User
+}
+
+@ui.Mount
+func (p *FeedPage) mount(ctx context.Context) error {
+	p.rows = Users(p.N)
+	p.Subscribe("users")
+	return nil
+}
+
+func (p *FeedPage) Update(m RoleChanged) {
+	for i := range p.rows {
+		if p.rows[i].ID == m.ID {
+			p.rows[i].Role = m.Role
+		}
+	}
+}
+
+func (p *FeedPage) Promote(id int) {}
+
+func (p *FeedPage) Remove(id int) {}
+</script>
+
+<main class="content">
+  <h1>Users</h1>
+  <table class="table">
+    <tbody>
+      for _, u := range rows {
+        <PlainUserRow key={u.ID} id={u.ID} name={u.Name} email={u.Email} role={u.Role} onPromote={Promote} onRemove={Remove}/>
+      }
+    </tbody>
+  </table>
+</main>

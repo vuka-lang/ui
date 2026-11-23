@@ -1,0 +1,21 @@
+<script lang="go">
+package benchpages
+
+import "github.com/vuka-lang/ui/v2"
+
+// OwnTile is Tile keeping its count in its own state: its event renders it
+// alone.
+type OwnTile struct {
+	ui.Live
+	Label string
+	n     int
+}
+
+func (t *OwnTile) Bump() { t.n++ }
+</script>
+
+<div class="tile">
+  <span class="label">{Label}</span>
+  <b class="count">{n}</b>
+  <button type="button" onClick={Bump}>+</button>
+</div>

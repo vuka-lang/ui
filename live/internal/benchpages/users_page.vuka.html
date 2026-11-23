@@ -1,0 +1,64 @@
+<script lang="go">
+package benchpages
+
+import (
+	"context"
+
+	"github.com/vuka-lang/ui/v2"
+)
+
+// UsersPage is a table of N users, each row a UserRow keyed by its id; a
+// row's Promote changes that row's role, in the page's state. Plain rows
+// are PlainUserRows.
+type UsersPage struct {
+	ui.Live
+	N     int
+	Plain bool
+	rows  []User
+}
+
+@ui.Mount
+func (p *UsersPage) mount(ctx context.Context) error {
+	p.rows = Users(p.N)
+	return nil
+}
+
+func (p *UsersPage) Promote(id int) {
+	for i := range p.rows {
+		if p.rows[i].ID == id {
+			p.rows[i].Role = NextRole(p.rows[i].Role)
+			return
+		}
+	}
+}
+
+func (p *UsersPage) Remove(id int) {
+	for i := range p.rows {
+		if p.rows[i].ID == id {
+			p.rows = append(p.rows[:i:i], p.rows[i+1:]...)
+			return
+		}
+	}
+}
+</script>
+
+<main class="content">
+  <header class="page-header">
+    <h1>Users</h1>
+    <p class="muted">{len(rows)} users</p>
+  </header>
+  <table class="table">
+    <thead>
+      <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th></th></tr>
+    </thead>
+    <tbody>
+      for _, u := range rows {
+        if Plain {
+          <PlainUserRow key={u.ID} id={u.ID} name={u.Name} email={u.Email} role={u.Role} onPromote={Promote} onRemove={Remove}/>
+        } else {
+          <UserRow key={u.ID} id={u.ID} name={u.Name} email={u.Email} role={u.Role} onPromote={Promote} onRemove={Remove}/>
+        }
+      }
+    </tbody>
+  </table>
+</main>
