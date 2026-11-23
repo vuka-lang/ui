@@ -391,6 +391,11 @@ func attrValue(ctx context.Context, tag, name string, v any) (string, uint8, err
 		default:
 			return v, attrEscaped, nil
 		}
+	case AutoID:
+		if v == "" {
+			return "", attrOmit, nil // set by no tag: no id to name
+		}
+		return string(v), attrEscaped, nil
 	case templ.ComponentScript: // a Node too
 		return v.Call, attrRaw, nil
 	case Node:

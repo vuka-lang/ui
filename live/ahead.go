@@ -185,6 +185,7 @@ func (in *instance) takeProps(n *ui.ComponentNode, adopting bool) {
 	case ui.IsIsland(in.typ):
 	default:
 		copyProps(in.comp, n.Props)
+		ui.FillAutoIDs(in.comp, in.id)
 	}
 	in.trackMethods(n.Props)
 }

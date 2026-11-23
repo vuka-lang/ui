@@ -173,6 +173,9 @@ func sameProps(to, from ui.Stateful) bool {
 		if f.Type.Kind() == reflect.Func && len(mfrom) > 0 && sameMethod(mto, mfrom, f.Name) {
 			continue
 		}
+		if ui.IsAutoID(f.Type) && src.Field(i).String() == "" {
+			continue // the instance's own id (ui.FillAutoIDs)
+		}
 		if !sameValue(dst.Field(i), src.Field(i)) {
 			return false
 		}

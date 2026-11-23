@@ -264,6 +264,7 @@ func (n *ComponentNode) static(ctx context.Context) (Stateful, error) {
 	}
 	c := CopyLive(n.Props)
 	fillStatic(ctx, c, n.Props, n.URLKey)
+	FillAutoIDs(c, staticInstance())
 	if err := MountLive(ctx, c); err != nil {
 		return nil, err
 	}
